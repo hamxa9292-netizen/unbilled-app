@@ -113,6 +113,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <span style="font-size:21px">⚡</span>
   <h1>Unbilled Readings</h1>
   <span class="header-sub" id="worker-label" onclick="changeName()">👤 <span id="worker-name">Field Worker</span></span>
+  <button onclick="hardRefresh()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:6px;" id="refresh-btn">🔄</button>
 </div>
 <div class="sbar" id="sbar"></div>
 
@@ -536,6 +537,18 @@ function clearPhoto() {
   const inp = document.getElementById('photo-input'); if(inp) inp.value='';
   const pp = document.getElementById('photo-preview'); if(pp) pp.style.display='none';
   const pb = document.getElementById('photo-btn-wrap'); if(pb) pb.style.display='block';
+}
+
+async function hardRefresh() {
+  const btn = document.getElementById('refresh-btn');
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  localStorage.removeItem('unbilled_cache');
+  localStorage.removeItem('unbilled_cache_ts');
+  await loadAllAccounts(true);
+  btn.textContent = '🔄';
+  btn.disabled = false;
+  showStatus('Data refreshed ✓', 'synced');
 }
 
 function changeName() {
