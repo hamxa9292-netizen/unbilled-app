@@ -271,25 +271,16 @@ function showAreaScreen() { show('area'); }
 // ── Area selection ──
 let selectedAreaTemp = selectedArea;
 
-async function loadAreas() {
+function loadAreas() {
   const sel = document.getElementById('area-select');
-  const err = document.getElementById('area-err');
   sel.innerHTML = '<option value="all">All Areas</option>';
-  try {
-    const res = await fetch(API + '?action=areas');
-    const data = await res.json();
-    const areas = data.areas || [];
-    areas.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a; opt.textContent = 'Area ' + a;
-      if (String(a) === selectedArea) opt.selected = true;
-      sel.appendChild(opt);
-    });
-    if (selectedArea === 'all') sel.value = 'all';
-  } catch(e) {
-    err.textContent = 'Could not load areas. Check internet connection.';
-    err.style.display = 'block';
+  for (let i = 1; i <= 24; i++) {
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = 'Area ' + i;
+    if (String(i) === String(selectedArea)) opt.selected = true;
+    sel.appendChild(opt);
   }
+  if (selectedArea === 'all') sel.value = 'all';
 }
 
 async function loadSelectedArea() {
