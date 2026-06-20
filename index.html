@@ -439,7 +439,7 @@ async function saveReading() {
   // Update cache status
   const ci = allAccounts.findIndex(a => String(a.acno) === String(update.acno));
   if (ci >= 0) { allAccounts[ci].status = 'done'; allAccounts[ci].newDate = date; allAccounts[ci].newReading = reading; }
-  filtered = filtered.filter(a => String(a.acno) !== String(update.acno));
+  // Keep account in list but mark as updated
   localStorage.setItem(CACHE_KEY, JSON.stringify(allAccounts));
   document.getElementById('list-count').textContent = filtered.length + ' pending';
   updateDot();
