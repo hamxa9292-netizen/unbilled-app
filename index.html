@@ -334,17 +334,19 @@ async function loadAll(force) {
     allAccounts = data.accounts || [];
     localStorage.setItem(CK, JSON.stringify(allAccounts));
     localStorage.setItem(CT, Date.now()+'');
-    filtered = allAccounts.filter(a=>a.status==='pending');
+    filtered = allAccounts;
     renderList();
-    document.getElementById('lcount').textContent = filtered.length+' pending';
-    document.getElementById('ltitle').textContent = 'Unbilled Accounts';
+    const pendingCount = allAccounts.filter(a=>a.status==='pending').length;
+    document.getElementById('lcount').textContent = pendingCount+' pending / '+allAccounts.length+' total';
+    document.getElementById('ltitle').textContent = 'All Accounts';
   } catch(e) {
     const c = localStorage.getItem(CK);
     if (c) {
       allAccounts = JSON.parse(c);
-      filtered = allAccounts.filter(a=>a.status==='pending');
+      filtered = allAccounts;
       renderList();
-      document.getElementById('lcount').textContent = filtered.length+' (cached)';
+      const pc2 = allAccounts.filter(a=>a.status==='pending').length;
+      document.getElementById('lcount').textContent = pc2+' pending / '+allAccounts.length+' total (cached)';
       showBar('Showing cached data — tap 🔄 to refresh','offline');
     } else {
       el.innerHTML = `<div class="empty"><div style="font-size:44px;margin-bottom:10px">📡</div>
@@ -377,8 +379,9 @@ function renderList() {
   }
   el.innerHTML = slice.map(a => {
     const isUpdated = updatedSet.has(String(a.acno));
-    const cls = isUpdated ? 'updated' : '';
-    const tag = isUpdated ? '<span class="utag">✓ Updated</span>' : '';
+    const isDone = a.status === 'done';
+    const cls = (isUpdated || isDone) ? 'updated' : '';
+    const tag = isUpdated ? '<span class="utag">✓ Updated</span>' : (isDone ? '<span class="utag" style="background:#d1fae5;color:#065f46;">✓ Done</span>' : '');
     return `<div class="acard ${cls}" onclick="openAccount('${a.acno}')">
       <div class="ainfo">
         <div class="aacno">ACNO ${a.acno}${tag}</div>
@@ -397,9 +400,10 @@ function loadMore() { page++; renderList(); }
 function filterList(val) {
   page=1;
   if (!val) {
-    filtered = allAccounts.filter(a=>a.status==='pending');
-    document.getElementById('ltitle').textContent='Unbilled Accounts';
-    document.getElementById('lcount').textContent=filtered.length+' pending';
+    filtered = allAccounts;
+    document.getElementById('ltitle').textContent='All Accounts';
+    const pc3 = allAccounts.filter(a=>a.status==='pending').length;
+    document.getElementById('lcount').textContent=pc3+' pending / '+allAccounts.length+' total';
   } else {
     filtered = allAccounts.filter(a=>
       String(a.acno).includes(val)||
