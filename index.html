@@ -447,57 +447,71 @@ function fillDetail(d) {
   clearPhoto();
 }
 
-async function saveReading() {
+function saveReading() {
   const reading=document.getElementById('f-reading').value.trim();
   const date=document.getElementById('f-date').value;
   const remarks=document.getElementById('f-remarks').value.trim();
   const err=document.getElementById('serr');
-  const btn=document.getElementById('savebtn');
   err.style.display='none';
   if (!reading&&!remarks){err.textContent='Please enter a reading or remarks.';err.style.display='block';return;}
+
   const update={
     action:'update',acno:currentAcct.acno,row:currentAcct.row,
     newReading:reading,newDate:date,remarks:remarks,
     worker:document.getElementById('wlabel').textContent,
     savedAt:new Date().toLocaleString(),synced:false
   };
+
+  // Save locally immediately
   pending.push(update);
   localStorage.setItem('ub_pending',JSON.stringify(pending));
   updatedSet.add(String(update.acno));
   updateDot();
+
+  // Update cache
   const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
   if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
   localStorage.setItem(CK,JSON.stringify(allAccounts));
-  btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
-  let msg='ACNO '+update.acno+' saved offline, will sync later.';
-  if (navigator.onLine) {
-    try {
-      const res=await fetch(API,{method:'POST',body:JSON.stringify(update)});
-      const data=await res.json();
-      if (data.success) {
-        pending[pending.length-1].synced=true;
-        localStorage.setItem('ub_pending',JSON.stringify(pending));
-        msg='ACNO '+update.acno+' synced to Google Sheets ✓';
-        // Upload photo if present
-        if (photoB64) {
-          try {
-            const pres = await fetch(API, {method:'POST', body:JSON.stringify({
-              action:'upload_photo', acno:update.acno,
-              date:update.newDate, photo:photoB64,
-              worker:update.worker
-            })});
-            const pdata = await pres.json();
-            if (pdata.success) msg += ' + Photo uploaded ✓';
-          } catch(pe) { msg += ' (Photo upload failed)'; }
-          photoB64=null;
-        }
-      }
-    } catch(e) {}
-  } else showBar('Offline — saved locally','offline');
-  btn.innerHTML='💾 Save Reading';btn.disabled=false;
-  document.getElementById('smsg').textContent=msg;
+
+  // Go back to list IMMEDIATELY — no waiting
   renderList();
-  show('success');
+  show('home');
+  switchNav('home');
+  showBar('ACNO '+update.acno+' saved — syncing in background...','syncing');
+
+  // Sync in background — user is already on list screen
+  const capturedPhotoB64 = photoB64;
+  photoB64 = null;
+  clearPhoto();
+
+  if (navigator.onLine) {
+    fetch(API, {method:'POST', body:JSON.stringify(update)})
+      .then(r=>r.json())
+      .then(data=>{
+        if (data.success) {
+          const i = pending.findIndex(p=>p.acno===update.acno&&p.savedAt===update.savedAt);
+          if (i>=0) pending[i].synced=true;
+          localStorage.setItem('ub_pending',JSON.stringify(pending));
+          updateDot();
+          showBar('ACNO '+update.acno+' synced ✓','ok');
+          // Upload photo in background
+          if (capturedPhotoB64) {
+            fetch(API, {method:'POST', body:JSON.stringify({
+              action:'upload_photo', acno:update.acno,
+              date:update.newDate, photo:capturedPhotoB64,
+              worker:update.worker
+            })}).then(pr=>pr.json()).then(pd=>{
+              if(pd.success) showBar('Photo uploaded ✓','ok');
+            }).catch(()=>{});
+          }
+        }
+      })
+      .catch(()=>{
+        showBar('Saved locally — will sync when connected','offline');
+      });
+  } else {
+    showBar('Offline — will sync when connected','offline');
+  }
 }
 
 async function syncAll() {
