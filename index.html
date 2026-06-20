@@ -118,7 +118,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="area-sub">Choose an area to load its accounts</div>
       <div class="field" style="margin-bottom:16px;">
         <label>Area</label>
-        <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\'><path d=\'M0 0l6 8 6-8z\' fill=\'%236b7280\'/></svg>');background-repeat:no-repeat;background-position:right 14px center;">
+        <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;">
           <option value="all">All Areas</option>
         </select>
       </div>
@@ -585,22 +585,11 @@ const wn=localStorage.getItem('wname');
 if(wn)document.getElementById('wlabel').textContent=wn;
 else{const n=prompt('Enter your name:')||'Field Worker';localStorage.setItem('wname',n);document.getElementById('wlabel').textContent=n;}
 
-// Set area chip
 document.getElementById('area-chip').textContent = selectedArea==='all'?'Area: All':'Area: '+selectedArea;
 updateDot();
-
-// Start: load areas first, then if area already selected go to home
-const cachedAccounts = localStorage.getItem(CK);
-if (cachedAccounts && selectedArea) {
-  allAccounts = JSON.parse(cachedAccounts);
-  filtered = allAccounts.filter(a=>a.status==='pending');
-  renderList();
-  document.getElementById('lcount').textContent = filtered.length+' pending';
-  show('home'); switchNav('home');
-  bgRefresh();
-} else {
-  loadAreas();
-}
+// Always show area screen first so user can confirm/change area
+loadAreas();
+show('area');
 </script>
 </body>
 </html>
