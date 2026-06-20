@@ -28,16 +28,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .area-screen{padding:20px 16px;}
 .area-title{font-size:18px;font-weight:700;color:#1F4E79;margin-bottom:6px;}
 .area-sub{font-size:14px;color:#6b7280;margin-bottom:20px;}
-.area-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.area-btn{background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:16px 12px;text-align:center;cursor:pointer;font-family:inherit;transition:all .15s;}
-.area-btn:active{opacity:.8;}
-.area-btn.selected{border-color:#1F4E79;background:#EBF3FB;}
-.area-btn .anum{font-size:24px;font-weight:800;color:#1F4E79;}
-.area-btn .albl{font-size:12px;color:#6b7280;margin-top:2px;}
-.area-btn.all-btn{grid-column:1/-1;background:#1F4E79;border-color:#1F4E79;}
-.area-btn.all-btn .anum{color:#fff;font-size:18px;}
-.area-btn.all-btn .albl{color:rgba(255,255,255,.8);}
-.area-load{background:#1E7145;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;width:100%;margin-top:16px;cursor:pointer;font-family:inherit;display:none;}
+.area-load{background:#1E7145;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;width:100%;cursor:pointer;font-family:inherit;}
 
 /* Search + list */
 .topbar{background:#1F4E79;padding:0 12px 12px;position:sticky;top:46px;z-index:99;}
@@ -125,12 +116,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="area-screen">
       <div class="area-title">Select Area</div>
       <div class="area-sub">Choose an area to load its accounts</div>
-      <div class="area-grid" id="area-grid">
-        <div class="loading">⏳ Loading areas...</div>
+      <div class="field" style="margin-bottom:16px;">
+        <label>Area</label>
+        <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\'><path d=\'M0 0l6 8 6-8z\' fill=\'%236b7280\'/></svg>');background-repeat:no-repeat;background-position:right 14px center;">
+          <option value="all">All Areas</option>
+        </select>
       </div>
-      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()">
+      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()" style="display:block;background:#1E7145;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;width:100%;cursor:pointer;font-family:inherit;">
         Load Accounts →
       </button>
+      <div id="area-err" style="color:#b91c1c;font-size:13px;margin-top:10px;display:none;text-align:center;"></div>
     </div>
   </div>
 
@@ -277,35 +272,28 @@ function showAreaScreen() { show('area'); }
 let selectedAreaTemp = selectedArea;
 
 async function loadAreas() {
-  const grid = document.getElementById('area-grid');
+  const sel = document.getElementById('area-select');
+  const err = document.getElementById('area-err');
+  sel.innerHTML = '<option value="all">All Areas</option>';
   try {
     const res = await fetch(API + '?action=areas');
     const data = await res.json();
     const areas = data.areas || [];
-    grid.innerHTML = `
-      <div class="area-btn all-btn ${selectedAreaTemp==='all'?'selected':''}" onclick="selectArea('all',this)">
-        <div class="anum">ALL</div>
-        <div class="albl">All Areas</div>
-      </div>` +
-      areas.map(a => `
-        <div class="area-btn ${selectedAreaTemp===String(a)?'selected':''}" onclick="selectArea('${a}',this)">
-          <div class="anum">${a}</div>
-          <div class="albl">Area ${a}</div>
-        </div>`).join('');
-    document.getElementById('area-load-btn').style.display = 'block';
+    areas.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a; opt.textContent = 'Area ' + a;
+      if (String(a) === selectedArea) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    if (selectedArea === 'all') sel.value = 'all';
   } catch(e) {
-    grid.innerHTML = '<div style="color:#b91c1c;padding:16px;text-align:center">Could not load areas. Check connection.</div>';
+    err.textContent = 'Could not load areas. Check internet connection.';
+    err.style.display = 'block';
   }
 }
 
-function selectArea(area, el) {
-  document.querySelectorAll('.area-btn').forEach(b=>b.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedAreaTemp = area;
-}
-
 async function loadSelectedArea() {
-  selectedArea = selectedAreaTemp;
+  selectedArea = document.getElementById('area-select').value;
   localStorage.setItem('ub_area', selectedArea);
   const btn = document.getElementById('area-load-btn');
   btn.innerHTML = '<span class="spin"></span> Loading...';
