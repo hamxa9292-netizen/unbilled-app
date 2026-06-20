@@ -193,7 +193,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           </div>
         </div>
         <div class="errmsg" id="serr"></div>
-        <button class="btn btns" onclick="saveReading()" id="savebtn">💾 Save Reading</button>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button class="btn btns" onclick="saveReading(false)" id="savebtn" style="margin-bottom:0;flex:1;">💾 Save</button>
+          <button class="btn btnp" onclick="saveReading(true)" id="savenextbtn" style="margin-bottom:0;flex:1;">Save & Next →</button>
+        </div>
         <button class="btn btng" onclick="goBack()">Cancel</button>
       </div>
     </div>
@@ -453,7 +456,7 @@ function fillDetail(d) {
   }, 300);
 }
 
-function saveReading() {
+function saveReading(goNext) {
   const reading=document.getElementById('f-reading').value.trim();
   const date=document.getElementById('f-date').value;
   const remarks=document.getElementById('f-remarks').value.trim();
@@ -479,11 +482,23 @@ function saveReading() {
   if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
   localStorage.setItem(CK,JSON.stringify(allAccounts));
 
-  // Go back to list IMMEDIATELY — no waiting
+  // Find next pending account
+  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(update.acno));
+  const nextAcct = goNext ? filtered.find((a,i) => i > currentIdx && a.status !== 'done') : null;
+
   renderList();
-  show('home');
-  switchNav('home');
-  showBar('ACNO '+update.acno+' saved — syncing in background...','syncing');
+
+  if (goNext && nextAcct) {
+    // Open next account directly
+    currentAcct = nextAcct;
+    fillDetail(nextAcct);
+    show('detail');
+    showBar('ACNO '+update.acno+' saved — loading next account...','syncing');
+  } else {
+    show('home');
+    switchNav('home');
+    showBar('ACNO '+update.acno+' saved — syncing in background...','syncing');
+  }
 
   // Sync in background — user is already on list screen
   const capturedPhotoB64 = photoB64;
