@@ -273,16 +273,20 @@ async function loadAllAccounts(forceRefresh) {
       filtered = allAccounts.filter(a => a.status === 'pending');
       renderList();
       document.getElementById('list-count').textContent = filtered.length + ' pending';
-      // Refresh in background
       refreshInBackground();
       return;
     }
   }
 
-  el.innerHTML = '<div class="load-spinner">⏳ Loading accounts...</div>';
+  el.innerHTML = '<div class="load-spinner">⏳ Loading accounts...<br><span style="font-size:12px;color:#9ca3af">This may take 10-20 seconds on first load</span></div>';
+
+  // Timeout after 30 seconds
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const res = await fetch(API + '?action=all');
+    const res = await fetch(API + '?action=all', { signal: controller.signal });
+    clearTimeout(timeout);
     const data = await res.json();
     allAccounts = data.accounts || [];
     localStorage.setItem(CACHE_KEY, JSON.stringify(allAccounts));
@@ -292,12 +296,20 @@ async function loadAllAccounts(forceRefresh) {
     document.getElementById('list-count').textContent = filtered.length + ' pending';
     document.getElementById('list-title').textContent = 'Unbilled Accounts';
   } catch (e) {
-    el.innerHTML = '<div class="empty"><div class="empty-ico">📡</div><div>No connection. Showing cached data.</div></div>';
+    clearTimeout(timeout);
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       allAccounts = JSON.parse(cached);
       filtered = allAccounts.filter(a => a.status === 'pending');
       renderList();
+      document.getElementById('list-count').textContent = filtered.length + ' (cached)';
+      el.insertAdjacentHTML('beforebegin', '<div style="background:#fef3c7;color:#92400e;padding:8px 16px;font-size:12px;text-align:center;">Showing cached data — tap 🔄 to refresh</div>');
+    } else {
+      el.innerHTML = `<div class="empty">
+        <div class="empty-ico">📡</div>
+        <div style="margin-bottom:12px">Could not load accounts</div>
+        <button class="btn btn-p" onclick="loadAllAccounts(true)" style="width:auto;padding:10px 20px;">Try again</button>
+      </div>`;
     }
   }
 }
