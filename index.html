@@ -11,56 +11,48 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;}
 .app{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
-.header{background:#1F4E79;color:#fff;padding:13px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
-.header h1{font-size:16px;font-weight:600;flex:1;}
-.header-sub{font-size:12px;opacity:0.75;cursor:pointer;}
-.sbar{font-size:12px;padding:6px 16px;display:none;align-items:center;gap:6px;}
-.sbar.offline{background:#92400e;color:#fef3c7;display:flex;}
-.sbar.syncing{background:#1e40af;color:#dbeafe;display:flex;}
-.sbar.synced{background:#14532d;color:#dcfce7;display:flex;}
-.content{flex:1;overflow-y:auto;padding-bottom:72px;}
+.hdr{background:#1F4E79;color:#fff;padding:13px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:100;}
+.hdr h1{font-size:16px;font-weight:600;flex:1;}
+.hdr-name{font-size:12px;opacity:.8;cursor:pointer;}
+.hdr-refresh{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:5px 10px;font-size:14px;cursor:pointer;margin-left:4px;}
+.sbar{font-size:12px;padding:6px 16px;align-items:center;gap:6px;display:none;}
+.sbar.show{display:flex;}
+.sbar.offline{background:#92400e;color:#fef3c7;}
+.sbar.syncing{background:#1e40af;color:#dbeafe;}
+.sbar.ok{background:#14532d;color:#dcfce7;}
+.content{flex:1;padding-bottom:72px;}
 .screen{display:none;}
 .screen.active{display:block;}
-
-/* Search bar sticky under header */
 .searchbar{background:#1F4E79;padding:0 12px 12px;position:sticky;top:46px;z-index:99;}
-.sinput-wrap{position:relative;}
-.sinput{width:100%;padding:11px 70px 11px 42px;font-size:15px;border:none;border-radius:10px;background:#fff;font-family:inherit;outline:none;color:#111;}
-.sico{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:17px;color:#9ca3af;}
-.sgo{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#1F4E79;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;}
-
-/* List header */
-.lhdr{padding:10px 16px 6px;display:flex;justify-content:space-between;align-items:center;}
-.lhdr-title{font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;}
-.lhdr-count{font-size:12px;color:#9ca3af;}
-
-/* Account cards */
-.acct-card{background:#fff;margin:0 12px 8px;border-radius:12px;padding:13px 14px;box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer;border-left:4px solid #f59e0b;display:flex;align-items:center;gap:10px;}
-.acct-card.done{border-left-color:#10b981;background:#f0fdf4;}
-.acct-card.just-updated{background:#dcfce7;border-left-color:#16a34a;}
-.acct-card:active{opacity:.85;}
-.acct-info{flex:1;min-width:0;}
-.acct-acno{font-size:15px;font-weight:700;color:#1F4E79;}
-.acct-meter{font-size:12px;color:#374151;font-weight:500;margin-top:1px;}
-.acct-addr{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
-.acct-rdate{font-size:11px;color:#9ca3af;margin-top:2px;}
-.acct-arrow{font-size:18px;color:#d1d5db;flex-shrink:0;}
-
-/* Detail screen */
+.sw{position:relative;}
+.sw input{width:100%;padding:11px 70px 11px 42px;font-size:15px;border:none;border-radius:10px;background:#fff;font-family:inherit;outline:none;color:#111;}
+.sw .ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:17px;color:#9ca3af;}
+.sw .go{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#1F4E79;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;}
+.lhdr{padding:10px 16px 6px;display:flex;justify-content:space-between;}
+.lhdr-t{font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;}
+.lhdr-c{font-size:12px;color:#9ca3af;}
+.acard{background:#fff;margin:0 12px 8px;border-radius:12px;padding:13px 14px;box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer;border-left:4px solid #f59e0b;display:flex;align-items:center;gap:10px;transition:background .15s;}
+.acard:active{opacity:.85;}
+.acard.updated{background:#f0fdf4;border-left-color:#16a34a;}
+.ainfo{flex:1;min-width:0;}
+.aacno{font-size:15px;font-weight:700;color:#1F4E79;display:flex;align-items:center;gap:6px;}
+.utag{font-size:10px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 7px;border-radius:10px;}
+.ameter{font-size:12px;color:#374151;font-weight:500;margin-top:2px;}
+.aaddr{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.ardate{font-size:11px;color:#9ca3af;margin-top:2px;}
+.arr{font-size:18px;color:#d1d5db;flex-shrink:0;}
 .dpad{padding:12px 14px;}
-.back-btn{display:flex;align-items:center;gap:6px;font-size:14px;color:#1F4E79;font-weight:600;background:none;border:none;cursor:pointer;padding:8px 0 12px;font-family:inherit;}
+.backbtn{display:flex;align-items:center;gap:6px;font-size:14px;color:#1F4E79;font-weight:600;background:none;border:none;cursor:pointer;padding:8px 0 12px;font-family:inherit;}
 .card{background:#fff;border-radius:14px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);}
-.card-title{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px;}
+.ctitle{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px;}
 .irow{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f3f4f6;}
 .irow:last-child{border-bottom:none;}
 .ilbl{font-size:13px;color:#6b7280;}
 .ival{font-size:13px;font-weight:500;color:#111;text-align:right;max-width:65%;}
 .badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
-.badge-p{background:#fef3c7;color:#92400e;}
-.badge-d{background:#d1fae5;color:#065f46;}
-.acno-big{font-size:26px;font-weight:800;color:#1F4E79;}
-
-/* Form */
+.bp{background:#fef3c7;color:#92400e;}
+.bd{background:#d1fae5;color:#065f46;}
+.abig{font-size:26px;font-weight:800;color:#1F4E79;}
 .field{margin-bottom:13px;}
 .field label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;}
 .field input,.field textarea{width:100%;padding:10px 13px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;background:#fff;color:#111;font-family:inherit;outline:none;}
@@ -68,53 +60,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .field textarea{resize:none;height:76px;}
 .btn{width:100%;padding:13px;border-radius:10px;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:8px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
 .btn:active{opacity:.82;}
-.btn-p{background:#1F4E79;color:#fff;}
-.btn-s{background:#1E7145;color:#fff;}
-.btn-g{background:#f3f4f6;color:#374151;}
+.btnp{background:#1F4E79;color:#fff;}
+.btns{background:#1E7145;color:#fff;}
+.btng{background:#f3f4f6;color:#374151;}
 .errmsg{background:#fee2e2;color:#b91c1c;padding:9px 13px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
-
-/* Photo */
-.photo-btn{width:100%;padding:12px;border:2px dashed #d1d5db;border-radius:10px;background:#f9fafb;color:#6b7280;font-size:14px;cursor:pointer;font-family:inherit;}
+.photobtn{width:100%;padding:12px;border:2px dashed #d1d5db;border-radius:10px;background:#f9fafb;color:#6b7280;font-size:14px;cursor:pointer;font-family:inherit;}
 .photo-preview img{width:100%;border-radius:10px;max-height:200px;object-fit:cover;}
-.rm-photo{margin-top:6px;background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;width:100%;font-family:inherit;}
-
-/* Success */
-.success-wrap{text-align:center;padding:48px 20px;}
-.s-icon{font-size:60px;margin-bottom:14px;}
-.s-title{font-size:20px;font-weight:700;color:#111;margin-bottom:6px;}
-.s-sub{font-size:14px;color:#6b7280;margin-bottom:26px;}
-
-/* Pending screen */
+.rmphoto{margin-top:6px;background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;width:100%;font-family:inherit;}
+.swrap{text-align:center;padding:48px 20px;}
+.sico{font-size:60px;margin-bottom:14px;}
+.stitle{font-size:20px;font-weight:700;color:#111;margin-bottom:6px;}
+.ssub{font-size:14px;color:#6b7280;margin-bottom:26px;}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 14px 10px;}
 .stat{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);}
-.stat-n{font-size:24px;font-weight:800;color:#1F4E79;}
-.stat-l{font-size:11px;color:#6b7280;margin-top:2px;}
-
-/* Nav */
+.statn{font-size:24px;font-weight:800;color:#1F4E79;}
+.statl{font-size:11px;color:#6b7280;margin-top:2px;}
 .nav{display:flex;background:#fff;border-top:1px solid #e5e7eb;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:100;}
-.nav-btn{flex:1;padding:9px 4px 11px;text-align:center;font-size:11px;font-weight:500;color:#9ca3af;cursor:pointer;border:none;background:none;font-family:inherit;position:relative;}
-.nav-btn.active{color:#1F4E79;}
-.nav-ico{font-size:21px;display:block;margin-bottom:1px;}
+.nbtn{flex:1;padding:9px 4px 11px;text-align:center;font-size:11px;font-weight:500;color:#9ca3af;cursor:pointer;border:none;background:none;font-family:inherit;position:relative;}
+.nbtn.active{color:#1F4E79;}
+.nico{font-size:21px;display:block;margin-bottom:1px;}
 .ndot{width:8px;height:8px;background:#ef4444;border-radius:50%;display:none;position:absolute;top:7px;right:calc(50% - 18px);}
-
-/* Utilities */
-.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.load-spinner{text-align:center;padding:32px 20px;color:#9ca3af;font-size:14px;}
-.load-more{margin:4px 12px 14px;padding:11px;background:#fff;border:1.5px dashed #d1d5db;border-radius:10px;color:#6b7280;font-size:14px;text-align:center;cursor:pointer;font-family:inherit;width:calc(100% - 24px);}
+.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;display:inline-block;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.loading{text-align:center;padding:40px 20px;color:#9ca3af;font-size:14px;line-height:1.8;}
+.loadmore{margin:4px 12px 14px;padding:11px;background:#fff;border:1.5px dashed #d1d5db;border-radius:10px;color:#6b7280;font-size:14px;text-align:center;cursor:pointer;font-family:inherit;width:calc(100% - 24px);}
 .empty{text-align:center;padding:48px 20px;color:#9ca3af;}
-.empty-ico{font-size:44px;margin-bottom:10px;}
 .plist{padding:0 12px;}
 </style>
 </head>
 <body>
 <div class="app">
-
-<div class="header">
+<div class="hdr">
   <span style="font-size:21px">⚡</span>
   <h1>Unbilled Readings</h1>
-  <span class="header-sub" id="worker-label" onclick="changeName()">👤 <span id="worker-name">Field Worker</span></span>
-  <button onclick="hardRefresh()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:6px;" id="refresh-btn">🔄</button>
+  <span class="hdr-name" id="wname" onclick="changeName()">👤 <span id="wlabel">Field Worker</span></span>
+  <button class="hdr-refresh" id="rfbtn" onclick="hardRefresh()">🔄</button>
 </div>
 <div class="sbar" id="sbar"></div>
 
@@ -123,44 +103,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <!-- HOME -->
   <div class="screen active" id="screen-home">
     <div class="searchbar">
-      <div class="sinput-wrap">
-        <span class="sico">🔍</span>
-        <input class="sinput" type="number" id="sinput" placeholder="Search account / meter no..." inputmode="numeric" autocomplete="off" oninput="filterList(this.value)" onkeydown="if(event.key==='Enter')quickSearch()">
-        <button class="sgo" onclick="quickSearch()">Go</button>
+      <div class="sw">
+        <span class="ico">🔍</span>
+        <input type="number" id="sinput" placeholder="Search account / meter no..." inputmode="numeric" autocomplete="off"
+          oninput="filterList(this.value)" onkeydown="if(event.key==='Enter')quickSearch()">
+        <button class="go" onclick="quickSearch()">Go</button>
       </div>
     </div>
-
     <div class="lhdr">
-      <span class="lhdr-title" id="list-title">All Accounts</span>
-      <span class="lhdr-count" id="list-count"></span>
+      <span class="lhdr-t" id="ltitle">Unbilled Accounts</span>
+      <span class="lhdr-c" id="lcount"></span>
     </div>
-
-    <div id="acct-list"><div class="load-spinner">⏳ Loading accounts...</div></div>
-    <button class="load-more" id="load-more" onclick="loadMore()" style="display:none">Load more ↓</button>
+    <div id="alist"><div class="loading">⏳ Loading accounts...<br><small>First load may take 15–20 seconds</small></div></div>
+    <button class="loadmore" id="lmbtn" onclick="loadMore()" style="display:none">Load more ↓</button>
   </div>
 
   <!-- DETAIL -->
   <div class="screen" id="screen-detail">
     <div class="dpad">
-      <button class="back-btn" onclick="goBack()">← Back to list</button>
-
+      <button class="backbtn" onclick="goBack()">← Back to list</button>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:13px">
           <div>
             <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">Account No.</div>
-            <div class="acno-big" id="d-acno"></div>
+            <div class="abig" id="d-acno"></div>
           </div>
           <span class="badge" id="d-status"></span>
         </div>
         <div class="irow"><span class="ilbl">Meter No.</span><span class="ival" id="d-meter"></span></div>
         <div class="irow"><span class="ilbl">Premises</span><span class="ival" id="d-addr"></span></div>
-        <div class="irow"><span class="ilbl">Prev. Reading</span><span class="ival" id="d-prev-read"></span></div>
-        <div class="irow"><span class="ilbl">Prev. Date</span><span class="ival" id="d-prev-date"></span></div>
+        <div class="irow"><span class="ilbl">Prev. Reading</span><span class="ival" id="d-prev"></span></div>
+        <div class="irow"><span class="ilbl">Prev. Date</span><span class="ival" id="d-pdate"></span></div>
         <div class="irow"><span class="ilbl">R_DATE</span><span class="ival" id="d-rdate"></span></div>
       </div>
-
       <div class="card">
-        <div class="card-title">Update Reading</div>
+        <div class="ctitle">Update Reading</div>
         <div class="field"><label>New Reading</label>
           <input type="number" id="f-reading" placeholder="Enter meter reading" inputmode="numeric">
         </div>
@@ -172,53 +149,53 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <div class="field">
           <label>Meter Photo (optional)</label>
-          <div id="photo-preview" style="display:none;margin-bottom:8px;">
-            <div class="photo-preview"><img id="photo-img" src=""></div>
-            <button class="rm-photo" onclick="clearPhoto()">✕ Remove photo</button>
+          <div id="pp" style="display:none;margin-bottom:8px;">
+            <div class="photo-preview"><img id="pimg" src=""></div>
+            <button class="rmphoto" onclick="clearPhoto()">✕ Remove photo</button>
           </div>
-          <div id="photo-btn-wrap">
-            <button class="photo-btn" onclick="document.getElementById('photo-input').click()">📷 Take or choose photo</button>
-            <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
+          <div id="pbw">
+            <button class="photobtn" onclick="document.getElementById('pinput').click()">📷 Take or choose photo</button>
+            <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
           </div>
         </div>
-        <div class="errmsg" id="save-err"></div>
-        <button class="btn btn-s" onclick="saveReading()" id="save-btn">💾 Save Reading</button>
-        <button class="btn btn-g" onclick="goBack()">Cancel</button>
+        <div class="errmsg" id="serr"></div>
+        <button class="btn btns" onclick="saveReading()" id="savebtn">💾 Save Reading</button>
+        <button class="btn btng" onclick="goBack()">Cancel</button>
       </div>
     </div>
   </div>
 
   <!-- SUCCESS -->
   <div class="screen" id="screen-success">
-    <div class="success-wrap">
-      <div class="s-icon">✅</div>
-      <div class="s-title">Reading saved!</div>
-      <div class="s-sub" id="success-msg"></div>
-      <button class="btn btn-p" onclick="goBack()" style="margin-bottom:10px">← Back to list</button>
-      <button class="btn btn-g" onclick="switchNav('pending')">View pending</button>
+    <div class="swrap">
+      <div class="sico">✅</div>
+      <div class="stitle">Reading saved!</div>
+      <div class="ssub" id="smsg"></div>
+      <button class="btn btnp" onclick="goBack()" style="margin-bottom:10px">← Back to list</button>
+      <button class="btn btng" onclick="switchNav('pending')">View pending</button>
     </div>
   </div>
 
   <!-- PENDING -->
   <div class="screen" id="screen-pending">
     <div class="stats">
-      <div class="stat"><div class="stat-n" id="stat-p">0</div><div class="stat-l">Pending sync</div></div>
-      <div class="stat"><div class="stat-n" id="stat-s">0</div><div class="stat-l">Synced</div></div>
+      <div class="stat"><div class="statn" id="sp">0</div><div class="statl">Pending sync</div></div>
+      <div class="stat"><div class="statn" id="ss">0</div><div class="statl">Synced</div></div>
     </div>
-    <div style="padding:0 14px 12px"><button class="btn btn-p" onclick="syncAll()" id="sync-btn">🔄 Sync all now</button></div>
-    <div class="lhdr"><span class="lhdr-title">Saved updates</span></div>
+    <div style="padding:0 14px 12px"><button class="btn btnp" onclick="syncAll()" id="syncbtn">🔄 Sync all now</button></div>
+    <div class="lhdr"><span class="lhdr-t">Saved updates</span></div>
     <div class="plist" id="plist"></div>
-    <div class="empty" id="pempty" style="display:none"><div class="empty-ico">✅</div><div>All synced!</div></div>
+    <div class="empty" id="pempty" style="display:none"><div style="font-size:44px;margin-bottom:10px">✅</div><div>All synced!</div></div>
   </div>
 
 </div>
 
 <nav class="nav">
-  <button class="nav-btn active" id="nav-home" onclick="switchNav('home')">
-    <span class="nav-ico">🏠</span>Home
+  <button class="nbtn active" id="nav-home" onclick="switchNav('home')">
+    <span class="nico">🏠</span>Home
   </button>
-  <button class="nav-btn" id="nav-pending" onclick="switchNav('pending')">
-    <span class="nav-ico">🕐</span>Pending
+  <button class="nbtn" id="nav-pending" onclick="switchNav('pending')">
+    <span class="nico">🕐</span>Pending
     <span class="ndot" id="ndot"></span>
   </button>
 </nav>
@@ -226,151 +203,139 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
-const CACHE_KEY = 'unbilled_cache';
-const CACHE_TS_KEY = 'unbilled_cache_ts';
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
+let pending = JSON.parse(localStorage.getItem('ub_pending') || '[]');
+let allAccounts = [], filtered = [], page = 1, pageSize = 40;
+let currentAcct = null, photoB64 = null;
+let updatedSet = new Set(pending.map(p => String(p.acno)));
 
-let pending = JSON.parse(localStorage.getItem('unbilled_pending') || '[]');
-let allAccounts = [];
-let filtered = [];
-let pageSize = 40;
-let page = 1;
-let currentAcct = null;
-let photoBase64 = null;
-
-// ── Status bar ──
-function showStatus(msg, type) {
+function showBar(msg, type) {
   const b = document.getElementById('sbar');
-  b.className = 'sbar ' + type;
+  b.className = 'sbar show ' + type;
   b.textContent = msg;
-  if (type === 'synced') setTimeout(() => b.className = 'sbar', 3000);
+  if (type === 'ok') setTimeout(() => b.className = 'sbar', 3000);
 }
 
-// ── Screen navigation ──
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + id).classList.add('active');
 }
+
 function switchNav(tab) {
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.nbtn').forEach(b => b.classList.remove('active'));
   const nb = document.getElementById('nav-' + tab);
   if (nb) nb.classList.add('active');
   if (tab === 'pending') { renderPending(); show('pending'); }
-  else { show('home'); }
+  else show('home');
 }
+
 function goBack() { clearPhoto(); show('home'); switchNav('home'); }
 
-// ── Load all accounts (with cache) ──
-async function loadAllAccounts(forceRefresh) {
-  const el = document.getElementById('acct-list');
+async function hardRefresh() {
+  const btn = document.getElementById('rfbtn');
+  btn.textContent = '⏳'; btn.disabled = true;
+  localStorage.removeItem(CK); localStorage.removeItem(CT);
+  await loadAll(true);
+  btn.textContent = '🔄'; btn.disabled = false;
+  showBar('Refreshed ✓', 'ok');
+}
 
-  // Try cache first
-  if (!forceRefresh) {
-    const cached = localStorage.getItem(CACHE_KEY);
-    const ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || '0');
-    if (cached && (Date.now() - ts) < CACHE_TTL) {
-      allAccounts = JSON.parse(cached);
-      filtered = allAccounts.filter(a => a.status === 'pending');
+async function loadAll(force) {
+  const el = document.getElementById('alist');
+  if (!force) {
+    const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
+    if (c && (Date.now()-ts) < TTL) {
+      allAccounts = JSON.parse(c);
+      filtered = allAccounts.filter(a => a.status==='pending');
       renderList();
-      document.getElementById('list-count').textContent = filtered.length + ' pending';
-      refreshInBackground();
+      document.getElementById('lcount').textContent = filtered.length + ' pending';
+      bgRefresh();
       return;
     }
   }
-
-  el.innerHTML = '<div class="load-spinner">⏳ Loading accounts...<br><span style="font-size:12px;color:#9ca3af">This may take 10-20 seconds on first load</span></div>';
-
-  // Timeout after 30 seconds
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
-
+  el.innerHTML = '<div class="loading">⏳ Loading accounts...<br><small>First load takes 15–20 seconds</small></div>';
   try {
-    const res = await fetch(API + '?action=all', { signal: controller.signal });
-    clearTimeout(timeout);
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 45000);
+    const res = await fetch(API + '?action=all', {signal: ctrl.signal});
+    clearTimeout(tid);
     const data = await res.json();
     allAccounts = data.accounts || [];
-    localStorage.setItem(CACHE_KEY, JSON.stringify(allAccounts));
-    localStorage.setItem(CACHE_TS_KEY, Date.now().toString());
-    filtered = allAccounts.filter(a => a.status === 'pending');
+    localStorage.setItem(CK, JSON.stringify(allAccounts));
+    localStorage.setItem(CT, Date.now()+'');
+    filtered = allAccounts.filter(a => a.status==='pending');
     renderList();
-    document.getElementById('list-count').textContent = filtered.length + ' pending';
-    document.getElementById('list-title').textContent = 'Unbilled Accounts';
-  } catch (e) {
-    clearTimeout(timeout);
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      allAccounts = JSON.parse(cached);
-      filtered = allAccounts.filter(a => a.status === 'pending');
+    document.getElementById('lcount').textContent = filtered.length + ' pending';
+    document.getElementById('ltitle').textContent = 'Unbilled Accounts';
+  } catch(e) {
+    const c = localStorage.getItem(CK);
+    if (c) {
+      allAccounts = JSON.parse(c);
+      filtered = allAccounts.filter(a => a.status==='pending');
       renderList();
-      document.getElementById('list-count').textContent = filtered.length + ' (cached)';
-      el.insertAdjacentHTML('beforebegin', '<div style="background:#fef3c7;color:#92400e;padding:8px 16px;font-size:12px;text-align:center;">Showing cached data — tap 🔄 to refresh</div>');
+      document.getElementById('lcount').textContent = filtered.length + ' (cached)';
+      showBar('Showing cached data — tap 🔄 to refresh', 'offline');
     } else {
-      el.innerHTML = `<div class="empty">
-        <div class="empty-ico">📡</div>
-        <div style="margin-bottom:12px">Could not load accounts</div>
-        <button class="btn btn-p" onclick="loadAllAccounts(true)" style="width:auto;padding:10px 20px;">Try again</button>
-      </div>`;
+      el.innerHTML = `<div class="empty"><div style="font-size:44px;margin-bottom:10px">📡</div>
+        <div style="margin-bottom:16px">Could not connect.<br>Check internet and try again.</div>
+        <button class="btn btnp" onclick="loadAll(true)" style="width:auto;padding:10px 24px;">Try again</button></div>`;
     }
   }
 }
 
-async function refreshInBackground() {
+async function bgRefresh() {
   try {
     const res = await fetch(API + '?action=all');
     const data = await res.json();
     if (data.accounts) {
       allAccounts = data.accounts;
-      localStorage.setItem(CACHE_KEY, JSON.stringify(allAccounts));
-      localStorage.setItem(CACHE_TS_KEY, Date.now().toString());
+      localStorage.setItem(CK, JSON.stringify(allAccounts));
+      localStorage.setItem(CT, Date.now()+'');
     }
-  } catch (e) {}
+  } catch(e) {}
 }
 
-// ── Render list ──
 function renderList() {
-  const el = document.getElementById('acct-list');
+  const el = document.getElementById('alist');
   const slice = filtered.slice(0, page * pageSize);
-  if (filtered.length === 0) {
-    el.innerHTML = '<div class="empty"><div class="empty-ico">🎉</div><div>All accounts have readings!</div></div>';
-    document.getElementById('load-more').style.display = 'none';
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty"><div style="font-size:44px;margin-bottom:10px">🎉</div><div>All accounts have readings!</div></div>';
+    document.getElementById('lmbtn').style.display = 'none';
     return;
   }
-  const updatedAcnos = new Set(pending.map(p => String(p.acno)));
   el.innerHTML = slice.map(a => {
-    const isUpdated = updatedAcnos.has(String(a.acno));
-    const cls = isUpdated ? 'just-updated' : (a.status === 'done' ? 'done' : '');
-    const tag = isUpdated ? '<span style="font-size:11px;color:#16a34a;font-weight:700;margin-left:6px;">✓ Updated</span>' : '';
-    return \`
-    <div class="acct-card \${cls}" onclick="openAccount('\${a.acno}')">
-      <div class="acct-info">
-        <div class="acct-acno">ACNO \${a.acno}\${tag}</div>
-        <div class="acct-meter">Meter: \${a.meter || '—'}</div>
-        <div class="acct-addr">\${a.address || '—'}</div>
-        <div class="acct-rdate">R_DATE: \${a.rdate || '—'}</div>
+    const isUpdated = updatedSet.has(String(a.acno));
+    const cls = isUpdated ? 'updated' : '';
+    const tag = isUpdated ? '<span class="utag">✓ Updated</span>' : '';
+    return `<div class="acard ${cls}" onclick="openAccount('${a.acno}')">
+      <div class="ainfo">
+        <div class="aacno">ACNO ${a.acno}${tag}</div>
+        <div class="ameter">Meter: ${a.meter||'—'}</div>
+        <div class="aaddr">${a.address||'—'}</div>
+        <div class="ardate">R_DATE: ${a.rdate||'—'}</div>
       </div>
-      <span class="acct-arrow">›</span>
-    </div>\`;
+      <span class="arr">›</span>
+    </div>`;
   }).join('');
-  document.getElementById('load-more').style.display = slice.length < filtered.length ? 'block' : 'none';
+  document.getElementById('lmbtn').style.display = slice.length < filtered.length ? 'block' : 'none';
 }
 
 function loadMore() { page++; renderList(); }
 
-// ── Filter/search ──
 function filterList(val) {
   page = 1;
   if (!val) {
-    filtered = allAccounts.filter(a => a.status === 'pending');
-    document.getElementById('list-title').textContent = 'Unbilled Accounts';
-    document.getElementById('list-count').textContent = filtered.length + ' pending';
+    filtered = allAccounts.filter(a => a.status==='pending');
+    document.getElementById('ltitle').textContent = 'Unbilled Accounts';
+    document.getElementById('lcount').textContent = filtered.length + ' pending';
   } else {
     filtered = allAccounts.filter(a =>
       String(a.acno).includes(val) ||
-      String(a.meter).includes(val) ||
-      (a.address || '').toLowerCase().includes(val.toLowerCase())
+      String(a.meter||'').includes(val) ||
+      (a.address||'').toLowerCase().includes(val.toLowerCase())
     );
-    document.getElementById('list-title').textContent = 'Search Results';
-    document.getElementById('list-count').textContent = filtered.length + ' found';
+    document.getElementById('ltitle').textContent = 'Search Results';
+    document.getElementById('lcount').textContent = filtered.length + ' found';
   }
   renderList();
 }
@@ -378,217 +343,182 @@ function filterList(val) {
 function quickSearch() {
   const val = document.getElementById('sinput').value.trim();
   if (!val) return;
-  // Try exact ACNO match from cache
-  const acct = allAccounts.find(a => String(a.acno) === val);
-  if (acct) { openAccountFromCache(acct); return; }
+  const a = allAccounts.find(x => String(x.acno)===val);
+  if (a) { openAccountLocal(a); return; }
   filterList(val);
 }
 
-// ── Open account from cache (instant) ──
-function openAccountFromCache(acct) {
-  currentAcct = acct;
-  populateDetail(acct);
+function openAccountLocal(a) {
+  currentAcct = a;
+  fillDetail(a);
   show('detail');
 }
 
 async function openAccount(acno) {
-  // First try cache for instant open
-  const cached = allAccounts.find(a => String(a.acno) === String(acno));
-  if (cached) { openAccountFromCache(cached); return; }
-  // Fallback to API
-  showStatus('Loading...', 'syncing');
+  const a = allAccounts.find(x => String(x.acno)===String(acno));
+  if (a) { openAccountLocal(a); return; }
+  showBar('Loading...', 'syncing');
   try {
     const res = await fetch(API + '?action=search&acno=' + encodeURIComponent(acno));
     const data = await res.json();
     document.getElementById('sbar').className = 'sbar';
-    if (data.found) { currentAcct = data; populateDetail(data); show('detail'); }
-  } catch(e) {
-    document.getElementById('sbar').className = 'sbar';
-    showStatus('Could not load account', 'offline');
-  }
+    if (data.found) { currentAcct = data; fillDetail(data); show('detail'); }
+  } catch(e) { showBar('Could not load account', 'offline'); }
 }
 
-function populateDetail(d) {
+function fillDetail(d) {
   document.getElementById('d-acno').textContent = d.acno;
-  document.getElementById('d-meter').textContent = d.meter || '—';
-  document.getElementById('d-addr').textContent = d.address || '—';
-  document.getElementById('d-prev-read').textContent = d.prevReading || '—';
-  document.getElementById('d-prev-date').textContent = d.prevDate || '—';
-  document.getElementById('d-rdate').textContent = d.rdate || '—';
-  const badge = document.getElementById('d-status');
-  badge.textContent = d.status === 'done' ? 'Done' : 'Pending';
-  badge.className = 'badge ' + (d.status === 'done' ? 'badge-d' : 'badge-p');
+  document.getElementById('d-meter').textContent = d.meter||'—';
+  document.getElementById('d-addr').textContent = d.address||'—';
+  document.getElementById('d-prev').textContent = d.prevReading||'—';
+  document.getElementById('d-pdate').textContent = d.prevDate||'—';
+  document.getElementById('d-rdate').textContent = d.rdate||'—';
+  const b = document.getElementById('d-status');
+  b.textContent = d.status==='done'?'Done':'Pending';
+  b.className = 'badge '+(d.status==='done'?'bd':'bp');
   document.getElementById('f-reading').value = '';
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
-  document.getElementById('f-remarks').value = d.remarks || '';
-  document.getElementById('save-err').style.display = 'none';
+  document.getElementById('f-remarks').value = d.remarks||'';
+  document.getElementById('serr').style.display = 'none';
   clearPhoto();
 }
 
-// ── Save reading ──
 async function saveReading() {
   const reading = document.getElementById('f-reading').value.trim();
   const date = document.getElementById('f-date').value;
   const remarks = document.getElementById('f-remarks').value.trim();
-  const err = document.getElementById('save-err');
-  const btn = document.getElementById('save-btn');
+  const err = document.getElementById('serr');
+  const btn = document.getElementById('savebtn');
   err.style.display = 'none';
   if (!reading && !remarks) {
     err.textContent = 'Please enter a reading or remarks.';
     err.style.display = 'block'; return;
   }
-
   const update = {
-    action: 'update', acno: currentAcct.acno, row: currentAcct.row,
-    newReading: reading, newDate: date, remarks: remarks,
-    worker: document.getElementById('worker-name').textContent,
-    savedAt: new Date().toLocaleString(), synced: false
+    action:'update', acno:currentAcct.acno, row:currentAcct.row,
+    newReading:reading, newDate:date, remarks:remarks,
+    worker:document.getElementById('wlabel').textContent,
+    savedAt:new Date().toLocaleString(), synced:false
   };
-
   pending.push(update);
-  localStorage.setItem('unbilled_pending', JSON.stringify(pending));
-
-  // Update cache status
-  const ci = allAccounts.findIndex(a => String(a.acno) === String(update.acno));
-  if (ci >= 0) { allAccounts[ci].status = 'done'; allAccounts[ci].newDate = date; allAccounts[ci].newReading = reading; }
-  // Keep account in list but mark as updated
-  localStorage.setItem(CACHE_KEY, JSON.stringify(allAccounts));
-  document.getElementById('list-count').textContent = filtered.length + ' pending';
+  localStorage.setItem('ub_pending', JSON.stringify(pending));
+  updatedSet.add(String(update.acno));
   updateDot();
 
-  btn.innerHTML = '<span class="spinner"></span>';
-  btn.disabled = true;
+  // Update cache status
+  const ci = allAccounts.findIndex(a => String(a.acno)===String(update.acno));
+  if (ci>=0) { allAccounts[ci].status='done'; allAccounts[ci].newDate=date; }
+  localStorage.setItem(CK, JSON.stringify(allAccounts));
 
-  let msg = 'ACNO ' + update.acno + ' saved offline, will sync later.';
+  btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+  let msg = 'ACNO '+update.acno+' saved offline, will sync later.';
   if (navigator.onLine) {
     try {
-      const res = await fetch(API, { method: 'POST', body: JSON.stringify(update) });
+      const res = await fetch(API, {method:'POST', body:JSON.stringify(update)});
       const data = await res.json();
       if (data.success) {
-        pending[pending.length - 1].synced = true;
-        localStorage.setItem('unbilled_pending', JSON.stringify(pending));
-        msg = 'ACNO ' + update.acno + ' synced to Google Sheets ✓';
-        if (photoBase64) {
-          fetch(API, { method: 'POST', body: JSON.stringify({
-            action: 'upload_photo', acno: update.acno,
-            date: update.newDate, photo: photoBase64,
-            worker: update.worker
-          })}).catch(() => {});
-          photoBase64 = null;
+        pending[pending.length-1].synced = true;
+        localStorage.setItem('ub_pending', JSON.stringify(pending));
+        msg = 'ACNO '+update.acno+' synced to Google Sheets ✓';
+        if (photoB64) {
+          fetch(API, {method:'POST', body:JSON.stringify({
+            action:'upload_photo', acno:update.acno,
+            date:update.newDate, photo:photoB64, worker:update.worker
+          })}).catch(()=>{});
+          photoB64 = null;
         }
       }
     } catch(e) {}
-  } else {
-    showStatus('Offline — saved locally', 'offline');
-  }
-
-  btn.innerHTML = '💾 Save Reading';
-  btn.disabled = false;
-  document.getElementById('success-msg').textContent = msg;
+  } else showBar('Offline — saved locally','offline');
+  btn.innerHTML = '💾 Save Reading'; btn.disabled = false;
+  document.getElementById('smsg').textContent = msg;
+  renderList();
   show('success');
 }
 
-// ── Sync all ──
 async function syncAll() {
-  const unsynced = pending.filter(p => !p.synced);
-  if (!unsynced.length) { showStatus('All synced ✓', 'synced'); return; }
-  if (!navigator.onLine) { showStatus('No internet — will sync when connected', 'offline'); return; }
-  const btn = document.getElementById('sync-btn');
-  btn.innerHTML = '<span class="spinner"></span> Syncing...';
-  btn.disabled = true;
-  showStatus('Syncing ' + unsynced.length + ' updates...', 'syncing');
+  const unsynced = pending.filter(p=>!p.synced);
+  if (!unsynced.length) { showBar('All synced ✓','ok'); return; }
+  if (!navigator.onLine) { showBar('No internet','offline'); return; }
+  const btn = document.getElementById('syncbtn');
+  btn.innerHTML = '<span class="spin"></span> Syncing...'; btn.disabled = true;
+  showBar('Syncing '+unsynced.length+' updates...','syncing');
   let done = 0;
   for (const u of unsynced) {
     try {
-      const r = await fetch(API, { method:'POST', body:JSON.stringify(u) });
+      const r = await fetch(API, {method:'POST', body:JSON.stringify(u)});
       const d = await r.json();
       if (d.success) {
-        const i = pending.findIndex(p => p.acno===u.acno && p.savedAt===u.savedAt);
-        if (i>=0) pending[i].synced = true;
-        done++;
+        const i = pending.findIndex(p=>p.acno===u.acno&&p.savedAt===u.savedAt);
+        if (i>=0) pending[i].synced = true; done++;
       }
     } catch(e) { break; }
   }
-  localStorage.setItem('unbilled_pending', JSON.stringify(pending));
+  localStorage.setItem('ub_pending', JSON.stringify(pending));
   updateDot(); renderPending();
   btn.innerHTML = '🔄 Sync all now'; btn.disabled = false;
-  showStatus('Synced ' + done + ' of ' + unsynced.length + ' ✓', 'synced');
+  showBar('Synced '+done+' of '+unsynced.length+' ✓','ok');
 }
 
-// ── Pending screen ──
 function renderPending() {
   const list = document.getElementById('plist');
   const empty = document.getElementById('pempty');
-  document.getElementById('stat-p').textContent = pending.filter(p=>!p.synced).length;
-  document.getElementById('stat-s').textContent = pending.filter(p=>p.synced).length;
+  document.getElementById('sp').textContent = pending.filter(p=>!p.synced).length;
+  document.getElementById('ss').textContent = pending.filter(p=>p.synced).length;
   if (!pending.length) { list.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
   list.innerHTML = pending.slice().reverse().map(p=>`
-    <div class="acct-card ${p.synced?'done':''}">
-      <div class="acct-info">
-        <div class="acct-acno">ACNO ${p.acno}</div>
-        <div class="acct-rdate">${p.newReading?'Reading: '+p.newReading+' · ':''}${p.savedAt}</div>
+    <div class="acard ${p.synced?'updated':''}">
+      <div class="ainfo">
+        <div class="aacno">ACNO ${p.acno}${p.synced?'<span class="utag">✓ Synced</span>':''}</div>
+        <div class="ardate">${p.newReading?'Reading: '+p.newReading+' · ':''}${p.savedAt}</div>
       </div>
-      <span class="badge ${p.synced?'badge-d':'badge-p'}">${p.synced?'✓ Synced':'Pending'}</span>
-    </div>
-  `).join('');
+      <span class="badge ${p.synced?'bd':'bp'}">${p.synced?'Synced':'Pending'}</span>
+    </div>`).join('');
 }
 
 function updateDot() {
-  document.getElementById('ndot').style.display = pending.some(p=>!p.synced) ? 'block':'none';
+  document.getElementById('ndot').style.display = pending.some(p=>!p.synced)?'block':'none';
 }
 
-// ── Photo ──
 function previewPhoto(input) {
   const file = input.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    photoBase64 = e.target.result.split(',')[1];
-    document.getElementById('photo-img').src = e.target.result;
-    document.getElementById('photo-preview').style.display = 'block';
-    document.getElementById('photo-btn-wrap').style.display = 'none';
+    photoB64 = e.target.result.split(',')[1];
+    document.getElementById('pimg').src = e.target.result;
+    document.getElementById('pp').style.display = 'block';
+    document.getElementById('pbw').style.display = 'none';
   };
   reader.readAsDataURL(file);
 }
-function clearPhoto() {
-  photoBase64 = null;
-  const inp = document.getElementById('photo-input'); if(inp) inp.value='';
-  const pp = document.getElementById('photo-preview'); if(pp) pp.style.display='none';
-  const pb = document.getElementById('photo-btn-wrap'); if(pb) pb.style.display='block';
-}
 
-async function hardRefresh() {
-  const btn = document.getElementById('refresh-btn');
-  btn.textContent = '⏳';
-  btn.disabled = true;
-  localStorage.removeItem('unbilled_cache');
-  localStorage.removeItem('unbilled_cache_ts');
-  await loadAllAccounts(true);
-  btn.textContent = '🔄';
-  btn.disabled = false;
-  showStatus('Data refreshed ✓', 'synced');
+function clearPhoto() {
+  photoB64 = null;
+  const i = document.getElementById('pinput'); if(i) i.value='';
+  const pp = document.getElementById('pp'); if(pp) pp.style.display='none';
+  const pb = document.getElementById('pbw'); if(pb) pb.style.display='block';
 }
 
 function changeName() {
-  const n = prompt('Enter your name:', document.getElementById('worker-name').textContent);
-  if (n) { localStorage.setItem('worker_name', n); document.getElementById('worker-name').textContent = n; }
+  const n = prompt('Your name:', document.getElementById('wlabel').textContent);
+  if (n) { localStorage.setItem('wname', n); document.getElementById('wlabel').textContent = n; }
 }
 
-// ── Init ──
-window.addEventListener('online', () => { showStatus('Back online — syncing...','syncing'); syncAll(); loadAllAccounts(true); });
-window.addEventListener('offline', () => showStatus('Offline — saved locally','offline'));
-if (!navigator.onLine) showStatus('Offline — updates saved locally','offline');
+window.addEventListener('online', () => { showBar('Back online — syncing...','syncing'); syncAll(); });
+window.addEventListener('offline', () => showBar('Offline — updates saved locally','offline'));
+if (!navigator.onLine) showBar('Offline — updates saved locally','offline');
 
-const nm = localStorage.getItem('worker_name');
-if (nm) { document.getElementById('worker-name').textContent = nm; }
+const wn = localStorage.getItem('wname');
+if (wn) document.getElementById('wlabel').textContent = wn;
 else {
   const n = prompt('Enter your name:') || 'Field Worker';
-  localStorage.setItem('worker_name', n);
-  document.getElementById('worker-name').textContent = n;
+  localStorage.setItem('wname', n);
+  document.getElementById('wlabel').textContent = n;
 }
 
 updateDot();
-loadAllAccounts(false);
+loadAll(false);
 </script>
 </body>
 </html>
