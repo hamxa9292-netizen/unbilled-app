@@ -137,6 +137,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <label>Remarks</label>
           <textarea id="f-remarks" placeholder="e.g. Done, Locked, No access..."></textarea>
         </div>
+        <div class="field">
+          <label>Meter Photo (optional)</label>
+          <div id="photo-preview" style="display:none;margin-bottom:8px;">
+            <img id="photo-img" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover;" />
+            <button type="button" onclick="clearPhoto()" style="margin-top:6px;background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;width:100%;">✕ Remove photo</button>
+          </div>
+          <div id="photo-btn-wrap">
+            <button type="button" onclick="document.getElementById('photo-input').click()" style="width:100%;padding:12px;border:2px dashed #d1d5db;border-radius:10px;background:#f9fafb;color:#6b7280;font-size:14px;cursor:pointer;font-family:inherit;">
+              📷 Take or choose photo
+            </button>
+            <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none;" onchange="previewPhoto(this)">
+          </div>
+        </div>
         <div class="error" id="save-error"></div>
         <button class="btn btn-success" onclick="saveReading()" id="save-btn">
           <span>💾 Save Reading</span>
@@ -223,6 +236,7 @@ function goBack() { show('search'); renderRecent(); }
 function nextAccount() {
   document.getElementById('acno-input').value = '';
   document.getElementById('search-error').style.display = 'none';
+  clearPhoto();
   show('search');
   renderRecent();
   setTimeout(() => document.getElementById('acno-input').focus(), 100);
@@ -317,6 +331,19 @@ async function saveReading() {
       if (data.success) {
         pending[pending.length - 1].synced = true;
         localStorage.setItem('unbilled_pending', JSON.stringify(pending));
+        // Upload photo if present
+        if (photoBase64) {
+          try {
+            const photoPayload = {
+              action: 'upload_photo',
+              acno: update.acno,
+              date: update.newDate,
+              photo: photoBase64
+            };
+            await fetch(API, { method: 'POST', body: JSON.stringify(photoPayload) });
+            photoBase64 = null;
+          } catch(pe) { console.log('Photo upload failed', pe); }
+        }
         document.getElementById('success-msg').textContent =
           'ACNO ' + update.acno + ' — reading saved and synced to Google Sheets.';
       } else {
@@ -416,6 +443,28 @@ function updatePendingDot() {
 document.getElementById('acno-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') doSearch();
 });
+
+let photoBase64 = null;
+
+function previewPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    photoBase64 = e.target.result.split(',')[1];
+    document.getElementById('photo-img').src = e.target.result;
+    document.getElementById('photo-preview').style.display = 'block';
+    document.getElementById('photo-btn-wrap').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto() {
+  photoBase64 = null;
+  document.getElementById('photo-input').value = '';
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-btn-wrap').style.display = 'block';
+}
 
 // Ask for worker name on first use
 const savedName = localStorage.getItem('worker_name');
