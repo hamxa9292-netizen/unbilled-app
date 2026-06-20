@@ -36,7 +36,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* Account cards */
 .acct-card{background:#fff;margin:0 12px 8px;border-radius:12px;padding:13px 14px;box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer;border-left:4px solid #f59e0b;display:flex;align-items:center;gap:10px;}
-.acct-card.done{border-left-color:#10b981;}
+.acct-card.done{border-left-color:#10b981;background:#f0fdf4;}
+.acct-card.just-updated{background:#dcfce7;border-left-color:#16a34a;}
 .acct-card:active{opacity:.85;}
 .acct-info{flex:1;min-width:0;}
 .acct-acno{font-size:15px;font-weight:700;color:#1F4E79;}
@@ -322,17 +323,22 @@ function renderList() {
     document.getElementById('load-more').style.display = 'none';
     return;
   }
-  el.innerHTML = slice.map(a => `
-    <div class="acct-card ${a.status === 'done' ? 'done' : ''}" onclick="openAccount('${a.acno}')">
+  const updatedAcnos = new Set(pending.map(p => String(p.acno)));
+  el.innerHTML = slice.map(a => {
+    const isUpdated = updatedAcnos.has(String(a.acno));
+    const cls = isUpdated ? 'just-updated' : (a.status === 'done' ? 'done' : '');
+    const tag = isUpdated ? '<span style="font-size:11px;color:#16a34a;font-weight:700;margin-left:6px;">✓ Updated</span>' : '';
+    return \`
+    <div class="acct-card \${cls}" onclick="openAccount('\${a.acno}')">
       <div class="acct-info">
-        <div class="acct-acno">ACNO ${a.acno}</div>
-        <div class="acct-meter">Meter: ${a.meter || '—'}</div>
-        <div class="acct-addr">${a.address || '—'}</div>
-        <div class="acct-rdate">R_DATE: ${a.rdate || '—'}</div>
+        <div class="acct-acno">ACNO \${a.acno}\${tag}</div>
+        <div class="acct-meter">Meter: \${a.meter || '—'}</div>
+        <div class="acct-addr">\${a.address || '—'}</div>
+        <div class="acct-rdate">R_DATE: \${a.rdate || '—'}</div>
       </div>
       <span class="acct-arrow">›</span>
-    </div>
-  `).join('');
+    </div>\`;
+  }).join('');
   document.getElementById('load-more').style.display = slice.length < filtered.length ? 'block' : 'none';
 }
 
