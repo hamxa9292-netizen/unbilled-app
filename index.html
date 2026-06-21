@@ -711,6 +711,16 @@ function previewPhoto(input) {
       document.getElementById('pimg').src=compressed;
       document.getElementById('pp').style.display='inline-flex';
       document.getElementById('pbw').style.display='none';
+
+      // Auto-download to device with ACNO + date filename
+      const acno = currentAcct ? currentAcct.acno : 'unknown';
+      const date = document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
+      const filename = 'ACNO_' + acno + '_' + date + '.jpg';
+      const a = document.createElement('a');
+      a.href = compressed;
+      a.download = filename;
+      a.click();
+      showBar('Photo saved to Downloads: ' + filename, 'ok');
     };
     img.src=e.target.result;
   };
