@@ -283,12 +283,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
 const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
-let pending = JSON.parse(localStorage.getItem('ub_pending') || '[]');
+
+// On startup: wipe ALL locally pending entries — sheet is the single source of truth.
+// Any unsynced entries would need to be re-entered; synced ones the sheet already has.
+// This prevents stale "✓ Updated" tags from old sessions polluting the view.
+localStorage.removeItem('ub_pending');
+let pending = [];
+
 let allAccounts = [], filtered = [], page = 1, pageSize = 40;
 let currentAcct = null, photoB64 = null;
 let selectedArea = localStorage.getItem('ub_area') || 'all';
-// Only track entries confirmed synced to sheet — not just locally saved
-let updatedSet = new Set(pending.filter(p => p.synced).map(p => String(p.acno)));
+// updatedSet starts empty — populated only after sheet confirms sync this session
+let updatedSet = new Set();
 
 function showBar(msg, type) {
   const b = document.getElementById('sbar');
@@ -380,6 +386,9 @@ async function hardRefresh() {
   const btn = document.getElementById('rfbtn');
   btn.textContent = '⏳'; btn.disabled = true;
   localStorage.removeItem(CK); localStorage.removeItem(CT);
+  localStorage.removeItem('ub_pending');
+  pending = []; updatedSet = new Set();
+  updateDot();
   await loadAll(true);
   btn.textContent = '🔄'; btn.disabled = false;
   showBar('Refreshed ✓','ok');
@@ -438,32 +447,9 @@ async function bgRefresh() {
     const res = await fetch(API+'?action=all'+areaParam);
     const data = await res.json();
     if (data.accounts) {
-      // Check if any account we locally marked as synced is still pending in the sheet
-      // (meaning the sheet write failed silently). If so, mark those pending entries unsynced.
-      const sheetMap = {};
-      data.accounts.forEach(a => { sheetMap[String(a.acno)] = a; });
-
-      let needsUpdate = false;
-      pending.forEach((p, i) => {
-        if (p.synced) {
-          const sheetAcct = sheetMap[String(p.acno)];
-          // If sheet says status is still pending (no newDate), the write didn't actually land
-          if (sheetAcct && sheetAcct.status === 'pending') {
-            pending[i].synced = false;
-            needsUpdate = true;
-            showBar('Some entries need re-sync — tap 🔄 Sync', 'offline');
-          }
-        }
-      });
-      if (needsUpdate) {
-        localStorage.setItem('ub_pending', JSON.stringify(pending));
-        updateDot();
-      }
-
       allAccounts = data.accounts;
       localStorage.setItem(CK, JSON.stringify(allAccounts));
       localStorage.setItem(CT, Date.now()+'');
-
       // Re-render list silently if we're on the home screen
       if (document.getElementById('screen-home').classList.contains('active')) {
         renderList();
