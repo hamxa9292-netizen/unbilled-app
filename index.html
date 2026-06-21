@@ -107,15 +107,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   flex-shrink: 0;
 }
 
-/* Fixed bottom action buttons */
+/* Fixed bottom action buttons — repositioned via JS to sit above keyboard */
 #detail-btns {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
+  left: 0;
+  right: 0;
   max-width: 430px;
-  padding: 8px 12px 16px;
+  margin: 0 auto;
+  padding: 8px 12px 12px;
   background: #0f172a;
   border-top: 2px solid #1e293b;
   z-index: 999;
@@ -309,6 +309,7 @@ function show(id) {
   if (id === 'detail') {
     nav.style.display = 'none';
     document.querySelector('.content').style.paddingBottom = '0';
+    setTimeout(updateBtnPosition, 50);
   } else {
     nav.style.display = 'flex';
     document.querySelector('.content').style.paddingBottom = '72px';
@@ -725,6 +726,24 @@ function clearPhoto(){
 function changeName(){
   const n=prompt('Your name:',document.getElementById('wlabel').textContent);
   if(n){localStorage.setItem('wname',n);document.getElementById('wlabel').textContent=n;}
+}
+
+// ── Keep action buttons above the keyboard on Android ──
+function updateBtnPosition() {
+  const btns = document.getElementById('detail-btns');
+  if (!btns) return;
+  if (!document.getElementById('screen-detail').classList.contains('active')) return;
+  if (window.visualViewport) {
+    // keyboardHeight = how much the keyboard has pushed up the viewport
+    const keyboardHeight = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+    btns.style.bottom = Math.max(0, keyboardHeight) + 'px';
+  } else {
+    btns.style.bottom = '0px';
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateBtnPosition);
+  window.visualViewport.addEventListener('scroll', updateBtnPosition);
 }
 
 window.addEventListener('online',()=>{showBar('Back online — syncing...','syncing');syncAll();});
