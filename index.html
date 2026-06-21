@@ -303,6 +303,14 @@ function goPrev() {
     const prev = filtered[currentIdx - 1];
     currentAcct = prev;
     fillDetail(prev);
+    // If this account was previously updated this session, show entered reading
+    const prevUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(prev.acno));
+    if (prevUpdate) {
+      document.getElementById('f-reading').value = prevUpdate.newReading || '';
+      document.getElementById('f-date').value = prevUpdate.newDate || new Date().toISOString().split('T')[0];
+      document.getElementById('f-remarks').value = prevUpdate.remarks || '';
+    }
+    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
   } else {
     showBar('Already at first account','offline');
   }
@@ -534,8 +542,16 @@ function saveReading(goNext) {
   if (goNext && nextAcct) {
     currentAcct = nextAcct;
     fillDetail(nextAcct);
+    // If next account was already updated this session, pre-fill its values
+    const existingUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(nextAcct.acno));
+    if (existingUpdate) {
+      document.getElementById('f-reading').value = existingUpdate.newReading || '';
+      document.getElementById('f-date').value = existingUpdate.newDate || new Date().toISOString().split('T')[0];
+      document.getElementById('f-remarks').value = existingUpdate.remarks || '';
+    }
     show('detail');
-    showBar('ACNO '+update.acno+' saved — next account loaded','syncing');
+    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
+    showBar('ACNO '+update.acno+' saved ✓','ok');
   } else {
     show('home');
     switchNav('home');
