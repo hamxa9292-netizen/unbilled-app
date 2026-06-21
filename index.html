@@ -52,36 +52,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .aaddr{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
 .ardate{font-size:11px;color:#9ca3af;margin-top:2px;}
 .arr{font-size:18px;color:#d1d5db;flex-shrink:0;}
-.dpad{padding:12px 14px;}
-.backbtn{display:flex;align-items:center;gap:6px;font-size:14px;color:#1F4E79;font-weight:600;background:none;border:none;cursor:pointer;padding:8px 0 12px;font-family:inherit;}
-.card{background:#fff;border-radius:14px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);}
-.ctitle{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px;}
-.irow{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f3f4f6;}
-.irow:last-child{border-bottom:none;}
-.ilbl{font-size:13px;color:#6b7280;}
-.ival{font-size:13px;font-weight:500;color:#111;text-align:right;max-width:65%;}
 .badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
 .bp{background:#fef3c7;color:#92400e;}
 .bd{background:#d1fae5;color:#065f46;}
-.abig{font-size:26px;font-weight:800;color:#1F4E79;}
-.field{margin-bottom:13px;}
-.field label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;}
-.field input,.field textarea{width:100%;padding:10px 13px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;background:#fff;color:#111;font-family:inherit;outline:none;}
-.field input:focus,.field textarea:focus{border-color:#1F4E79;}
-.field textarea{resize:none;height:76px;}
-.btn{width:100%;padding:13px;border-radius:10px;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:8px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
-.btn:active{opacity:.82;}
-.btnp{background:#1F4E79;color:#fff;}
-.btns{background:#1E7145;color:#fff;}
-.btng{background:#f3f4f6;color:#374151;}
 .errmsg{background:#fee2e2;color:#b91c1c;padding:9px 13px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
-.photobtn{width:100%;padding:12px;border:2px dashed #d1d5db;border-radius:10px;background:#f9fafb;color:#6b7280;font-size:14px;cursor:pointer;font-family:inherit;}
-.photo-preview img{width:100%;border-radius:10px;max-height:200px;object-fit:cover;}
 .rmphoto{margin-top:6px;background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;width:100%;font-family:inherit;}
 .swrap{text-align:center;padding:48px 20px;}
 .sico{font-size:60px;margin-bottom:14px;}
 .stitle{font-size:20px;font-weight:700;color:#111;margin-bottom:6px;}
 .ssub{font-size:14px;color:#6b7280;margin-bottom:26px;}
+.btn{width:100%;padding:13px;border-radius:10px;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:8px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn:active{opacity:.82;}
+.btnp{background:#1F4E79;color:#fff;}
+.btns{background:#1E7145;color:#fff;}
+.btng{background:#f3f4f6;color:#374151;}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 14px 10px;}
 .stat{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);}
 .statn{font-size:24px;font-weight:800;color:#1F4E79;}
@@ -97,6 +81,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .loadmore{margin:4px 12px 14px;padding:11px;background:#fff;border:1.5px dashed #d1d5db;border-radius:10px;color:#6b7280;font-size:14px;text-align:center;cursor:pointer;font-family:inherit;width:calc(100% - 24px);}
 .empty{text-align:center;padding:48px 20px;color:#9ca3af;}
 .plist{padding:0 12px;}
+
+/* ── DETAIL SCREEN — compact, no wasted space ── */
+#screen-detail {
+  display: none;
+  flex-direction: column;
+  background: #111827;
+  min-height: 100vh;
+}
+#screen-detail.active {
+  display: flex;
+}
+
+/* Compact sticky header */
+#detail-hdr {
+  background: #1F4E79;
+  padding: 8px 12px;
+  border-bottom: 2px solid #fbbf24;
+  flex-shrink: 0;
+}
+
+/* Body: only as tall as its content, no flex-grow */
+#detail-body {
+  padding: 10px 12px 8px;
+  flex-shrink: 0;
+}
+
+/* Fixed bottom action buttons */
+#detail-btns {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  padding: 8px 12px 16px;
+  background: #0f172a;
+  border-top: 2px solid #1e293b;
+  z-index: 999;
+}
 </style>
 </head>
 <body>
@@ -116,15 +139,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="area-screen">
       <div class="area-title">Select Area</div>
       <div class="area-sub">Choose an area to load its accounts</div>
-      <div class="field" style="margin-bottom:16px;">
-        <label>Area</label>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">Area</label>
         <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;">
           <option value="all">All Areas</option>
         </select>
       </div>
-      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()" style="display:block;background:#1E7145;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;width:100%;cursor:pointer;font-family:inherit;">
-        Load Accounts →
-      </button>
+      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()">Load Accounts →</button>
       <div id="area-err" style="color:#b91c1c;font-size:13px;margin-top:10px;display:none;text-align:center;"></div>
     </div>
   </div>
@@ -151,11 +172,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="loadmore" id="lmbtn" onclick="loadMore()" style="display:none">Load more ↓</button>
   </div>
 
-  <!-- DETAIL — full screen reading entry -->
-  <div class="screen" id="screen-detail" style="display:none;flex-direction:column;height:100vh;background:#111827;overflow:hidden;">
+  <!-- DETAIL SCREEN — compact layout -->
+  <div class="screen" id="screen-detail">
 
-    <!-- TOP INFO: always visible, very compact -->
-    <div id="detail-hdr" style="background:#1F4E79;padding:8px 12px;border-bottom:2px solid #fbbf24;position:fixed;top:0;left:0;right:0;max-width:430px;margin:0 auto;z-index:998;">
+    <!-- Compact sticky header -->
+    <div id="detail-hdr">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
         <button onclick="goBack()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✕ List</button>
         <span class="badge" id="d-status"></span>
@@ -178,8 +199,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
     </div>
 
-    <!-- READING INPUT: large, centered -->
-    <div id="detail-body" style="flex:1;display:flex;flex-direction:column;padding:10px 12px 90px;overflow-y:auto;margin-top:110px;">
+    <!-- Reading input area — compact, no scrolling needed -->
+    <div id="detail-body">
       <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">New Reading</div>
       <input type="number" id="f-reading" placeholder="0" inputmode="numeric" autocomplete="off"
         style="width:100%;background:#fff;border:3px solid #2563eb;border-radius:10px;font-size:32px;font-weight:800;padding:12px 16px;color:#111;font-family:inherit;outline:none;text-align:center;margin-bottom:10px;">
@@ -195,7 +216,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
 
-      <!-- Photo compact -->
+      <!-- Photo — compact single line -->
       <div>
         <div id="pp" style="display:none;margin-bottom:6px;">
           <img id="pimg" src="" style="border-radius:8px;max-height:100px;object-fit:cover;width:100%;">
@@ -206,11 +227,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
         </div>
       </div>
+
       <div class="errmsg" id="serr" style="margin-top:6px;"></div>
+
+      <!-- Spacer so content doesn't hide behind fixed buttons -->
+      <div style="height:72px;"></div>
     </div>
 
-    <!-- BOTTOM BUTTONS: fixed above keyboard always -->
-    <div id="detail-btns" style="position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;padding:8px 12px 16px;background:#0f172a;border-top:2px solid #1e293b;z-index:999;">
+    <!-- Fixed bottom action buttons -->
+    <div id="detail-btns">
       <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;">
         <button onclick="goPrev()" style="background:#374151;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">◀ Prev</button>
         <button onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
@@ -274,17 +299,20 @@ function showBar(msg, type) {
 function show(id) {
   document.querySelectorAll('.screen').forEach(s=>{
     s.classList.remove('active');
-    s.style.display = 'none';
+    s.style.display = '';
   });
   const el = document.getElementById('screen-'+id);
   el.classList.add('active');
-  el.style.display = id === 'detail' ? 'flex' : 'block';
-  // Show/hide fixed bottom buttons and header
-  const btns = document.getElementById('detail-btns');
-  const hdr = document.getElementById('detail-hdr');
-  if (btns) btns.style.display = id === 'detail' ? 'block' : 'none';
-  if (hdr) hdr.style.display = id === 'detail' ? 'block' : 'none';
-  if (id === 'detail') setTimeout(repositionButtons, 100);
+
+  // Hide bottom nav when in detail screen, show otherwise
+  const nav = document.querySelector('.nav');
+  if (id === 'detail') {
+    nav.style.display = 'none';
+    document.querySelector('.content').style.paddingBottom = '0';
+  } else {
+    nav.style.display = 'flex';
+    document.querySelector('.content').style.paddingBottom = '72px';
+  }
 }
 
 function switchNav(tab) {
@@ -303,7 +331,6 @@ function goPrev() {
     const prev = filtered[currentIdx - 1];
     currentAcct = prev;
     fillDetail(prev);
-    // If this account was previously updated this session, show entered reading
     const prevUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(prev.acno));
     if (prevUpdate) {
       document.getElementById('f-reading').value = prevUpdate.newReading || '';
@@ -318,7 +345,6 @@ function goPrev() {
 
 function showAreaScreen() { show('area'); }
 
-// ── Area selection ──
 let selectedAreaTemp = selectedArea;
 
 function loadAreas() {
@@ -366,6 +392,7 @@ async function loadAll(force) {
       filtered = allAccounts.filter(a=>a.status==='pending');
       renderList();
       document.getElementById('lcount').textContent = filtered.length+' pending';
+      // Always verify against sheet in background — catches cases where sheet write failed
       bgRefresh();
       return;
     }
@@ -409,9 +436,36 @@ async function bgRefresh() {
     const res = await fetch(API+'?action=all'+areaParam);
     const data = await res.json();
     if (data.accounts) {
+      // Check if any account we locally marked as synced is still pending in the sheet
+      // (meaning the sheet write failed silently). If so, mark those pending entries unsynced.
+      const sheetMap = {};
+      data.accounts.forEach(a => { sheetMap[String(a.acno)] = a; });
+
+      let needsUpdate = false;
+      pending.forEach((p, i) => {
+        if (p.synced) {
+          const sheetAcct = sheetMap[String(p.acno)];
+          // If sheet says status is still pending (no newDate), the write didn't actually land
+          if (sheetAcct && sheetAcct.status === 'pending') {
+            pending[i].synced = false;
+            needsUpdate = true;
+            showBar('Some entries need re-sync — tap 🔄 Sync', 'offline');
+          }
+        }
+      });
+      if (needsUpdate) {
+        localStorage.setItem('ub_pending', JSON.stringify(pending));
+        updateDot();
+      }
+
       allAccounts = data.accounts;
       localStorage.setItem(CK, JSON.stringify(allAccounts));
       localStorage.setItem(CT, Date.now()+'');
+
+      // Re-render list silently if we're on the home screen
+      if (document.getElementById('screen-home').classList.contains('active')) {
+        renderList();
+      }
     }
   } catch(e) {}
 }
@@ -499,7 +553,6 @@ function fillDetail(d) {
   document.getElementById('f-remarks').value=d.remarks||'';
   document.getElementById('serr').style.display='none';
   clearPhoto();
-  // Focus reading field and open numeric keypad
   setTimeout(()=>{
     const inp = document.getElementById('f-reading');
     inp.focus();
@@ -522,18 +575,15 @@ function saveReading(goNext) {
     savedAt:new Date().toLocaleString(),synced:false
   };
 
-  // Save locally immediately
   pending.push(update);
   localStorage.setItem('ub_pending',JSON.stringify(pending));
   updatedSet.add(String(update.acno));
   updateDot();
 
-  // Update cache
   const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
   if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
   localStorage.setItem(CK,JSON.stringify(allAccounts));
 
-  // Find next account
   const currentIdx = filtered.findIndex(a=>String(a.acno)===String(update.acno));
   const nextAcct = goNext ? filtered[currentIdx + 1] : null;
 
@@ -542,7 +592,6 @@ function saveReading(goNext) {
   if (goNext && nextAcct) {
     currentAcct = nextAcct;
     fillDetail(nextAcct);
-    // If next account was already updated this session, pre-fill its values
     const existingUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(nextAcct.acno));
     if (existingUpdate) {
       document.getElementById('f-reading').value = existingUpdate.newReading || '';
@@ -558,7 +607,6 @@ function saveReading(goNext) {
     showBar('ACNO '+update.acno+' saved — syncing in background...','syncing');
   }
 
-  // Sync in background — user is already on list screen
   const capturedPhotoB64 = photoB64;
   photoB64 = null;
   clearPhoto();
@@ -573,15 +621,12 @@ function saveReading(goNext) {
           localStorage.setItem('ub_pending',JSON.stringify(pending));
           updateDot();
           showBar('ACNO '+update.acno+' synced ✓','ok');
-          // Upload photo via imgbb (free, no auth needed)
           if (capturedPhotoB64) {
             uploadPhotoImgbb(capturedPhotoB64, update.acno, update.newDate, update.worker);
           }
         }
       })
-      .catch(()=>{
-        showBar('Saved locally — will sync when connected','offline');
-      });
+      .catch(()=>{ showBar('Saved locally — will sync when connected','offline'); });
   } else {
     showBar('Offline — will sync when connected','offline');
   }
@@ -589,30 +634,21 @@ function saveReading(goNext) {
 
 async function uploadPhotoImgbb(b64, acno, date, worker) {
   try {
-    // Use imgbb free API - no auth needed for anonymous uploads
     const formData = new FormData();
     formData.append('image', b64);
     formData.append('name', 'ACNO_' + acno + '_' + date);
-    // Free imgbb API key (public)
     const res = await fetch('https://api.imgbb.com/1/upload?key=2e2935f6574d72dbd7ac0dc8778b5827', {
-      method: 'POST',
-      body: formData
+      method: 'POST', body: formData
     });
     const data = await res.json();
     if (data.success) {
       const photoUrl = data.data.url;
-      // Save URL back to Google Sheet via Apps Script
       fetch(API, {method:'POST', body:JSON.stringify({
-        action:'save_photo_url',
-        acno: acno,
-        photoUrl: photoUrl,
-        worker: worker
+        action:'save_photo_url', acno, photoUrl, worker
       })}).catch(()=>{});
       showBar('Photo uploaded ✓','ok');
     }
-  } catch(e) {
-    console.log('Photo upload error:', e);
-  }
+  } catch(e) { console.log('Photo upload error:', e); }
 }
 
 async function syncAll() {
@@ -644,7 +680,7 @@ function renderPending() {
   if (!pending.length){list.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
   list.innerHTML=pending.slice().reverse().map(p=>`
-    <div class="acard ${p.synced?'updated':''}">
+    <div class="acard${p.synced?' updated':''}">
       <div class="ainfo">
         <div class="aacno">ACNO ${p.acno}${p.synced?'<span class="utag">✓ Synced</span>':''}</div>
         <div class="ardate">${p.newReading?'Reading: '+p.newReading+' · ':''}${p.savedAt}</div>
@@ -657,7 +693,6 @@ function updateDot(){document.getElementById('ndot').style.display=pending.some(
 
 function previewPhoto(input) {
   const file=input.files[0];if(!file)return;
-  // Compress image before upload
   const reader=new FileReader();
   reader.onload=e=>{
     const img=new Image();
@@ -693,29 +728,6 @@ function changeName(){
 }
 
 window.addEventListener('online',()=>{showBar('Back online — syncing...','syncing');syncAll();});
-
-// Keep buttons visible above keyboard on Android
-function repositionButtons() {
-  const btns = document.getElementById('detail-btns');
-  if (!btns || btns.style.display === 'none') return;
-  if (window.visualViewport) {
-    const vv = window.visualViewport;
-    const offsetBottom = window.innerHeight - vv.height - vv.offsetTop;
-    btns.style.bottom = Math.max(0, offsetBottom) + 'px';
-  }
-  // Adjust body top margin to match header height
-  const hdr = document.getElementById('detail-hdr');
-  const body = document.getElementById('detail-body');
-  if (hdr && body) {
-    body.style.marginTop = hdr.offsetHeight + 'px';
-  }
-}
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', repositionButtons);
-  window.visualViewport.addEventListener('scroll', repositionButtons);
-}
-// Also call when detail screen opens
-// header hidden initially until detail screen shown
 window.addEventListener('offline',()=>showBar('Offline — updates saved locally','offline'));
 if(!navigator.onLine)showBar('Offline — updates saved locally','offline');
 
@@ -725,7 +737,6 @@ else{const n=prompt('Enter your name:')||'Field Worker';localStorage.setItem('wn
 
 document.getElementById('area-chip').textContent = selectedArea==='all'?'Area: All':'Area: '+selectedArea;
 updateDot();
-// Always show area screen first so user can confirm/change area
 loadAreas();
 show('area');
 </script>
