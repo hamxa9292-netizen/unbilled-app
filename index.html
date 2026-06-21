@@ -151,53 +151,72 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="loadmore" id="lmbtn" onclick="loadMore()" style="display:none">Load more ↓</button>
   </div>
 
-  <!-- DETAIL -->
-  <div class="screen" id="screen-detail">
-    <div class="dpad">
-      <button class="backbtn" onclick="goBack()">← Back to list</button>
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:13px">
-          <div>
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">Account No.</div>
-            <div class="abig" id="d-acno"></div>
-          </div>
-          <span class="badge" id="d-status"></span>
-        </div>
-        <div class="irow"><span class="ilbl">Area</span><span class="ival" id="d-area"></span></div>
-        <div class="irow"><span class="ilbl">Meter No.</span><span class="ival" id="d-meter"></span></div>
-        <div class="irow"><span class="ilbl">Premises</span><span class="ival" id="d-addr"></span></div>
-        <div class="irow"><span class="ilbl">Prev. Reading</span><span class="ival" id="d-prev"></span></div>
-        <div class="irow"><span class="ilbl">Prev. Date</span><span class="ival" id="d-pdate"></span></div>
-        <div class="irow"><span class="ilbl">R_DATE</span><span class="ival" id="d-rdate"></span></div>
+  <!-- DETAIL — full screen reading entry -->
+  <div class="screen" id="screen-detail" style="display:none;flex-direction:column;height:100vh;background:#1a1a2e;">
+
+    <!-- TOP: Account info -->
+    <div style="background:#1F4E79;padding:10px 14px 8px;flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <button onclick="goBack()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">✕ List</button>
+        <span class="badge" id="d-status" style="font-size:12px;"></span>
       </div>
-      <div class="card">
-        <div class="ctitle">Update Reading</div>
-        <div class="field"><label>New Reading</label>
-          <input type="number" id="f-reading" placeholder="Enter meter reading" inputmode="numeric" autocomplete="off" autofocus>
+      <div style="color:#7dd3fc;font-size:12px;font-weight:600;" id="d-addr"></div>
+      <div style="color:#fff;font-size:13px;margin-top:2px;">
+        <span style="opacity:.7;">AC No: </span><span style="font-weight:800;font-size:15px;" id="d-acno"></span>
+        <span style="opacity:.5;margin:0 6px;">|</span>
+        <span style="opacity:.7;">Cat: </span><span style="font-weight:600;" id="d-area"></span>
+      </div>
+      <div style="color:#fff;font-size:13px;margin-top:2px;">
+        <span style="opacity:.7;">Meter No: </span><span style="font-weight:600;color:#7dd3fc;" id="d-meter"></span>
+      </div>
+      <div style="color:#fbbf24;font-size:13px;margin-top:2px;">
+        <span id="d-prev"></span>
+        <span style="opacity:.6;"> on </span>
+        <span id="d-pdate"></span>
+        <span style="opacity:.5;margin:0 6px;">|</span>
+        <span style="opacity:.7;color:#fff;">R_DATE: </span>
+        <span id="d-rdate" style="color:#fff;"></span>
+      </div>
+    </div>
+
+    <!-- MIDDLE: Reading input -->
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:12px 14px;">
+      <div style="color:#9ca3af;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">New Reading</div>
+      <input type="number" id="f-reading" placeholder="0" inputmode="numeric" autocomplete="off"
+        style="width:100%;background:#fff;border:3px solid #2563eb;border-radius:12px;font-size:36px;font-weight:800;padding:14px 16px;color:#111;font-family:inherit;outline:none;text-align:center;">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+        <div>
+          <div style="color:#9ca3af;font-size:11px;margin-bottom:4px;">New Date</div>
+          <input type="date" id="f-date" style="width:100%;padding:10px;border:1.5px solid #374151;border-radius:8px;font-size:14px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
         </div>
-        <div class="field"><label>New Date</label>
-          <input type="date" id="f-date">
+        <div>
+          <div style="color:#9ca3af;font-size:11px;margin-bottom:4px;">Remarks</div>
+          <input type="text" id="f-remarks" placeholder="Done / Locked..." style="width:100%;padding:10px;border:1.5px solid #374151;border-radius:8px;font-size:14px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
         </div>
-        <div class="field"><label>Remarks</label>
-          <textarea id="f-remarks" placeholder="e.g. Done, Locked, No access..."></textarea>
+      </div>
+
+      <!-- Photo -->
+      <div style="margin-top:10px;">
+        <div id="pp" style="display:none;margin-bottom:6px;">
+          <div class="photo-preview"><img id="pimg" src="" style="border-radius:8px;max-height:120px;object-fit:cover;width:100%;"></div>
+          <button class="rmphoto" onclick="clearPhoto()" style="margin-top:4px;">✕ Remove photo</button>
         </div>
-        <div class="field">
-          <label>Meter Photo (optional)</label>
-          <div id="pp" style="display:none;margin-bottom:8px;">
-            <div class="photo-preview"><img id="pimg" src=""></div>
-            <button class="rmphoto" onclick="clearPhoto()">✕ Remove photo</button>
-          </div>
-          <div id="pbw">
-            <button class="photobtn" onclick="document.getElementById('pinput').click()">📷 Take or choose photo</button>
-            <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
-          </div>
+        <div id="pbw">
+          <button onclick="document.getElementById('pinput').click()" style="width:100%;padding:8px;border:1.5px dashed #374151;border-radius:8px;background:transparent;color:#9ca3af;font-size:13px;cursor:pointer;font-family:inherit;">📷 Add meter photo</button>
+          <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
         </div>
-        <div class="errmsg" id="serr"></div>
-        <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <button class="btn btns" onclick="saveReading(false)" id="savebtn" style="margin-bottom:0;flex:1;">💾 Save</button>
-          <button class="btn btnp" onclick="saveReading(true)" id="savenextbtn" style="margin-bottom:0;flex:1;">Save & Next →</button>
-        </div>
-        <button class="btn btng" onclick="goBack()">Cancel</button>
+      </div>
+
+      <div class="errmsg" id="serr" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- BOTTOM: Prev / Save / Next -->
+    <div style="padding:10px 14px 20px;background:#111827;flex-shrink:0;">
+      <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;">
+        <button onclick="goPrev()" style="background:#374151;color:#fff;border:none;border-radius:10px;padding:14px 0;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">◀ Prev</button>
+        <button onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:14px 0;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
+        <button onclick="saveReading(true)" style="background:#1F4E79;color:#fff;border:none;border-radius:10px;padding:14px 0;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Next ▶</button>
       </div>
     </div>
   </div>
@@ -255,8 +274,13 @@ function showBar(msg, type) {
 }
 
 function show(id) {
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('screen-'+id).classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.remove('active');
+    s.style.display = 'none';
+  });
+  const el = document.getElementById('screen-'+id);
+  el.classList.add('active');
+  el.style.display = id === 'detail' ? 'flex' : 'block';
 }
 
 function switchNav(tab) {
@@ -268,6 +292,17 @@ function switchNav(tab) {
 }
 
 function goBack() { clearPhoto(); show('home'); switchNav('home'); }
+
+function goPrev() {
+  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
+  if (currentIdx > 0) {
+    const prev = filtered[currentIdx - 1];
+    currentAcct = prev;
+    fillDetail(prev);
+  } else {
+    showBar('Already at first account','offline');
+  }
+}
 
 function showAreaScreen() { show('area'); }
 
@@ -438,7 +473,7 @@ async function openAccount(acno) {
 
 function fillDetail(d) {
   document.getElementById('d-acno').textContent=d.acno;
-  document.getElementById('d-area').textContent='Area '+d.area||'—';
+  document.getElementById('d-area').textContent='Area '+(d.area||'—');
   document.getElementById('d-meter').textContent=d.meter||'—';
   document.getElementById('d-addr').textContent=d.address||'—';
   document.getElementById('d-prev').textContent=d.prevReading||'—';
@@ -486,18 +521,17 @@ function saveReading(goNext) {
   if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
   localStorage.setItem(CK,JSON.stringify(allAccounts));
 
-  // Find next pending account
+  // Find next account
   const currentIdx = filtered.findIndex(a=>String(a.acno)===String(update.acno));
-  const nextAcct = goNext ? filtered.find((a,i) => i > currentIdx && a.status !== 'done') : null;
+  const nextAcct = goNext ? filtered[currentIdx + 1] : null;
 
   renderList();
 
   if (goNext && nextAcct) {
-    // Open next account directly
     currentAcct = nextAcct;
     fillDetail(nextAcct);
     show('detail');
-    showBar('ACNO '+update.acno+' saved — loading next account...','syncing');
+    showBar('ACNO '+update.acno+' saved — next account loaded','syncing');
   } else {
     show('home');
     switchNav('home');
