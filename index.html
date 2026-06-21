@@ -674,6 +674,21 @@ function changeName(){
 }
 
 window.addEventListener('online',()=>{showBar('Back online — syncing...','syncing');syncAll();});
+
+// Keep buttons visible above keyboard on Android
+function repositionButtons() {
+  const btns = document.getElementById('detail-btns');
+  if (!btns || btns.style.display === 'none') return;
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    const offsetBottom = window.innerHeight - vv.height - vv.offsetTop;
+    btns.style.bottom = Math.max(0, offsetBottom) + 'px';
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', repositionButtons);
+  window.visualViewport.addEventListener('scroll', repositionButtons);
+}
 window.addEventListener('offline',()=>showBar('Offline — updates saved locally','offline'));
 if(!navigator.onLine)showBar('Offline — updates saved locally','offline');
 
