@@ -287,7 +287,8 @@ let pending = JSON.parse(localStorage.getItem('ub_pending') || '[]');
 let allAccounts = [], filtered = [], page = 1, pageSize = 40;
 let currentAcct = null, photoB64 = null;
 let selectedArea = localStorage.getItem('ub_area') || 'all';
-let updatedSet = new Set(pending.map(p => String(p.acno)));
+// Only track entries confirmed synced to sheet — not just locally saved
+let updatedSet = new Set(pending.filter(p => p.synced).map(p => String(p.acno)));
 
 function showBar(msg, type) {
   const b = document.getElementById('sbar');
@@ -480,10 +481,19 @@ function renderList() {
     return;
   }
   el.innerHTML = slice.map(a => {
-    const isUpdated = updatedSet.has(String(a.acno));
-    const isDone = a.status === 'done';
-    const cls = (isUpdated || isDone) ? 'updated' : '';
-    const tag = isUpdated ? '<span class="utag">✓ Updated</span>' : (isDone ? '<span class="utag" style="background:#d1fae5;color:#065f46;">✓ Done</span>' : '');
+    // Green only if sheet confirms done OR locally synced to sheet
+    const syncedLocally = updatedSet.has(String(a.acno)); // synced:true entries only
+    const sheetDone = a.status === 'done';
+    const isGreen = syncedLocally || sheetDone;
+    // Show orange "Saving..." tag if saved locally but not yet synced to sheet
+    const hasPendingLocal = pending.some(p => String(p.acno) === String(a.acno) && !p.synced);
+    const cls = isGreen ? 'updated' : '';
+    let tag = '';
+    if (isGreen) {
+      tag = '<span class="utag">✓ Updated</span>';
+    } else if (hasPendingLocal) {
+      tag = '<span class="utag" style="background:#fef3c7;color:#92400e;">⏳ Saving...</span>';
+    }
     return `<div class="acard ${cls}" onclick="openAccount('${a.acno}')">
       <div class="ainfo">
         <div class="aacno">ACNO ${a.acno}${tag}</div>
@@ -578,12 +588,13 @@ function saveReading(goNext) {
 
   pending.push(update);
   localStorage.setItem('ub_pending',JSON.stringify(pending));
-  updatedSet.add(String(update.acno));
+  // Don't add to updatedSet yet — only after confirmed sheet sync
   updateDot();
 
-  const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
-  if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
-  localStorage.setItem(CK,JSON.stringify(allAccounts));
+  // Don't mark as done in cache until sheet confirms — keeps status honest
+  // const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
+  // if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
+  // localStorage.setItem(CK,JSON.stringify(allAccounts));
 
   const currentIdx = filtered.findIndex(a=>String(a.acno)===String(update.acno));
   const nextAcct = goNext ? filtered[currentIdx + 1] : null;
@@ -620,7 +631,13 @@ function saveReading(goNext) {
           const i = pending.findIndex(p=>p.acno===update.acno&&p.savedAt===update.savedAt);
           if (i>=0) pending[i].synced=true;
           localStorage.setItem('ub_pending',JSON.stringify(pending));
+          updatedSet.add(String(update.acno)); // Now confirmed in sheet — show green
+          // Mark account as done in local cache now that sheet confirmed
+          const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
+          if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
+          localStorage.setItem(CK,JSON.stringify(allAccounts));
           updateDot();
+          renderList();
           showBar('ACNO '+update.acno+' synced ✓','ok');
           if (capturedPhotoB64) {
             uploadPhotoImgbb(capturedPhotoB64, update.acno, update.newDate, update.worker);
