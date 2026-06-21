@@ -132,7 +132,7 @@ html{overscroll-behavior-y:none;}
 <div class="content">
 
   <!-- AREA SELECTION SCREEN -->
-  <div class="screen active" id="screen-area">
+  <div class="screen" id="screen-area">
     <div class="area-screen">
       <div class="area-title">Select Area</div>
       <div class="area-sub">Choose an area to load its accounts</div>
@@ -397,1186 +397,416 @@ async function loadAll(force) {
       allAccounts = JSON.parse(c);
       filtered = allAccounts.filter(a=>a.status==='pending');
       renderList();
-      document.getElementById('lcount').textContent =   flex-shrink: 0;
-}
-
-/* Fixed bottom action buttons — repositioned via JS to sit above keyboard */
-#detail-btns {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 430px;
-  margin: 0 auto;
-  padding: 8px 12px 12px;
-  background: #0f172a;
-  border-top: 2px solid #1e293b;
-  z-index: 999;
-}
-</style>
-</head>
-<body>
-<div class="app">
-<div class="hdr">
-  <span style="font-size:21px">⚡</span>
-  <h1>Unbilled Readings</h1>
-  <span class="hdr-name" onclick="changeName()">👤 <span id="wlabel">Field Worker</span></span>
-  <button class="hdr-rf" id="rfbtn" onclick="hardRefresh()">🔄</button>
-</div>
-<div class="sbar" id="sbar"></div>
-
-<div class="content">
-
-  <!-- AREA SELECTION SCREEN -->
-  <div class="screen active" id="screen-area">
-    <div class="area-screen">
-      <div class="area-title">Select Area</div>
-      <div class="area-sub">Choose an area to load its accounts</div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">Area</label>
-        <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;">
-          <option value="all">All Areas</option>
-        </select>
-      </div>
-      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()">Load Accounts →</button>
-      <div id="area-err" style="color:#b91c1c;font-size:13px;margin-top:10px;display:none;text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- HOME (account list) -->
-  <div class="screen" id="screen-home">
-    <div class="topbar">
-      <div class="area-chip">
-        <span class="achip" id="area-chip">Area: All</span>
-        <button class="achange" onclick="showAreaScreen()">Change area</button>
-      </div>
-      <div class="sw">
-        <span class="ico">🔍</span>
-        <input type="number" id="sinput" placeholder="Search account / meter no..." inputmode="numeric" autocomplete="off"
-          oninput="filterList(this.value)" onkeydown="if(event.key==='Enter')quickSearch()">
-        <button class="go" onclick="quickSearch()">Go</button>
-      </div>
-    </div>
-    <div class="lhdr">
-      <span class="lhdr-t" id="ltitle">Unbilled Accounts</span>
-      <span class="lhdr-c" id="lcount"></span>
-    </div>
-    <div id="alist"></div>
-    <button class="loadmore" id="lmbtn" onclick="loadMore()" style="display:none">Load more ↓</button>
-  </div>
-
-  <!-- DETAIL SCREEN — compact layout -->
-  <div class="screen" id="screen-detail">
-
-    <!-- Compact sticky header -->
-    <div id="detail-hdr">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-        <button onclick="goBack()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✕ List</button>
-        <span class="badge" id="d-status"></span>
-      </div>
-      <div style="color:#7dd3fc;font-size:13px;font-weight:700;line-height:1.2;" id="d-addr"></div>
-      <div style="color:#fff;font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;">
-        <span><span style="opacity:.7;">AC: </span><span style="font-weight:800;" id="d-acno"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;">Area: </span><span style="font-weight:700;" id="d-area"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;">Meter: </span><span style="font-weight:700;color:#7dd3fc;" id="d-meter"></span></span>
-      </div>
-      <div style="color:#fbbf24;font-size:12px;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-weight:700;" id="d-prev"></span>
-        <span style="opacity:.6;"> on </span>
-        <span id="d-pdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <span style="color:#fff;opacity:.8;">R_DATE: </span>
-        <span style="color:#fff;font-weight:700;" id="d-rdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <!-- Photo inline -->
-        <span id="pbw" style="display:inline-flex;align-items:center;">
-          <button onclick="document.getElementById('pinput').click()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;">📷</button>
-          <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
-        </span>
-        <span id="pp" style="display:none;align-items:center;gap:4px;">
-          <img id="pimg" src="" style="border-radius:4px;height:20px;width:28px;object-fit:cover;vertical-align:middle;">
-          <button onclick="clearPhoto()" style="background:rgba(239,68,68,.3);border:none;color:#fca5a5;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;font-family:inherit;">✕</button>
-        </span>
-      </div>
-    </div>
-
-    <!-- Reading input area — compact, no scrolling needed -->
-    <div id="detail-body">
-      <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">New Reading</div>
-      <input type="number" id="f-reading" placeholder="0" inputmode="numeric" autocomplete="off"
-        style="width:100%;background:#fff;border:3px solid #2563eb;border-radius:10px;font-size:32px;font-weight:800;padding:12px 16px;color:#111;font-family:inherit;outline:none;text-align:center;margin-bottom:10px;">
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">New Date</div>
-          <input type="date" id="f-date" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">Remarks</div>
-          <input type="text" id="f-remarks" placeholder="Done / Locked..." style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-      </div>
-
-      <div class="errmsg" id="serr" style="margin-top:6px;"></div>
-
-      <!-- Spacer so content doesn't hide behind fixed buttons -->
-      <div style="height:72px;"></div>
-    </div>
-
-    <!-- Fixed bottom action buttons -->
-    <div id="detail-btns">
-      <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;">
-        <button onclick="goPrev()" style="background:#374151;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">◀ Prev</button>
-        <button onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
-        <button onclick="saveReading(true)" style="background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Next ▶</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SUCCESS -->
-  <div class="screen" id="screen-success">
-    <div class="swrap">
-      <div class="sico">✅</div>
-      <div class="stitle">Reading saved!</div>
-      <div class="ssub" id="smsg"></div>
-      <button class="btn btnp" onclick="goBack()" style="margin-bottom:10px">← Back to list</button>
-      <button class="btn btng" onclick="switchNav('pending')">View pending</button>
-    </div>
-  </div>
-
-  <!-- PENDING -->
-  <div class="screen" id="screen-pending">
-    <div class="stats">
-      <div class="stat"><div class="statn" id="sp">0</div><div class="statl">Pending sync</div></div>
-      <div class="stat"><div class="statn" id="ss">0</div><div class="statl">Synced</div></div>
-    </div>
-    <div style="padding:0 14px 12px"><button class="btn btnp" onclick="syncAll()" id="syncbtn">🔄 Sync all now</button></div>
-    <div class="lhdr"><span class="lhdr-t">Saved updates</span></div>
-    <div class="plist" id="plist"></div>
-    <div class="empty" id="pempty" style="display:none"><div style="font-size:44px;margin-bottom:10px">✅</div><div>All synced!</div></div>
-  </div>
-
-</div>
-
-<nav class="nav">
-  <button class="nbtn active" id="nav-home" onclick="switchNav('home')">
-    <span class="nico">🏠</span>Home
-  </button>
-  <button class="nbtn" id="nav-pending" onclick="switchNav('pending')">
-    <span class="nico">🕐</span>Pending
-    <span class="ndot" id="ndot"></span>
-  </button>
-</nav>
-</div>
-
-<script>
-const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
-const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
-
-// On startup: wipe ALL locally pending entries — sheet is the single source of truth.
-// Any unsynced entries would need to be re-entered; synced ones the sheet already has.
-// This prevents stale "✓ Updated" tags from old sessions polluting the view.
-localStorage.removeItem('ub_pending');
-let pending = [];
-
-let allAccounts = [], filtered = [], page = 1, pageSize = 40;
-let currentAcct = null, photoB64 = null;
-let selectedArea = localStorage.getItem('ub_area') || 'all';
-// updatedSet starts empty — populated only after sheet confirms sync this session
-let updatedSet = new Set();
-
-function showBar(msg, type) {
-  const b = document.getElementById('sbar');
-  b.className = 'sbar show ' + type;
-  b.textContent = msg;
-  if (type==='ok') setTimeout(()=>b.className='sbar',3000);
-}
-
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s=>{
-    s.classList.remove('active');
-    s.style.display = '';
-  });
-  const el = document.getElementById('screen-'+id);
-  el.classList.add('active');
-
-  // Hide bottom nav when in detail screen, show otherwise
-  const nav = document.querySelector('.nav');
-  if (id === 'detail') {
-    nav.style.display = 'none';
-    document.querySelector('.content').style.paddingBottom = '0';
-    setTimeout(updateBtnPosition, 50);
-  } else {
-    nav.style.display = 'flex';
-    document.querySelector('.content').style.paddingBottom = '72px';
-  }
-}
-
-function switchNav(tab) {
-  document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
-  const nb = document.getElementById('nav-'+tab);
-  if (nb) nb.classList.add('active');
-  if (tab==='pending') { renderPending(); show('pending'); }
-  else if (tab==='home') show('home');
-}
-
-function goBack() { clearPhoto(); show('home'); switchNav('home'); }
-
-function goPrev() {
-  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
-  if (currentIdx > 0) {
-    const prev = filtered[currentIdx - 1];
-    currentAcct = prev;
-    fillDetail(prev);
-    const prevUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(prev.acno));
-    if (prevUpdate) {
-      document.getElementById('f-reading').value = prevUpdate.newReading || '';
-      document.getElementById('f-date').value = prevUpdate.newDate || new Date().toISOString().split('T')[0];
-      document.getElementById('f-remarks').value = prevUpdate.remarks || '';
+      document.getElementById('lcount').textContent = filtered.length+' pending';
+      // Always verify against sheet in background — catches cases where sheet write failed
+      bgRefresh();
+      return;
     }
-    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
-  } else {
-    showBar('Already at first account','offline');
   }
-}
-
-function showAreaScreen() { show('area'); }
-
-let selectedAreaTemp = selectedArea;
-
-function loadAreas() {
-  const sel = document.getElementById('area-select');
-  sel.innerHTML = '<option value="all">All Areas</option>';
-  for (let i = 1; i <= 24; i++) {
-    const opt = document.createElement('option');
-    opt.value = i; opt.textContent = 'Area ' + i;
-    if (String(i) === String(selectedArea)) opt.selected = true;
-    sel.appendChild(opt);
-  }
-  if (selectedArea === 'all') sel.value = 'all';
-}
-
-async function loadSelectedArea() {
-  selectedArea = document.getElementById('area-select').value;
-  localStorage.setItem('ub_area', selectedArea);
-  const btn = document.getElementById('area-load-btn');
-  btn.innerHTML = '<span class="spin"></span> Loading...';
-  btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  await loadAll(true);
-  btn.innerHTML = 'Load Accounts →';
-  btn.disabled = false;
-  document.getElementById('area-chip').textContent = selectedArea==='all' ? 'Area: All' : 'Area: '+selectedArea;
-  show('home');
-  switchNav('home');
-}
-
-async function hardRefresh() {
-  const btn = document.getElementById('rfbtn');
-  btn.textContent = '⏳'; btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  localStorage.removeItem('ub_pending');
-  pending = []; updatedSet = new Set();
-  updateDot();
-  await loadAll(true);
-  btn.textContent = '🔄'; btn.disabled = false;
-  showBar('Refreshed ✓','ok');
-}
-
-async function loadAll(force) {
-  const el = document.getElementById('alist');
-  if (!force) {
-    const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
-    if (c && (Date.now()-ts)<TTL) {
+  el.innerHTML = '<div class="loading">⏳ Loading accounts...<br><small>May take 15–20 seconds on first load</small></div>';
+  const areaParam = selectedArea!=='all' ? '&area='+encodeURIComponent(selectedArea) : '';
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 45000);
+    const res = await fetch(API+'?action=all'+areaParam, {signal:ctrl.signal});
+    clearTimeout(tid);
+    const data = await res.json();
+    allAccounts = data.accounts || [];
+    localStorage.setItem(CK, JSON.stringify(allAccounts));
+    localStorage.setItem(CT, Date.now()+'');
+    filtered = allAccounts;
+    renderList();
+    const pendingCount = allAccounts.filter(a=>a.status==='pending').length;
+    document.getElementById('lcount').textContent = pendingCount+' pending / '+allAccounts.length+' total';
+    document.getElementById('ltitle').textContent = 'All Accounts';
+  } catch(e) {
+    const c = localStorage.getItem(CK);
+    if (c) {
       allAccounts = JSON.parse(c);
-      filtered = allAccounts.filter(a=>a.status==='pending');
+      filtered = allAccounts;
       renderList();
-    flex-shrink: 0;
-}
-
-/* Fixed bottom action buttons — repositioned via JS to sit above keyboard */
-#detail-btns {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 430px;
-  margin: 0 auto;
-  padding: 8px 12px 12px;
-  background: #0f172a;
-  border-top: 2px solid #1e293b;
-  z-index: 999;
-}
-</style>
-</head>
-<body>
-<div class="app">
-<div class="hdr">
-  <span style="font-size:21px">⚡</span>
-  <h1>Unbilled Readings</h1>
-  <span class="hdr-name" onclick="changeName()">👤 <span id="wlabel">Field Worker</span></span>
-  <button class="hdr-rf" id="rfbtn" onclick="hardRefresh()">🔄</button>
-</div>
-<div class="sbar" id="sbar"></div>
-
-<div class="content">
-
-  <!-- AREA SELECTION SCREEN -->
-  <div class="screen active" id="screen-area">
-    <div class="area-screen">
-      <div class="area-title">Select Area</div>
-      <div class="area-sub">Choose an area to load its accounts</div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">Area</label>
-        <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;">
-          <option value="all">All Areas</option>
-        </select>
-      </div>
-      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()">Load Accounts →</button>
-      <div id="area-err" style="color:#b91c1c;font-size:13px;margin-top:10px;display:none;text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- HOME (account list) -->
-  <div class="screen" id="screen-home">
-    <div class="topbar">
-      <div class="area-chip">
-        <span class="achip" id="area-chip">Area: All</span>
-        <button class="achange" onclick="showAreaScreen()">Change area</button>
-      </div>
-      <div class="sw">
-        <span class="ico">🔍</span>
-        <input type="number" id="sinput" placeholder="Search account / meter no..." inputmode="numeric" autocomplete="off"
-          oninput="filterList(this.value)" onkeydown="if(event.key==='Enter')quickSearch()">
-        <button class="go" onclick="quickSearch()">Go</button>
-      </div>
-    </div>
-    <div class="lhdr">
-      <span class="lhdr-t" id="ltitle">Unbilled Accounts</span>
-      <span class="lhdr-c" id="lcount"></span>
-    </div>
-    <div id="alist"></div>
-    <button class="loadmore" id="lmbtn" onclick="loadMore()" style="display:none">Load more ↓</button>
-  </div>
-
-  <!-- DETAIL SCREEN — compact layout -->
-  <div class="screen" id="screen-detail">
-
-    <!-- Compact sticky header -->
-    <div id="detail-hdr">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-        <button onclick="goBack()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✕ List</button>
-        <span class="badge" id="d-status"></span>
-      </div>
-      <div style="color:#7dd3fc;font-size:13px;font-weight:700;line-height:1.2;" id="d-addr"></div>
-      <div style="color:#fff;font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;">
-        <span><span style="opacity:.7;">AC: </span><span style="font-weight:800;" id="d-acno"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;">Area: </span><span style="font-weight:700;" id="d-area"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;">Meter: </span><span style="font-weight:700;color:#7dd3fc;" id="d-meter"></span></span>
-      </div>
-      <div style="color:#fbbf24;font-size:12px;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-weight:700;" id="d-prev"></span>
-        <span style="opacity:.6;"> on </span>
-        <span id="d-pdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <span style="color:#fff;opacity:.8;">R_DATE: </span>
-        <span style="color:#fff;font-weight:700;" id="d-rdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <!-- Photo inline -->
-        <span id="pbw" style="display:inline-flex;align-items:center;">
-          <button onclick="document.getElementById('pinput').click()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;">📷</button>
-          <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
-        </span>
-        <span id="pp" style="display:none;align-items:center;gap:4px;">
-          <img id="pimg" src="" style="border-radius:4px;height:20px;width:28px;object-fit:cover;vertical-align:middle;">
-          <button onclick="clearPhoto()" style="background:rgba(239,68,68,.3);border:none;color:#fca5a5;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;font-family:inherit;">✕</button>
-        </span>
-      </div>
-    </div>
-
-    <!-- Reading input area — compact, no scrolling needed -->
-    <div id="detail-body">
-      <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">New Reading</div>
-      <input type="number" id="f-reading" placeholder="0" inputmode="numeric" autocomplete="off"
-        style="width:100%;background:#fff;border:3px solid #2563eb;border-radius:10px;font-size:32px;font-weight:800;padding:12px 16px;color:#111;font-family:inherit;outline:none;text-align:center;margin-bottom:10px;">
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">New Date</div>
-          <input type="date" id="f-date" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">Remarks</div>
-          <input type="text" id="f-remarks" placeholder="Done / Locked..." style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-      </div>
-
-      <div class="errmsg" id="serr" style="margin-top:6px;"></div>
-
-      <!-- Spacer so content doesn't hide behind fixed buttons -->
-      <div style="height:72px;"></div>
-    </div>
-
-    <!-- Fixed bottom action buttons -->
-    <div id="detail-btns">
-      <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;">
-        <button onclick="goPrev()" style="background:#374151;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">◀ Prev</button>
-        <button onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
-        <button onclick="saveReading(true)" style="background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Next ▶</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SUCCESS -->
-  <div class="screen" id="screen-success">
-    <div class="swrap">
-      <div class="sico">✅</div>
-      <div class="stitle">Reading saved!</div>
-      <div class="ssub" id="smsg"></div>
-      <button class="btn btnp" onclick="goBack()" style="margin-bottom:10px">← Back to list</button>
-      <button class="btn btng" onclick="switchNav('pending')">View pending</button>
-    </div>
-  </div>
-
-  <!-- PENDING -->
-  <div class="screen" id="screen-pending">
-    <div class="stats">
-      <div class="stat"><div class="statn" id="sp">0</div><div class="statl">Pending sync</div></div>
-      <div class="stat"><div class="statn" id="ss">0</div><div class="statl">Synced</div></div>
-    </div>
-    <div style="padding:0 14px 12px"><button class="btn btnp" onclick="syncAll()" id="syncbtn">🔄 Sync all now</button></div>
-    <div class="lhdr"><span class="lhdr-t">Saved updates</span></div>
-    <div class="plist" id="plist"></div>
-    <div class="empty" id="pempty" style="display:none"><div style="font-size:44px;margin-bottom:10px">✅</div><div>All synced!</div></div>
-  </div>
-
-</div>
-
-<nav class="nav">
-  <button class="nbtn active" id="nav-home" onclick="switchNav('home')">
-    <span class="nico">🏠</span>Home
-  </button>
-  <button class="nbtn" id="nav-pending" onclick="switchNav('pending')">
-    <span class="nico">🕐</span>Pending
-    <span class="ndot" id="ndot"></span>
-  </button>
-</nav>
-</div>
-
-<script>
-const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
-const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
-
-// On startup: wipe ALL locally pending entries — sheet is the single source of truth.
-// Any unsynced entries would need to be re-entered; synced ones the sheet already has.
-// This prevents stale "✓ Updated" tags from old sessions polluting the view.
-localStorage.removeItem('ub_pending');
-let pending = [];
-
-let allAccounts = [], filtered = [], page = 1, pageSize = 40;
-let currentAcct = null, photoB64 = null;
-let selectedArea = localStorage.getItem('ub_area') || 'all';
-// updatedSet starts empty — populated only after sheet confirms sync this session
-let updatedSet = new Set();
-
-function showBar(msg, type) {
-  const b = document.getElementById('sbar');
-  b.className = 'sbar show ' + type;
-  b.textContent = msg;
-  if (type==='ok') setTimeout(()=>b.className='sbar',3000);
-}
-
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s=>{
-    s.classList.remove('active');
-    s.style.display = '';
-  });
-  const el = document.getElementById('screen-'+id);
-  el.classList.add('active');
-
-  // Hide bottom nav when in detail screen, show otherwise
-  const nav = document.querySelector('.nav');
-  if (id === 'detail') {
-    nav.style.display = 'none';
-    document.querySelector('.content').style.paddingBottom = '0';
-    setTimeout(updateBtnPosition, 50);
-  } else {
-    nav.style.display = 'flex';
-    document.querySelector('.content').style.paddingBottom = '72px';
-  }
-}
-
-function switchNav(tab) {
-  document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
-  const nb = document.getElementById('nav-'+tab);
-  if (nb) nb.classList.add('active');
-  if (tab==='pending') { renderPending(); show('pending'); }
-  else if (tab==='home') show('home');
-}
-
-function goBack() { clearPhoto(); show('home'); switchNav('home'); }
-
-function goPrev() {
-  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
-  if (currentIdx > 0) {
-    const prev = filtered[currentIdx - 1];
-    currentAcct = prev;
-    fillDetail(prev);
-    const prevUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(prev.acno));
-    if (prevUpdate) {
-      document.getElementById('f-reading').value = prevUpdate.newReading || '';
-      document.getElementById('f-date').value = prevUpdate.newDate || new Date().toISOString().split('T')[0];
-      document.getElementById('f-remarks').value = prevUpdate.remarks || '';
+      const pc2 = allAccounts.filter(a=>a.status==='pending').length;
+      document.getElementById('lcount').textContent = pc2+' pending / '+allAccounts.length+' total (cached)';
+      showBar('Showing cached data — tap 🔄 to refresh','offline');
+    } else {
+      el.innerHTML = `<div class="empty"><div style="font-size:44px;margin-bottom:10px">📡</div>
+        <div style="margin-bottom:16px">Could not connect.<br>Check internet and try again.</div>
+        <button class="btn btnp" onclick="loadAll(true)" style="width:auto;padding:10px 24px;margin:0 auto;">Try again</button></div>`;
     }
-    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
-  } else {
-    showBar('Already at first account','offline');
   }
 }
 
-function showAreaScreen() { show('area'); }
-
-let selectedAreaTemp = selectedArea;
-
-function loadAreas() {
-  const sel = document.getElementById('area-select');
-  sel.innerHTML = '<option value="all">All Areas</option>';
-  for (let i = 1; i <= 24; i++) {
-    const opt = document.createElement('option');
-    opt.value = i; opt.textContent = 'Area ' + i;
-    if (String(i) === String(selectedArea)) opt.selected = true;
-    sel.appendChild(opt);
-  }
-  if (selectedArea === 'all') sel.value = 'all';
-}
-
-async function loadSelectedArea() {
-  selectedArea = document.getElementById('area-select').value;
-  localStorage.setItem('ub_area', selectedArea);
-  const btn = document.getElementById('area-load-btn');
-  btn.innerHTML = '<span class="spin"></span> Loading...';
-  btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  await loadAll(true);
-  btn.innerHTML = 'Load Accounts →';
-  btn.disabled = false;
-  document.getElementById('area-chip').textContent = selectedArea==='all' ? 'Area: All' : 'Area: '+selectedArea;
-  show('home');
-  switchNav('home');
-}
-
-async function hardRefresh() {
-  const btn = document.getElementById('rfbtn');
-  btn.textContent = '⏳'; btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  localStorage.removeItem('ub_pending');
-  pending = []; updatedSet = new Set();
-  updateDot();
-  await loadAll(true);
-  btn.textContent = '🔄'; btn.disabled = false;
-  showBar('Refreshed ✓','ok');
-}
-
-async function loadAll(force) {
-  const el = document.getElementById('alist');
-  if (!force) {
-    const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
-    if (c && (Date.now()-ts)<TTL) {
-      allAccounts = JSON.parse(c);
-      filtered = allAccounts.filter(a=>a.status==='pending');
-      renderList();
-    flex-shrink: 0;
-}
-
-/* Fixed bottom action buttons — repositioned via JS to sit above keyboard */
-#detail-btns {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 430px;
-  margin: 0 auto;
-  padding: 8px 12px 12px;
-  background: #0f172a;
-  border-top: 2px solid #1e293b;
-  z-index: 999;
-}
-</style>
-</head>
-<body>
-<div class="app">
-<div class="hdr">
-  <span style="font-size:21px">⚡</span>
-  <h1>Unbilled Readings</h1>
-  <span class="hdr-name" onclick="changeName()">👤 <span id="wlabel">Field Worker</span></span>
-  <button class="hdr-rf" id="rfbtn" onclick="hardRefresh()">🔄</button>
-</div>
-<div class="sbar" id="sbar"></div>
-
-<div class="content">
-
-  <!-- AREA SELECTION SCREEN -->
-  <div class="screen active" id="screen-area">
-    <div class="area-screen">
-      <div class="area-title">Select Area</div>
-      <div class="area-sub">Choose an area to load its accounts</div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">Area</label>
-        <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;">
-          <option value="all">All Areas</option>
-        </select>
-      </div>
-      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()">Load Accounts →</button>
-      <div id="area-err" style="color:#b91c1c;font-size:13px;margin-top:10px;display:none;text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- HOME (account list) -->
-  <div class="screen" id="screen-home">
-    <div class="topbar">
-      <div class="area-chip">
-        <span class="achip" id="area-chip">Area: All</span>
-        <button class="achange" onclick="showAreaScreen()">Change area</button>
-      </div>
-      <div class="sw">
-        <span class="ico">🔍</span>
-        <input type="number" id="sinput" placeholder="Search account / meter no..." inputmode="numeric" autocomplete="off"
-          oninput="filterList(this.value)" onkeydown="if(event.key==='Enter')quickSearch()">
-        <button class="go" onclick="quickSearch()">Go</button>
-      </div>
-    </div>
-    <div class="lhdr">
-      <span class="lhdr-t" id="ltitle">Unbilled Accounts</span>
-      <span class="lhdr-c" id="lcount"></span>
-    </div>
-    <div id="alist"></div>
-    <button class="loadmore" id="lmbtn" onclick="loadMore()" style="display:none">Load more ↓</button>
-  </div>
-
-  <!-- DETAIL SCREEN — compact layout -->
-  <div class="screen" id="screen-detail">
-
-    <!-- Compact sticky header -->
-    <div id="detail-hdr">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-        <button onclick="goBack()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✕ List</button>
-        <span class="badge" id="d-status"></span>
-      </div>
-      <div style="color:#7dd3fc;font-size:13px;font-weight:700;line-height:1.2;" id="d-addr"></div>
-      <div style="color:#fff;font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;">
-        <span><span style="opacity:.7;">AC: </span><span style="font-weight:800;" id="d-acno"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;">Area: </span><span style="font-weight:700;" id="d-area"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;">Meter: </span><span style="font-weight:700;color:#7dd3fc;" id="d-meter"></span></span>
-      </div>
-      <div style="color:#fbbf24;font-size:12px;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-weight:700;" id="d-prev"></span>
-        <span style="opacity:.6;"> on </span>
-        <span id="d-pdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <span style="color:#fff;opacity:.8;">R_DATE: </span>
-        <span style="color:#fff;font-weight:700;" id="d-rdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <!-- Photo inline -->
-        <span id="pbw" style="display:inline-flex;align-items:center;">
-          <button onclick="document.getElementById('pinput').click()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;">📷</button>
-          <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
-        </span>
-        <span id="pp" style="display:none;align-items:center;gap:4px;">
-          <img id="pimg" src="" style="border-radius:4px;height:20px;width:28px;object-fit:cover;vertical-align:middle;">
-          <button onclick="clearPhoto()" style="background:rgba(239,68,68,.3);border:none;color:#fca5a5;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;font-family:inherit;">✕</button>
-        </span>
-      </div>
-    </div>
-
-    <!-- Reading input area — compact, no scrolling needed -->
-    <div id="detail-body">
-      <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">New Reading</div>
-      <input type="number" id="f-reading" placeholder="0" inputmode="numeric" autocomplete="off"
-        style="width:100%;background:#fff;border:3px solid #2563eb;border-radius:10px;font-size:32px;font-weight:800;padding:12px 16px;color:#111;font-family:inherit;outline:none;text-align:center;margin-bottom:10px;">
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">New Date</div>
-          <input type="date" id="f-date" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">Remarks</div>
-          <input type="text" id="f-remarks" placeholder="Done / Locked..." style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-      </div>
-
-      <div class="errmsg" id="serr" style="margin-top:6px;"></div>
-
-      <!-- Spacer so content doesn't hide behind fixed buttons -->
-      <div style="height:72px;"></div>
-    </div>
-
-    <!-- Fixed bottom action buttons -->
-    <div id="detail-btns">
-      <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;">
-        <button onclick="goPrev()" style="background:#374151;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">◀ Prev</button>
-        <button onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
-        <button onclick="saveReading(true)" style="background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Next ▶</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SUCCESS -->
-  <div class="screen" id="screen-success">
-    <div class="swrap">
-      <div class="sico">✅</div>
-      <div class="stitle">Reading saved!</div>
-      <div class="ssub" id="smsg"></div>
-      <button class="btn btnp" onclick="goBack()" style="margin-bottom:10px">← Back to list</button>
-      <button class="btn btng" onclick="switchNav('pending')">View pending</button>
-    </div>
-  </div>
-
-  <!-- PENDING -->
-  <div class="screen" id="screen-pending">
-    <div class="stats">
-      <div class="stat"><div class="statn" id="sp">0</div><div class="statl">Pending sync</div></div>
-      <div class="stat"><div class="statn" id="ss">0</div><div class="statl">Synced</div></div>
-    </div>
-    <div style="padding:0 14px 12px"><button class="btn btnp" onclick="syncAll()" id="syncbtn">🔄 Sync all now</button></div>
-    <div class="lhdr"><span class="lhdr-t">Saved updates</span></div>
-    <div class="plist" id="plist"></div>
-    <div class="empty" id="pempty" style="display:none"><div style="font-size:44px;margin-bottom:10px">✅</div><div>All synced!</div></div>
-  </div>
-
-</div>
-
-<nav class="nav">
-  <button class="nbtn active" id="nav-home" onclick="switchNav('home')">
-    <span class="nico">🏠</span>Home
-  </button>
-  <button class="nbtn" id="nav-pending" onclick="switchNav('pending')">
-    <span class="nico">🕐</span>Pending
-    <span class="ndot" id="ndot"></span>
-  </button>
-</nav>
-</div>
-
-<script>
-const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
-const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
-
-// On startup: wipe ALL locally pending entries — sheet is the single source of truth.
-// Any unsynced entries would need to be re-entered; synced ones the sheet already has.
-// This prevents stale "✓ Updated" tags from old sessions polluting the view.
-localStorage.removeItem('ub_pending');
-let pending = [];
-
-let allAccounts = [], filtered = [], page = 1, pageSize = 40;
-let currentAcct = null, photoB64 = null;
-let selectedArea = localStorage.getItem('ub_area') || 'all';
-// updatedSet starts empty — populated only after sheet confirms sync this session
-let updatedSet = new Set();
-
-function showBar(msg, type) {
-  const b = document.getElementById('sbar');
-  b.className = 'sbar show ' + type;
-  b.textContent = msg;
-  if (type==='ok') setTimeout(()=>b.className='sbar',3000);
-}
-
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s=>{
-    s.classList.remove('active');
-    s.style.display = '';
-  });
-  const el = document.getElementById('screen-'+id);
-  el.classList.add('active');
-
-  // Hide bottom nav when in detail screen, show otherwise
-  const nav = document.querySelector('.nav');
-  if (id === 'detail') {
-    nav.style.display = 'none';
-    document.querySelector('.content').style.paddingBottom = '0';
-    setTimeout(updateBtnPosition, 50);
-  } else {
-    nav.style.display = 'flex';
-    document.querySelector('.content').style.paddingBottom = '72px';
-  }
-}
-
-function switchNav(tab) {
-  document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
-  const nb = document.getElementById('nav-'+tab);
-  if (nb) nb.classList.add('active');
-  if (tab==='pending') { renderPending(); show('pending'); }
-  else if (tab==='home') show('home');
-}
-
-function goBack() { clearPhoto(); show('home'); switchNav('home'); }
-
-function goPrev() {
-  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
-  if (currentIdx > 0) {
-    const prev = filtered[currentIdx - 1];
-    currentAcct = prev;
-    fillDetail(prev);
-    const prevUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(prev.acno));
-    if (prevUpdate) {
-      document.getElementById('f-reading').value = prevUpdate.newReading || '';
-      document.getElementById('f-date').value = prevUpdate.newDate || new Date().toISOString().split('T')[0];
-      document.getElementById('f-remarks').value = prevUpdate.remarks || '';
+async function bgRefresh() {
+  try {
+    const areaParam = selectedArea!=='all'?'&area='+encodeURIComponent(selectedArea):'';
+    const res = await fetch(API+'?action=all'+areaParam);
+    const data = await res.json();
+    if (data.accounts) {
+      allAccounts = data.accounts;
+      localStorage.setItem(CK, JSON.stringify(allAccounts));
+      localStorage.setItem(CT, Date.now()+'');
+      // Re-render list silently if we're on the home screen
+      if (document.getElementById('screen-home').classList.contains('active')) {
+        renderList();
+      }
     }
-    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
-  } else {
-    showBar('Already at first account','offline');
-  }
+  } catch(e) {}
 }
 
-function showAreaScreen() { show('area'); }
-
-let selectedAreaTemp = selectedArea;
-
-function loadAreas() {
-  const sel = document.getElementById('area-select');
-  sel.innerHTML = '<option value="all">All Areas</option>';
-  for (let i = 1; i <= 24; i++) {
-    const opt = document.createElement('option');
-    opt.value = i; opt.textContent = 'Area ' + i;
-    if (String(i) === String(selectedArea)) opt.selected = true;
-    sel.appendChild(opt);
-  }
-  if (selectedArea === 'all') sel.value = 'all';
-}
-
-async function loadSelectedArea() {
-  selectedArea = document.getElementById('area-select').value;
-  localStorage.setItem('ub_area', selectedArea);
-  const btn = document.getElementById('area-load-btn');
-  btn.innerHTML = '<span class="spin"></span> Loading...';
-  btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  await loadAll(true);
-  btn.innerHTML = 'Load Accounts →';
-  btn.disabled = false;
-  document.getElementById('area-chip').textContent = selectedArea==='all' ? 'Area: All' : 'Area: '+selectedArea;
-  show('home');
-  switchNav('home');
-}
-
-async function hardRefresh() {
-  const btn = document.getElementById('rfbtn');
-  btn.textContent = '⏳'; btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  localStorage.removeItem('ub_pending');
-  pending = []; updatedSet = new Set();
-  updateDot();
-  await loadAll(true);
-  btn.textContent = '🔄'; btn.disabled = false;
-  showBar('Refreshed ✓','ok');
-}
-
-async function loadAll(force) {
+function renderList() {
   const el = document.getElementById('alist');
-  if (!force) {
-    const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
-    if (c && (Date.now()-ts)<TTL) {
-      allAccounts = JSON.parse(c);
-      filtered = allAccounts.filter(a=>a.status==='pending');
-        flex-shrink: 0;
-}
-
-/* Fixed bottom action buttons — repositioned via JS to sit above keyboard */
-#detail-btns {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 430px;
-  margin: 0 auto;
-  padding: 8px 12px 12px;
-  background: #0f172a;
-  border-top: 2px solid #1e293b;
-  z-index: 999;
-}
-</style>
-</head>
-<body>
-<div class="app">
-<div class="hdr">
-  <span style="font-size:21px">⚡</span>
-  <h1>Unbilled Readings</h1>
-  <span class="hdr-name" onclick="changeName()">👤 <span id="wlabel">Field Worker</span></span>
-  <button class="hdr-rf" id="rfbtn" onclick="hardRefresh()">🔄</button>
-</div>
-<div class="sbar" id="sbar"></div>
-
-<div class="content">
-
-  <!-- AREA SELECTION SCREEN -->
-  <div class="screen active" id="screen-area">
-    <div class="area-screen">
-      <div class="area-title">Select Area</div>
-      <div class="area-sub">Choose an area to load its accounts</div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">Area</label>
-        <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;">
-          <option value="all">All Areas</option>
-        </select>
-      </div>
-      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()">Load Accounts →</button>
-      <div id="area-err" style="color:#b91c1c;font-size:13px;margin-top:10px;display:none;text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- HOME (account list) -->
-  <div class="screen" id="screen-home">
-    <div class="topbar">
-      <div class="area-chip">
-        <span class="achip" id="area-chip">Area: All</span>
-        <button class="achange" onclick="showAreaScreen()">Change area</button>
-      </div>
-      <div class="sw">
-        <span class="ico">🔍</span>
-        <input type="number" id="sinput" placeholder="Search account / meter no..." inputmode="numeric" autocomplete="off"
-          oninput="filterList(this.value)" onkeydown="if(event.key==='Enter')quickSearch()">
-        <button class="go" onclick="quickSearch()">Go</button>
-      </div>
-    </div>
-    <div class="lhdr">
-      <span class="lhdr-t" id="ltitle">Unbilled Accounts</span>
-      <span class="lhdr-c" id="lcount"></span>
-    </div>
-    <div id="alist"></div>
-    <button class="loadmore" id="lmbtn" onclick="loadMore()" style="display:none">Load more ↓</button>
-  </div>
-
-  <!-- DETAIL SCREEN — compact layout -->
-  <div class="screen" id="screen-detail">
-
-    <!-- Compact sticky header -->
-    <div id="detail-hdr">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-        <button onclick="goBack()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✕ List</button>
-        <span class="badge" id="d-status"></span>
-      </div>
-      <div style="color:#7dd3fc;font-size:13px;font-weight:700;line-height:1.2;" id="d-addr"></div>
-      <div style="color:#fff;font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;">
-        <span><span style="opacity:.7;">AC: </span><span style="font-weight:800;" id="d-acno"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;">Area: </span><span style="font-weight:700;" id="d-area"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;">Meter: </span><span style="font-weight:700;color:#7dd3fc;" id="d-meter"></span></span>
-      </div>
-      <div style="color:#fbbf24;font-size:12px;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-weight:700;" id="d-prev"></span>
-        <span style="opacity:.6;"> on </span>
-        <span id="d-pdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <span style="color:#fff;opacity:.8;">R_DATE: </span>
-        <span style="color:#fff;font-weight:700;" id="d-rdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <!-- Photo inline -->
-        <span id="pbw" style="display:inline-flex;align-items:center;">
-          <button onclick="document.getElementById('pinput').click()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;">📷</button>
-          <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
-        </span>
-        <span id="pp" style="display:none;align-items:center;gap:4px;">
-          <img id="pimg" src="" style="border-radius:4px;height:20px;width:28px;object-fit:cover;vertical-align:middle;">
-          <button onclick="clearPhoto()" style="background:rgba(239,68,68,.3);border:none;color:#fca5a5;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;font-family:inherit;">✕</button>
-        </span>
-      </div>
-    </div>
-
-    <!-- Reading input area — compact, no scrolling needed -->
-    <div id="detail-body">
-      <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">New Reading</div>
-      <input type="number" id="f-reading" placeholder="0" inputmode="numeric" autocomplete="off"
-        style="width:100%;background:#fff;border:3px solid #2563eb;border-radius:10px;font-size:32px;font-weight:800;padding:12px 16px;color:#111;font-family:inherit;outline:none;text-align:center;margin-bottom:10px;">
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">New Date</div>
-          <input type="date" id="f-date" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">Remarks</div>
-          <input type="text" id="f-remarks" placeholder="Done / Locked..." style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-      </div>
-
-      <div class="errmsg" id="serr" style="margin-top:6px;"></div>
-
-      <!-- Spacer so content doesn't hide behind fixed buttons -->
-      <div style="height:72px;"></div>
-    </div>
-
-    <!-- Fixed bottom action buttons -->
-    <div id="detail-btns">
-      <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;">
-        <button onclick="goPrev()" style="background:#374151;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">◀ Prev</button>
-        <button onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
-        <button onclick="saveReading(true)" style="background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Next ▶</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SUCCESS -->
-  <div class="screen" id="screen-success">
-    <div class="swrap">
-      <div class="sico">✅</div>
-      <div class="stitle">Reading saved!</div>
-      <div class="ssub" id="smsg"></div>
-      <button class="btn btnp" onclick="goBack()" style="margin-bottom:10px">← Back to list</button>
-      <button class="btn btng" onclick="switchNav('pending')">View pending</button>
-    </div>
-  </div>
-
-  <!-- PENDING -->
-  <div class="screen" id="screen-pending">
-    <div class="stats">
-      <div class="stat"><div class="statn" id="sp">0</div><div class="statl">Pending sync</div></div>
-      <div class="stat"><div class="statn" id="ss">0</div><div class="statl">Synced</div></div>
-    </div>
-    <div style="padding:0 14px 12px"><button class="btn btnp" onclick="syncAll()" id="syncbtn">🔄 Sync all now</button></div>
-    <div class="lhdr"><span class="lhdr-t">Saved updates</span></div>
-    <div class="plist" id="plist"></div>
-    <div class="empty" id="pempty" style="display:none"><div style="font-size:44px;margin-bottom:10px">✅</div><div>All synced!</div></div>
-  </div>
-
-</div>
-
-<nav class="nav">
-  <button class="nbtn active" id="nav-home" onclick="switchNav('home')">
-    <span class="nico">🏠</span>Home
-  </button>
-  <button class="nbtn" id="nav-pending" onclick="switchNav('pending')">
-    <span class="nico">🕐</span>Pending
-    <span class="ndot" id="ndot"></span>
-  </button>
-</nav>
-</div>
-
-<script>
-const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
-const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
-
-// On startup: wipe ALL locally pending entries — sheet is the single source of truth.
-// Any unsynced entries would need to be re-entered; synced ones the sheet already has.
-// This prevents stale "✓ Updated" tags from old sessions polluting the view.
-localStorage.removeItem('ub_pending');
-let pending = [];
-
-let allAccounts = [], filtered = [], page = 1, pageSize = 40;
-let currentAcct = null, photoB64 = null;
-let selectedArea = localStorage.getItem('ub_area') || 'all';
-// updatedSet starts empty — populated only after sheet confirms sync this session
-let updatedSet = new Set();
-
-function showBar(msg, type) {
-  const b = document.getElementById('sbar');
-  b.className = 'sbar show ' + type;
-  b.textContent = msg;
-  if (type==='ok') setTimeout(()=>b.className='sbar',3000);
-}
-
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s=>{
-    s.classList.remove('active');
-    s.style.display = '';
-  });
-  const el = document.getElementById('screen-'+id);
-  el.classList.add('active');
-
-  // Hide bottom nav when in detail screen, show otherwise
-  const nav = document.querySelector('.nav');
-  if (id === 'detail') {
-    nav.style.display = 'none';
-    document.querySelector('.content').style.paddingBottom = '0';
-    setTimeout(updateBtnPosition, 50);
-  } else {
-    nav.style.display = 'flex';
-    document.querySelector('.content').style.paddingBottom = '72px';
+  const slice = filtered.slice(0, page*pageSize);
+  if (!filtered.length) {
+    el.innerHTML='<div class="empty"><div style="font-size:44px;margin-bottom:10px">🎉</div><div>All accounts have readings!</div></div>';
+    document.getElementById('lmbtn').style.display='none';
+    return;
   }
-}
-
-function switchNav(tab) {
-  document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
-  const nb = document.getElementById('nav-'+tab);
-  if (nb) nb.classList.add('active');
-  if (tab==='pending') { renderPending(); show('pending'); }
-  else if (tab==='home') show('home');
-}
-
-function goBack() { clearPhoto(); show('home'); switchNav('home'); }
-
-function goPrev() {
-  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
-  if (currentIdx > 0) {
-    const prev = filtered[currentIdx - 1];
-    currentAcct = prev;
-    fillDetail(prev);
-    const prevUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(prev.acno));
-    if (prevUpdate) {
-      document.getElementById('f-reading').value = prevUpdate.newReading || '';
-      document.getElementById('f-date').value = prevUpdate.newDate || new Date().toISOString().split('T')[0];
-      document.getElementById('f-remarks').value = prevUpdate.remarks || '';
+  el.innerHTML = slice.map(a => {
+    // Green only if sheet confirms done OR locally synced to sheet
+    const syncedLocally = updatedSet.has(String(a.acno)); // synced:true entries only
+    const sheetDone = a.status === 'done';
+    const isGreen = syncedLocally || sheetDone;
+    // Show orange "Saving..." tag if saved locally but not yet synced to sheet
+    const hasPendingLocal = pending.some(p => String(p.acno) === String(a.acno) && !p.synced);
+    const cls = isGreen ? 'updated' : '';
+    let tag = '';
+    if (isGreen) {
+      tag = '<span class="utag">✓ Updated</span>';
+    } else if (hasPendingLocal) {
+      tag = '<span class="utag" style="background:#fef3c7;color:#92400e;">⏳ Saving...</span>';
     }
-    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
+    return `<div class="acard ${cls}" onclick="openAccount('${a.acno}')">
+      <div class="ainfo">
+        <div class="aacno">ACNO ${a.acno}${tag}</div>
+        <div class="ameter">Meter: ${a.meter||'—'}</div>
+        <div class="aaddr">${a.address||'—'}</div>
+        <div class="ardate">R_DATE: ${a.rdate||'—'}</div>
+      </div>
+      <span class="arr">›</span>
+    </div>`;
+  }).join('');
+  document.getElementById('lmbtn').style.display = slice.length<filtered.length?'block':'none';
+}
+
+function loadMore() { page++; renderList(); }
+
+function filterList(val) {
+  page=1;
+  if (!val) {
+    filtered = allAccounts;
+    document.getElementById('ltitle').textContent='All Accounts';
+    const pc3 = allAccounts.filter(a=>a.status==='pending').length;
+    document.getElementById('lcount').textContent=pc3+' pending / '+allAccounts.length+' total';
   } else {
-    showBar('Already at first account','offline');
+    filtered = allAccounts.filter(a=>
+      String(a.acno).includes(val)||
+      String(a.meter||'').includes(val)||
+      (a.address||'').toLowerCase().includes(val.toLowerCase())
+    );
+    document.getElementById('ltitle').textContent='Search Results';
+    document.getElementById('lcount').textContent=filtered.length+' found';
   }
+  renderList();
 }
 
-function showAreaScreen() { show('area'); }
-
-let selectedAreaTemp = selectedArea;
-
-function loadAreas() {
-  const sel = document.getElementById('area-select');
-  sel.innerHTML = '<option value="all">All Areas</option>';
-  for (let i = 1; i <= 24; i++) {
-    const opt = document.createElement('option');
-    opt.value = i; opt.textContent = 'Area ' + i;
-    if (String(i) === String(selectedArea)) opt.selected = true;
-    sel.appendChild(opt);
-  }
-  if (selectedArea === 'all') sel.value = 'all';
+function quickSearch() {
+  const val = document.getElementById('sinput').value.trim();
+  if (!val) return;
+  const a = allAccounts.find(x=>String(x.acno)===val);
+  if (a) { fillDetail(a); currentAcct=a; show('detail'); return; }
+  filterList(val);
 }
 
-async function loadSelectedArea() {
-  selectedArea = document.getElementById('area-select').value;
-  localStorage.setItem('ub_area', selectedArea);
-  const btn = document.getElementById('area-load-btn');
-  btn.innerHTML = '<span class="spin"></span> Loading...';
-  btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  await loadAll(true);
-  btn.innerHTML = 'Load Accounts →';
-  btn.disabled = false;
-  document.getElementById('area-chip').textContent = selectedArea==='all' ? 'Area: All' : 'Area: '+selectedArea;
-  show('home');
-  switchNav('home');
+async function openAccount(acno) {
+  const a = allAccounts.find(x=>String(x.acno)===String(acno));
+  if (a) { currentAcct=a; fillDetail(a); show('detail'); return; }
+  showBar('Loading...','syncing');
+  try {
+    const res = await fetch(API+'?action=search&acno='+encodeURIComponent(acno));
+    const data = await res.json();
+    document.getElementById('sbar').className='sbar';
+    if (data.found) { currentAcct=data; fillDetail(data); show('detail'); }
+  } catch(e) { showBar('Could not load account','offline'); }
 }
 
-async function hardRefresh() {
-  const btn = document.getElementById('rfbtn');
-  btn.textContent = '⏳'; btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  localStorage.removeItem('ub_pending');
-  pending = []; updatedSet = new Set();
+function fillDetail(d) {
+  document.getElementById('d-acno').textContent=d.acno;
+  document.getElementById('d-area').textContent='Area '+(d.area||'—');
+  document.getElementById('d-meter').textContent=d.meter||'—';
+  document.getElementById('d-addr').textContent=d.address||'—';
+  document.getElementById('d-prev').textContent=d.prevReading||'—';
+  document.getElementById('d-pdate').textContent=d.prevDate||'—';
+  document.getElementById('d-rdate').textContent=d.rdate||'—';
+  const b=document.getElementById('d-status');
+  b.textContent=d.status==='done'?'Done':'Pending';
+  b.className='badge '+(d.status==='done'?'bd':'bp');
+  document.getElementById('f-reading').value='';
+  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f-remarks').value=d.remarks||'';
+  document.getElementById('serr').style.display='none';
+  clearPhoto();
+  setTimeout(()=>{
+    const inp = document.getElementById('f-reading');
+    inp.focus();
+    inp.click();
+  }, 300);
+}
+
+function saveReading(goNext) {
+  const reading=document.getElementById('f-reading').value.trim();
+  const date=document.getElementById('f-date').value;
+  const remarks=document.getElementById('f-remarks').value.trim();
+  const err=document.getElementById('serr');
+  err.style.display='none';
+  if (!reading&&!remarks){err.textContent='Please enter a reading or remarks.';err.style.display='block';return;}
+
+  const update={
+    action:'update',acno:currentAcct.acno,row:currentAcct.row,
+    newReading:reading,newDate:date,remarks:remarks,
+    worker:document.getElementById('wlabel').textContent,
+    savedAt:new Date().toLocaleString(),synced:false
+  };
+
+  pending.push(update);
+  localStorage.setItem('ub_pending',JSON.stringify(pending));
+  // Don't add to updatedSet yet — only after confirmed sheet sync
   updateDot();
-  await loadAll(true);
-  btn.textContent = '🔄'; btn.disabled = false;
-  showBar('Refreshed ✓','ok');
+
+  // Don't mark as done in cache until sheet confirms — keeps status honest
+  // const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
+  // if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
+  // localStorage.setItem(CK,JSON.stringify(allAccounts));
+
+  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(update.acno));
+  const nextAcct = goNext ? filtered[currentIdx + 1] : null;
+
+  renderList();
+
+  if (goNext && nextAcct) {
+    currentAcct = nextAcct;
+    fillDetail(nextAcct);
+    const existingUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(nextAcct.acno));
+    if (existingUpdate) {
+      document.getElementById('f-reading').value = existingUpdate.newReading || '';
+      document.getElementById('f-date').value = existingUpdate.newDate || new Date().toISOString().split('T')[0];
+      document.getElementById('f-remarks').value = existingUpdate.remarks || '';
+    }
+    show('detail');
+    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
+    showBar('ACNO '+update.acno+' saved ✓','ok');
+  } else {
+    show('home');
+    switchNav('home');
+    showBar('ACNO '+update.acno+' saved — syncing in background...','syncing');
+  }
+
+  const capturedPhotoB64 = photoB64;
+  photoB64 = null;
+  clearPhoto();
+
+  if (navigator.onLine) {
+    fetch(API, {method:'POST', body:JSON.stringify(update)})
+      .then(r=>r.json())
+      .then(data=>{
+        if (data.success) {
+          const i = pending.findIndex(p=>p.acno===update.acno&&p.savedAt===update.savedAt);
+          if (i>=0) pending[i].synced=true;
+          localStorage.setItem('ub_pending',JSON.stringify(pending));
+          updatedSet.add(String(update.acno)); // Now confirmed in sheet — show green
+          // Mark account as done in local cache now that sheet confirmed
+          const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
+          if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
+          localStorage.setItem(CK,JSON.stringify(allAccounts));
+          updateDot();
+          renderList();
+          showBar('ACNO '+update.acno+' synced ✓','ok');
+          if (capturedPhotoB64) {
+            uploadPhotoImgbb(capturedPhotoB64, update.acno, update.newDate, update.worker);
+          }
+        }
+      })
+      .catch(()=>{ showBar('Saved locally — will sync when connected','offline'); });
+  } else {
+    showBar('Offline — will sync when connected','offline');
+  }
 }
 
-async function loadAll(force) {
-  const el = document.getElementById('alist');
-  if (!force) {
-    const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
-    if (c && (Date.now()-ts)<TTL) {
-      allAccounts = JSON.parse(c);
-      filtered = allAccounts.filter(a=>a.status==='pending');
-      
+async function uploadPhotoImgbb(b64, acno, date, worker) {
+  try {
+    const formData = new FormData();
+    formData.append('image', b64);
+    formData.append('name', 'ACNO_' + acno + '_' + date);
+    const res = await fetch('https://api.imgbb.com/1/upload?key=2e2935f6574d72dbd7ac0dc8778b5827', {
+      method: 'POST', body: formData
+    });
+    const data = await res.json();
+    if (data.success) {
+      const photoUrl = data.data.url;
+      fetch(API, {method:'POST', body:JSON.stringify({
+        action:'save_photo_url', acno, photoUrl, worker
+      })}).catch(()=>{});
+      showBar('Photo uploaded ✓','ok');
+    }
+  } catch(e) { console.log('Photo upload error:', e); }
+}
+
+async function syncAll() {
+  const unsynced=pending.filter(p=>!p.synced);
+  if (!unsynced.length){showBar('All synced ✓','ok');return;}
+  if (!navigator.onLine){showBar('No internet','offline');return;}
+  const btn=document.getElementById('syncbtn');
+  btn.innerHTML='<span class="spin"></span> Syncing...';btn.disabled=true;
+  showBar('Syncing '+unsynced.length+' updates...','syncing');
+  let done=0;
+  for (const u of unsynced) {
+    try {
+      const r=await fetch(API,{method:'POST',body:JSON.stringify(u)});
+      const d=await r.json();
+      if(d.success){const i=pending.findIndex(p=>p.acno===u.acno&&p.savedAt===u.savedAt);if(i>=0)pending[i].synced=true;done++;}
+    } catch(e){break;}
+  }
+  localStorage.setItem('ub_pending',JSON.stringify(pending));
+  updateDot();renderPending();
+  btn.innerHTML='🔄 Sync all now';btn.disabled=false;
+  showBar('Synced '+done+' of '+unsynced.length+' ✓','ok');
+}
+
+function renderPending() {
+  const list=document.getElementById('plist');
+  const empty=document.getElementById('pempty');
+  document.getElementById('sp').textContent=pending.filter(p=>!p.synced).length;
+  document.getElementById('ss').textContent=pending.filter(p=>p.synced).length;
+  if (!pending.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  list.innerHTML=pending.slice().reverse().map(p=>`
+    <div class="acard${p.synced?' updated':''}">
+      <div class="ainfo">
+        <div class="aacno">ACNO ${p.acno}${p.synced?'<span class="utag">✓ Synced</span>':''}</div>
+        <div class="ardate">${p.newReading?'Reading: '+p.newReading+' · ':''}${p.savedAt}</div>
+      </div>
+      <span class="badge ${p.synced?'bd':'bp'}">${p.synced?'Synced':'Pending'}</span>
+    </div>`).join('');
+}
+
+function updateDot(){document.getElementById('ndot').style.display=pending.some(p=>!p.synced)?'block':'none';}
+
+function previewPhoto(input) {
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      const maxW=1024, maxH=1024;
+      let w=img.width, h=img.height;
+      if (w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      if (h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const compressed=canvas.toDataURL('image/jpeg',0.7);
+      photoB64=compressed.split(',')[1];
+      document.getElementById('pimg').src=compressed;
+      document.getElementById('pp').style.display='inline-flex';
+      document.getElementById('pbw').style.display='none';
+
+      // Auto-download to device with ACNO + date filename
+      const acno = currentAcct ? currentAcct.acno : 'unknown';
+      const date = document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
+      const filename = 'ACNO_' + acno + '_' + date + '.jpg';
+      const a = document.createElement('a');
+      a.href = compressed;
+      a.download = filename;
+      a.click();
+      showBar('Photo saved to Downloads: ' + filename, 'ok');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto(){
+  photoB64=null;
+  const i=document.getElementById('pinput');if(i)i.value='';
+  const pp=document.getElementById('pp');if(pp){pp.style.display='none';}
+  const pb=document.getElementById('pbw');if(pb)pb.style.display='inline-flex';
+}
+
+function changeName(){
+  const current = document.getElementById('wlabel').textContent;
+  const n = window.prompt('Your name:', current);
+  if (n && n.trim()) {
+    localStorage.setItem('wname', n.trim());
+    document.getElementById('wlabel').textContent = n.trim();
+  }
+}
+
+// ── Keep action buttons above the keyboard on Android ──
+function updateBtnPosition() {
+  const btns = document.getElementById('detail-btns');
+  if (!btns) return;
+  if (!document.getElementById('screen-detail').classList.contains('active')) return;
+  if (window.visualViewport) {
+    // keyboardHeight = how much the keyboard has pushed up the viewport
+    const keyboardHeight = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+    btns.style.bottom = Math.max(0, keyboardHeight) + 'px';
+  } else {
+    btns.style.bottom = '0px';
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateBtnPosition);
+  window.visualViewport.addEventListener('scroll', updateBtnPosition);
+}
+
+// ── Block pull-to-refresh only — don't block normal scrolling ──
+let touchStartY = 0;
+let touchStartScrollTop = 0;
+document.addEventListener('touchstart', e => {
+  touchStartY = e.touches[0].clientY;
+  touchStartScrollTop = document.querySelector('.content')?.scrollTop || 0;
+}, {passive: true});
+document.addEventListener('touchmove', e => {
+  const dy = e.touches[0].clientY - touchStartY;
+  // Only block if: pulling DOWN and content was already at top when touch started
+  if (dy > 10 && touchStartScrollTop === 0) {
+    e.preventDefault();
+  }
+}, {passive: false});
+
+// Block F5, Ctrl+R, Ctrl+Shift+R
+document.addEventListener('keydown', e => {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.ctrlKey && e.shiftKey && e.key === 'R')) {
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('online',()=>{showBar('Back online — syncing...','syncing');syncAll();});
+window.addEventListener('offline',()=>showBar('Offline — updates saved locally','offline'));
+if(!navigator.onLine)showBar('Offline — updates saved locally','offline');
+
+// Name: never block with prompt — use saved name or default silently
+const wn = localStorage.getItem('wname');
+if (wn) {
+  document.getElementById('wlabel').textContent = wn;
+} else {
+  localStorage.setItem('wname', 'Field Worker');
+  document.getElementById('wlabel').textContent = 'Field Worker';
+}
+
+document.getElementById('area-chip').textContent = selectedArea==='all'?'Area: All':'Area: '+selectedArea;
+updateDot();
+loadAreas();
+
+// If area was previously selected, skip area screen and load directly
+if (selectedArea && selectedArea !== 'all') {
+  (async () => {
+    await loadAll(false);
+    show('home');
+    switchNav('home');
+  })();
+} else {
+  show('area');
+}
+</script>
+</body>
+</html>
