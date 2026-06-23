@@ -719,10 +719,10 @@ async function saveReading(goNext) {
   if (navigator.onLine) {
     fetch(API, {method:'POST', body:JSON.stringify(update)})
       .then(r=>r.json())
-      .then(data=>{
+      .then(async data=>{
         if (data.success) {
           const i = pending.findIndex(p=>p.acno===update.acno&&p.savedAt===update.savedAt);
-          if (i>=0) { pending[i].synced=true; await dbPut(pending[i]); }
+          if (i>=0) { pending[i].synced=true; dbPut(pending[i]).catch(()=>{}); }
           updatedSet.add(String(update.acno));
           const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
           if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
