@@ -319,17 +319,72 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
 const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
 
-// On startup: wipe ALL locally pending entries — sheet is the single source of truth.
-// Any unsynced entries would need to be re-entered; synced ones the sheet already has.
-// This prevents stale "✓ Updated" tags from old sessions polluting the view.
-localStorage.removeItem('ub_pending');
 let pending = [];
-
 let allAccounts = [], filtered = [], page = 1, pageSize = 40;
 let currentAcct = null, photoB64 = null;
 let selectedArea = localStorage.getItem('ub_area') || 'all';
-// updatedSet starts empty — populated only after sheet confirms sync this session
 let updatedSet = new Set();
+
+// ── IndexedDB for persistent offline readings ──
+let db = null;
+const DB_NAME = 'UnbilledDB', DB_VER = 1, STORE = 'pending';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, { keyPath: 'savedAt' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbGetAll() {
+  if (!db) return [];
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
+async function dbPut(item) {
+  if (!db) return;
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(item);
+    tx.oncomplete = resolve;
+  });
+}
+
+async function dbDelete(savedAt) {
+  if (!db) return;
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(savedAt);
+    tx.oncomplete = resolve;
+  });
+}
+
+async function dbClear() {
+  if (!db) return;
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = resolve;
+  });
+}
+
+async function loadPending() {
+  pending = await dbGetAll();
+  updatedSet = new Set(pending.filter(p => p.synced).map(p => String(p.acno)));
+  updateDot();
+}
 
 function showBar(msg, type) {
   const b = document.getElementById('sbar');
@@ -425,9 +480,6 @@ async function hardRefresh() {
   const btn = document.getElementById('rfbtn');
   btn.textContent = '⏳'; btn.disabled = true;
   localStorage.removeItem(CK); localStorage.removeItem(CT);
-  localStorage.removeItem('ub_pending');
-  pending = []; updatedSet = new Set();
-  updateDot();
   await loadAll(true);
   btn.textContent = '🔄'; btn.disabled = false;
   showBar('Refreshed ✓','ok');
@@ -600,7 +652,7 @@ function fillDetail(d, keepKeyboard) {
   }
 }
 
-function saveReading(goNext) {
+async function saveReading(goNext) {
   const reading=document.getElementById('f-reading').value.trim();
   const date=document.getElementById('f-date').value;
   const remarks=document.getElementById('f-remarks').value.trim();
@@ -629,7 +681,7 @@ function saveReading(goNext) {
   };
 
   pending.push(update);
-  localStorage.setItem('ub_pending',JSON.stringify(pending));
+  await dbPut(update);
   // Don't add to updatedSet yet — only after confirmed sheet sync
   updateDot();
 
@@ -670,10 +722,8 @@ function saveReading(goNext) {
       .then(data=>{
         if (data.success) {
           const i = pending.findIndex(p=>p.acno===update.acno&&p.savedAt===update.savedAt);
-          if (i>=0) pending[i].synced=true;
-          localStorage.setItem('ub_pending',JSON.stringify(pending));
-          updatedSet.add(String(update.acno)); // Now confirmed in sheet — show green
-          // Mark account as done in local cache now that sheet confirmed
+          if (i>=0) { pending[i].synced=true; await dbPut(pending[i]); }
+          updatedSet.add(String(update.acno));
           const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
           if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
           localStorage.setItem(CK,JSON.stringify(allAccounts));
@@ -722,12 +772,16 @@ async function syncAll() {
     try {
       const r=await fetch(API,{method:'POST',body:JSON.stringify(u)});
       const d=await r.json();
-      if(d.success){const i=pending.findIndex(p=>p.acno===u.acno&&p.savedAt===u.savedAt);if(i>=0)pending[i].synced=true;done++;}
+      if(d.success){
+        const i=pending.findIndex(p=>p.acno===u.acno&&p.savedAt===u.savedAt);
+        if(i>=0){ pending[i].synced=true; await dbPut(pending[i]); }
+        updatedSet.add(String(u.acno));
+        done++;
+      }
     } catch(e){break;}
   }
-  localStorage.setItem('ub_pending',JSON.stringify(pending));
-  updateDot();renderPending();
-  btn.innerHTML='🔄 Sync all now';btn.disabled=false;
+  updateDot(); renderPending();
+  btn.innerHTML='🔄 Sync all now'; btn.disabled=false;
   showBar('Synced '+done+' of '+unsynced.length+' ✓','ok');
 }
 
@@ -864,9 +918,9 @@ async function doLogin() {
 function doLogout() {
   if (!confirm('Log out?')) return;
   localStorage.removeItem('ub_session');
-  localStorage.removeItem('ub_pending');
   localStorage.removeItem(CK); localStorage.removeItem(CT);
   localStorage.removeItem('ub_area');
+  dbClear();
   currentUser = null; pending = []; updatedSet = new Set(); allAccounts = []; filtered = [];
   updateDot();
   document.getElementById('l-user').value = '';
@@ -878,25 +932,31 @@ window.addEventListener('online',()=>{showBar('Back online — syncing...','sync
 window.addEventListener('offline',()=>showBar('Offline — updates saved locally','offline'));
 if(!navigator.onLine)showBar('Offline — updates saved locally','offline');
 
-updateDot();
+// Init: open IndexedDB, load saved pending readings, then check session
+async function initApp() {
+  await openDB();
+  await loadPending();
 
-// Check saved session
-const savedSession = localStorage.getItem('ub_session');
-if (savedSession) {
-  currentUser = JSON.parse(savedSession);
-  selectedArea = String(currentUser.area || selectedArea);
-  localStorage.setItem('ub_area', selectedArea);
-  document.getElementById('wlabel').textContent = currentUser.name || 'Field Worker';
-  document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
-  loadAreas();
-  (async () => {
+  const savedSession = localStorage.getItem('ub_session');
+  if (savedSession) {
+    currentUser = JSON.parse(savedSession);
+    selectedArea = String(currentUser.area || selectedArea);
+    localStorage.setItem('ub_area', selectedArea);
+    document.getElementById('wlabel').textContent = currentUser.name || 'Field Worker';
+    document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
+    loadAreas();
     await loadAll(false);
     show('home');
     switchNav('home');
-  })();
-} else {
-  show('login');
+    if (navigator.onLine && pending.some(p => !p.synced)) {
+      showBar('Syncing offline readings...', 'syncing');
+      syncAll();
+    }
+  } else {
+    show('login');
+  }
 }
+initApp();
 </script>
 </body>
 </html>
