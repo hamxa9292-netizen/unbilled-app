@@ -378,14 +378,13 @@ function goPrev() {
   if (currentIdx > 0) {
     const prev = filtered[currentIdx - 1];
     currentAcct = prev;
-    fillDetail(prev);
+    fillDetail(prev, true);
     const prevUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(prev.acno));
     if (prevUpdate) {
       document.getElementById('f-reading').value = prevUpdate.newReading || '';
       document.getElementById('f-date').value = prevUpdate.newDate || new Date().toISOString().split('T')[0];
       document.getElementById('f-remarks').value = prevUpdate.remarks || '';
     }
-    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
   } else {
     showBar('Already at first account','offline');
   }
@@ -574,7 +573,7 @@ async function openAccount(acno) {
   } catch(e) { showBar('Could not load account','offline'); }
 }
 
-function fillDetail(d) {
+function fillDetail(d, keepKeyboard) {
   document.getElementById('d-acno').textContent=d.acno;
   document.getElementById('d-area').textContent='Area '+(d.area||'—');
   document.getElementById('d-meter').textContent=d.meter||'—';
@@ -585,16 +584,20 @@ function fillDetail(d) {
   const b=document.getElementById('d-status');
   b.textContent=d.status==='done'?'Done':'Pending';
   b.className='badge '+(d.status==='done'?'bd':'bp');
-  document.getElementById('f-reading').value='';
+  const inp = document.getElementById('f-reading');
+  inp.value='';
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('f-remarks').value=d.remarks||'';
   document.getElementById('serr').style.display='none';
   clearPhoto();
-  setTimeout(()=>{
-    const inp = document.getElementById('f-reading');
+  if (keepKeyboard) {
+    // Keep keyboard open — just select the input value without blur/refocus cycle
     inp.focus();
-    inp.click();
-  }, 300);
+    inp.select();
+  } else {
+    // First open — focus after short delay to let screen render
+    setTimeout(()=>{ inp.focus(); inp.click(); }, 300);
+  }
 }
 
 function saveReading(goNext) {
@@ -609,7 +612,7 @@ function saveReading(goNext) {
     if (goNext) {
       const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
       const nextAcct = filtered[currentIdx + 1];
-      if (nextAcct) { currentAcct = nextAcct; fillDetail(nextAcct); }
+      if (nextAcct) { currentAcct = nextAcct; fillDetail(nextAcct, true); }
       else showBar('Already at last account','offline');
     } else {
       err.textContent='Please enter a reading or remarks.';
@@ -642,7 +645,7 @@ function saveReading(goNext) {
 
   if (goNext && nextAcct) {
     currentAcct = nextAcct;
-    fillDetail(nextAcct);
+    fillDetail(nextAcct, true);
     const existingUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(nextAcct.acno));
     if (existingUpdate) {
       document.getElementById('f-reading').value = existingUpdate.newReading || '';
@@ -650,7 +653,6 @@ function saveReading(goNext) {
       document.getElementById('f-remarks').value = existingUpdate.remarks || '';
     }
     show('detail');
-    setTimeout(()=>{ document.getElementById('f-reading').focus(); }, 300);
     showBar('ACNO '+update.acno+' saved ✓','ok');
   } else {
     show('home');
