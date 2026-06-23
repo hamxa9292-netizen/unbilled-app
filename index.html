@@ -961,18 +961,19 @@ async function initApp() {
   show('home');
   switchNav('home');
 
-  // Sync offline readings first, then refresh account list — all in background
-  if (navigator.onLine) {
-    const unsynced = pending.filter(p => !p.synced);
-    if (unsynced.length) {
-      showBar('Syncing ' + unsynced.length + ' offline readings...', 'syncing');
-      await syncAll();
+  // Everything after this is truly non-blocking — UI is already shown
+  setTimeout(async () => {
+    if (navigator.onLine) {
+      const unsynced = pending.filter(p => !p.synced);
+      if (unsynced.length) {
+        showBar('Syncing ' + unsynced.length + ' offline readings...', 'syncing');
+        try { await syncAll(); } catch(e) {}
+      }
+      try { await loadAll(true); } catch(e) {}
+    } else {
+      showBar('Offline — showing cached data', 'offline');
     }
-    // Now refresh account list from sheet
-    await loadAll(true);
-  } else {
-    showBar('Offline — showing cached data', 'offline');
-  }
+  }, 100);
 }
 initApp();
 </script>
