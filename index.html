@@ -339,6 +339,7 @@ function showBar(msg, type) {
 }
 
 function show(id) {
+  if (!currentUser && id !== 'login') { id = 'login'; }
   document.querySelectorAll('.screen').forEach(s => {
     s.classList.remove('active');
     s.style.display = 'none';
@@ -359,6 +360,7 @@ function show(id) {
 }
 
 function switchNav(tab) {
+  if (!currentUser) { show('login'); return; }
   document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
   const nb = document.getElementById('nav-'+tab);
   if (nb) nb.classList.add('active');
@@ -366,7 +368,10 @@ function switchNav(tab) {
   else if (tab==='home') show('home');
 }
 
-function goBack() { clearPhoto(); show('home'); switchNav('home'); }
+function goBack() {
+  if (!currentUser) { show('login'); return; }
+  clearPhoto(); show('home'); switchNav('home');
+}
 
 function goPrev() {
   const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
