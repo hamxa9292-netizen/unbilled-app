@@ -932,48 +932,54 @@ window.addEventListener('online',()=>{showBar('Back online — syncing...','sync
 window.addEventListener('offline',()=>showBar('Offline — updates saved locally','offline'));
 if(!navigator.onLine)showBar('Offline — updates saved locally','offline');
 
-// Init: open IndexedDB, load saved pending readings, then check session
-async function initApp() {
-  try { await openDB(); } catch(e) { console.log('IndexedDB error:', e); }
-  try { await loadPending(); } catch(e) { console.log('loadPending error:', e); }
-
+// Init — show UI instantly, do everything else after
+function initApp() {
   const savedSession = localStorage.getItem('ub_session');
   if (!savedSession) { show('login'); return; }
 
   currentUser = JSON.parse(savedSession);
   selectedArea = String(currentUser.area || selectedArea);
-  localStorage.setItem('ub_area', selectedArea);
   document.getElementById('wlabel').textContent = currentUser.name || 'Field Worker';
   document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
   loadAreas();
 
-  // Show home immediately with cached data (never block UI)
+  // Show cached data immediately — no network, no IndexedDB, instant
   const cached = localStorage.getItem(CK);
   if (cached) {
     allAccounts = JSON.parse(cached);
     filtered = allAccounts;
     renderList();
     const pc = allAccounts.filter(a=>a.status==='pending').length;
-    document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total (cached)';
+    document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total';
   } else {
-    document.getElementById('alist').innerHTML = '<div class="loading">⏳ Loading accounts...</div>';
+    document.getElementById('alist').innerHTML = '<div class="loading">⏳ Loading...</div>';
   }
+
   show('home');
   switchNav('home');
 
-  // Everything after this is truly non-blocking — UI is already shown
-  setTimeout(async () => {
-    if (navigator.onLine) {
-      const unsynced = pending.filter(p => !p.synced);
-      if (unsynced.length) {
-        showBar('Syncing ' + unsynced.length + ' offline readings...', 'syncing');
-        try { await syncAll(); } catch(e) {}
+  // After UI is visible, load IndexedDB and sync in background
+  setTimeout(() => {
+    openDB().then(() => {
+      return loadPending();
+    }).then(() => {
+      updateDot();
+      renderPending();
+      if (navigator.onLine) {
+        const unsynced = pending.filter(p => !p.synced);
+        if (unsynced.length) {
+          showBar('Syncing ' + unsynced.length + ' offline readings...', 'syncing');
+          syncAll().then(() => loadAll(true)).catch(() => {});
+        } else {
+          loadAll(true).catch(() => {});
+        }
+      } else {
+        showBar('Offline — cached data shown', 'offline');
       }
-      try { await loadAll(true); } catch(e) {}
-    } else {
-      showBar('Offline — showing cached data', 'offline');
-    }
-  }, 100);
+    }).catch(() => {
+      if (navigator.onLine) loadAll(true).catch(() => {});
+    });
+  }, 150);
 }
 initApp();
 </script>
