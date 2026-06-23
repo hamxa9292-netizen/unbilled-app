@@ -603,7 +603,20 @@ function saveReading(goNext) {
   const remarks=document.getElementById('f-remarks').value.trim();
   const err=document.getElementById('serr');
   err.style.display='none';
-  if (!reading&&!remarks){err.textContent='Please enter a reading or remarks.';err.style.display='block';return;}
+
+  // If navigating without entering anything, just move to next/prev account
+  if (!reading && !remarks) {
+    if (goNext) {
+      const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
+      const nextAcct = filtered[currentIdx + 1];
+      if (nextAcct) { currentAcct = nextAcct; fillDetail(nextAcct); }
+      else showBar('Already at last account','offline');
+    } else {
+      err.textContent='Please enter a reading or remarks.';
+      err.style.display='block';
+    }
+    return;
+  }
 
   const update={
     action:'update',acno:currentAcct.acno,row:currentAcct.row,
