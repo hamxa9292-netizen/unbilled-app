@@ -761,28 +761,31 @@ async function uploadPhotoImgbb(b64, acno, date, worker) {
 }
 
 async function syncAll() {
-  const unsynced=pending.filter(p=>!p.synced);
-  if (!unsynced.length){showBar('All synced ✓','ok');return;}
-  if (!navigator.onLine){showBar('No internet','offline');return;}
-  const btn=document.getElementById('syncbtn');
-  btn.innerHTML='<span class="spin"></span> Syncing...';btn.disabled=true;
-  showBar('Syncing '+unsynced.length+' updates...','syncing');
-  let done=0;
+  const unsynced = pending.filter(p => !p.synced);
+  if (!unsynced.length) { showBar('All synced ✓', 'ok'); return; }
+  if (!navigator.onLine) { showBar('No internet', 'offline'); return; }
+  const btn = document.getElementById('syncbtn');
+  if (btn) { btn.innerHTML = '<span class="spin"></span> Syncing...'; btn.disabled = true; }
+  showBar('Syncing ' + unsynced.length + ' updates...', 'syncing');
+  let done = 0;
   for (const u of unsynced) {
     try {
-      const r=await fetch(API,{method:'POST',body:JSON.stringify(u)});
-      const d=await r.json();
-      if(d.success){
-        const i=pending.findIndex(p=>p.acno===u.acno&&p.savedAt===u.savedAt);
-        if(i>=0){ pending[i].synced=true; await dbPut(pending[i]); }
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 10000); // 10s per request max
+      const r = await fetch(API, { method: 'POST', body: JSON.stringify(u), signal: ctrl.signal });
+      clearTimeout(tid);
+      const d = await r.json();
+      if (d.success) {
+        const i = pending.findIndex(p => p.acno === u.acno && p.savedAt === u.savedAt);
+        if (i >= 0) { pending[i].synced = true; dbPut(pending[i]).catch(() => {}); }
         updatedSet.add(String(u.acno));
         done++;
       }
-    } catch(e){break;}
+    } catch(e) { /* skip failed, try next */ }
   }
   updateDot(); renderPending();
-  btn.innerHTML='🔄 Sync all now'; btn.disabled=false;
-  showBar('Synced '+done+' of '+unsynced.length+' ✓','ok');
+  if (btn) { btn.innerHTML = '🔄 Sync all now'; btn.disabled = false; }
+  showBar('Synced ' + done + ' of ' + unsynced.length + ' ✓', 'ok');
 }
 
 function renderPending() {
@@ -943,28 +946,29 @@ function initApp() {
   document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
   loadAreas();
 
-  // Show cached data immediately — no network, no IndexedDB, instant
-  const cached = localStorage.getItem(CK);
-  if (cached) {
-    allAccounts = JSON.parse(cached);
-    filtered = allAccounts;
-    renderList();
-    const pc = allAccounts.filter(a=>a.status==='pending').length;
-    document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total';
-  } else {
-    document.getElementById('alist').innerHTML = '<div class="loading">⏳ Loading...</div>';
-  }
-
+  // Show home screen immediately with a loading message
+  document.getElementById('alist').innerHTML = '<div class="loading">⏳ Loading accounts...</div>';
   show('home');
   switchNav('home');
 
-  // After UI is visible, load IndexedDB and sync in background
+  // Defer ALL data work — let the browser paint first
   setTimeout(() => {
-    openDB().then(() => {
-      return loadPending();
-    }).then(() => {
+    // Load cache
+    try {
+      const cached = localStorage.getItem(CK);
+      if (cached) {
+        allAccounts = JSON.parse(cached);
+        filtered = allAccounts;
+        page = 1;
+        renderList();
+        const pc = allAccounts.filter(a=>a.status==='pending').length;
+        document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total';
+      }
+    } catch(e) {}
+
+    // Open IndexedDB and sync in background
+    openDB().then(() => loadPending()).then(() => {
       updateDot();
-      renderPending();
       if (navigator.onLine) {
         const unsynced = pending.filter(p => !p.synced);
         if (unsynced.length) {
@@ -979,7 +983,7 @@ function initApp() {
     }).catch(() => {
       if (navigator.onLine) loadAll(true).catch(() => {});
     });
-  }, 150);
+  }, 200);
 }
 initApp();
 </script>
