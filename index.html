@@ -503,7 +503,7 @@ async function loadAll(force) {
   const areaParam = selectedArea!=='all' ? '&area='+encodeURIComponent(selectedArea) : '';
   try {
     const ctrl = new AbortController();
-    const tid = setTimeout(()=>ctrl.abort(), 45000);
+    const tid = setTimeout(()=>ctrl.abort(), 20000);
     const res = await fetch(API+'?action=all'+areaParam, {signal:ctrl.signal});
     clearTimeout(tid);
     const data = await res.json();
@@ -934,26 +934,44 @@ if(!navigator.onLine)showBar('Offline — updates saved locally','offline');
 
 // Init: open IndexedDB, load saved pending readings, then check session
 async function initApp() {
-  await openDB();
-  await loadPending();
+  try { await openDB(); } catch(e) { console.log('IndexedDB error:', e); }
+  try { await loadPending(); } catch(e) { console.log('loadPending error:', e); }
 
   const savedSession = localStorage.getItem('ub_session');
-  if (savedSession) {
-    currentUser = JSON.parse(savedSession);
-    selectedArea = String(currentUser.area || selectedArea);
-    localStorage.setItem('ub_area', selectedArea);
-    document.getElementById('wlabel').textContent = currentUser.name || 'Field Worker';
-    document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
-    loadAreas();
-    await loadAll(false);
-    show('home');
-    switchNav('home');
-    if (navigator.onLine && pending.some(p => !p.synced)) {
-      showBar('Syncing offline readings...', 'syncing');
-      syncAll();
-    }
+  if (!savedSession) { show('login'); return; }
+
+  currentUser = JSON.parse(savedSession);
+  selectedArea = String(currentUser.area || selectedArea);
+  localStorage.setItem('ub_area', selectedArea);
+  document.getElementById('wlabel').textContent = currentUser.name || 'Field Worker';
+  document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
+  loadAreas();
+
+  // Show home immediately with cached data (never block UI)
+  const cached = localStorage.getItem(CK);
+  if (cached) {
+    allAccounts = JSON.parse(cached);
+    filtered = allAccounts;
+    renderList();
+    const pc = allAccounts.filter(a=>a.status==='pending').length;
+    document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total (cached)';
   } else {
-    show('login');
+    document.getElementById('alist').innerHTML = '<div class="loading">⏳ Loading accounts...</div>';
+  }
+  show('home');
+  switchNav('home');
+
+  // Sync offline readings first, then refresh account list — all in background
+  if (navigator.onLine) {
+    const unsynced = pending.filter(p => !p.synced);
+    if (unsynced.length) {
+      showBar('Syncing ' + unsynced.length + ' offline readings...', 'syncing');
+      await syncAll();
+    }
+    // Now refresh account list from sheet
+    await loadAll(true);
+  } else {
+    showBar('Offline — showing cached data', 'offline');
   }
 }
 initApp();
