@@ -811,7 +811,7 @@ async function saveReading(goNext) {
           renderList();
           showBar('ACNO '+update.acno+' synced ✓','ok');
           if (update.photo) {
-            const ok = await uploadPhotoImgbb(update.photo, update.acno, update.newDate, update.worker);
+            const ok = await uploadPhotoToSheet(update.photo, update.acno, update.newDate, update.worker);
             if (ok) update.photo = null; // uploaded — drop from local storage
           }
           dbPut(update).catch(()=>{});
@@ -824,24 +824,18 @@ async function saveReading(goNext) {
   }
 }
 
-async function uploadPhotoImgbb(b64, acno, date, worker) {
+async function uploadPhotoToSheet(b64, acno, date, worker) {
   try {
-    const formData = new FormData();
-    formData.append('image', b64);
-    formData.append('name', 'ACNO_' + acno + '_' + date);
-    const res = await fetch('https://api.imgbb.com/1/upload?key=2e2935f6574d72dbd7ac0dc8778b5827', {
-      method: 'POST', body: formData
-    });
+    const res = await fetch(API, {method:'POST', body:JSON.stringify({
+      action:'upload_photo', acno: acno, date: date, photo: b64, worker: worker, token: tok()
+    })});
     const data = await res.json();
-    if (data.success) {
-      const photoUrl = data.data.url;
-      fetch(API, {method:'POST', body:JSON.stringify({
-        action:'save_photo_url', acno, photoUrl, worker, token: tok()
-      })}).catch(()=>{});
-      showBar('Photo uploaded ✓','ok');
-      return true;
-    }
-  } catch(e) { console.log('Photo upload error:', e); }
+    if (isAuthError(data)) { forceRelogin(); return false; }
+    if (data.success) { showBar('Photo saved ✓ (ACNO '+acno+')','ok'); return true; }
+    showBar('Photo failed: '+(data.error||data.message||'unknown')+' — will retry on sync','offline');
+  } catch(e) {
+    showBar('Photo upload failed — will retry on next sync','offline');
+  }
   return false;
 }
 
@@ -869,7 +863,7 @@ async function syncAll() {
         const ci = allAccounts.findIndex(a => String(a.acno) === String(u.acno));
         if (ci >= 0) { allAccounts[ci].status = 'done'; allAccounts[ci].newDate = u.newDate; }
         if (u.photo) {
-          const ok = await uploadPhotoImgbb(u.photo, u.acno, u.newDate, u.worker);
+          const ok = await uploadPhotoToSheet(u.photo, u.acno, u.newDate, u.worker);
           if (ok) u.photo = null;
         }
         await dbPut(u);
@@ -877,6 +871,12 @@ async function syncAll() {
       }
     } catch(e) { /* skip failed, try next */ }
     inFlight.delete(u.id);
+  }
+  // Retry photos whose reading synced earlier but whose upload failed
+  const photoRetries = pending.filter(p => p.synced && p.photo);
+  for (const u of photoRetries) {
+    const ok = await uploadPhotoToSheet(u.photo, u.acno, u.newDate, u.worker);
+    if (ok) { u.photo = null; await dbPut(u); }
   }
   localStorage.setItem(CK, JSON.stringify(allAccounts));
   updateDot(); renderPending(); renderList();
