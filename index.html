@@ -2,10 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1F4E79">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Unbilled Readings</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -48,7 +51,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* Search + list */
 .topbar{background:#1F4E79;padding:0 12px 12px;position:sticky;top:46px;z-index:99;}
-.area-chip{display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-top:10px;}
+.area-chip{display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-top:10px;flex-wrap:wrap;}
 .achip{background:rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;}
 .achange{background:none;border:none;color:rgba(255,255,255,.7);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline;}
 .sw{position:relative;}
@@ -192,6 +195,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="topbar">
       <div class="area-chip">
         <span class="achip" id="area-chip">Area: All</span>
+        <span class="achip" id="today-chip" style="background:rgba(255,255,255,.12);">✍ 0 today</span>
         <button class="achange" onclick="showAreaScreen()">Change area</button>
       </div>
       <div class="sw">
@@ -296,7 +300,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="stat"><div class="statn" id="sp">0</div><div class="statl">Pending sync</div></div>
       <div class="stat"><div class="statn" id="ss">0</div><div class="statl">Synced</div></div>
     </div>
-    <div style="padding:0 14px 12px"><button class="btn btnp" onclick="syncAll()" id="syncbtn">🔄 Sync all now</button></div>
+    <div style="padding:0 14px 12px">
+      <button class="btn btnp" onclick="syncAll()" id="syncbtn">🔄 Sync all now</button>
+      <button class="btn btng" onclick="clearSynced()">🧹 Clear synced records</button>
+    </div>
     <div class="lhdr"><span class="lhdr-t">Saved updates</span></div>
     <div class="plist" id="plist"></div>
     <div class="empty" id="pempty" style="display:none"><div style="font-size:44px;margin-bottom:10px">✅</div><div>All synced!</div></div>
@@ -324,18 +331,53 @@ let allAccounts = [], filtered = [], page = 1, pageSize = 40;
 let currentAcct = null, photoB64 = null;
 let selectedArea = localStorage.getItem('ub_area') || 'all';
 let updatedSet = new Set();
+let inFlight = new Set(); // update ids currently being POSTed — prevents duplicate sends
+
+// ── Session token helpers ──
+let currentUser = null;
+function tok(){ return (currentUser && currentUser.token) ? currentUser.token : ''; }
+function authUrl(qs){ return API + qs + '&token=' + encodeURIComponent(tok()); }
+function isAuthError(d){ return !!(d && d.error === 'auth'); }
+function forceRelogin(){
+  // Server session expired. Unsynced readings stay safe in IndexedDB —
+  // they'll sync automatically after the worker signs in again.
+  currentUser = null;
+  localStorage.removeItem('ub_session');
+  showBar('Session expired — sign in again (your readings are safe)','offline');
+  show('login');
+}
+
+function makeId() {
+  return Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+}
 
 // ── IndexedDB for persistent offline readings ──
 let db = null;
-const DB_NAME = 'UnbilledDB', DB_VER = 1, STORE = 'pending';
+const DB_NAME = 'UnbilledDB', DB_VER = 2, STORE = 'pending';
 
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VER);
     req.onupgradeneeded = e => {
       const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE)) {
-        d.createObjectStore(STORE, { keyPath: 'savedAt' });
+      const tx = e.target.transaction;
+      if (d.objectStoreNames.contains(STORE)) {
+        // v1 → v2 migration: old store was keyed by savedAt (could collide);
+        // new store is keyed by a unique 'id'. Carry old records across.
+        const oldStore = tx.objectStore(STORE);
+        const g = oldStore.getAll();
+        g.onsuccess = () => {
+          const recs = g.result || [];
+          d.deleteObjectStore(STORE);
+          const ns = d.createObjectStore(STORE, { keyPath: 'id' });
+          recs.forEach((r, idx) => {
+            if (!r.id) r.id = Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2, 7);
+            if (!r.ts) r.ts = Date.now();
+            ns.put(r);
+          });
+        };
+      } else {
+        d.createObjectStore(STORE, { keyPath: 'id' });
       }
     };
     req.onsuccess = e => { db = e.target.result; resolve(db); };
@@ -362,11 +404,11 @@ async function dbPut(item) {
   });
 }
 
-async function dbDelete(savedAt) {
+async function dbDelete(id) {
   if (!db) return;
   return new Promise((resolve) => {
     const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).delete(savedAt);
+    tx.objectStore(STORE).delete(id);
     tx.oncomplete = resolve;
   });
 }
@@ -382,8 +424,22 @@ async function dbClear() {
 
 async function loadPending() {
   pending = await dbGetAll();
+  // Auto-purge synced records older than 3 days (photos already uploaded)
+  const cutoff = Date.now() - 3*24*60*60*1000;
+  const stale = pending.filter(p => p.synced && !p.photo && (p.ts || 0) < cutoff);
+  for (const s of stale) { try { await dbDelete(s.id); } catch(e){} }
+  if (stale.length) pending = pending.filter(p => !stale.includes(p));
   updatedSet = new Set(pending.filter(p => p.synced).map(p => String(p.acno)));
   updateDot();
+  updateTodayChip();
+}
+
+function updateTodayChip() {
+  const el = document.getElementById('today-chip');
+  if (!el) return;
+  const today = new Date().toISOString().split('T')[0];
+  const n = new Set(pending.filter(p => p.dateKey === today).map(p => String(p.acno))).size;
+  el.textContent = '✍ ' + n + ' today';
 }
 
 function showBar(msg, type) {
@@ -491,9 +547,11 @@ async function loadAll(force) {
     const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
     if (c && (Date.now()-ts)<TTL) {
       allAccounts = JSON.parse(c);
-      filtered = allAccounts.filter(a=>a.status==='pending');
+      filtered = allAccounts; // consistent with network path — show all, pending first in count
       renderList();
-      document.getElementById('lcount').textContent = filtered.length+' pending';
+      const pc = allAccounts.filter(a=>a.status==='pending').length;
+      document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total';
+      document.getElementById('ltitle').textContent = 'All Accounts';
       // Always verify against sheet in background — catches cases where sheet write failed
       bgRefresh();
       return;
@@ -504,9 +562,10 @@ async function loadAll(force) {
   try {
     const ctrl = new AbortController();
     const tid = setTimeout(()=>ctrl.abort(), 20000);
-    const res = await fetch(API+'?action=all'+areaParam, {signal:ctrl.signal});
+    const res = await fetch(authUrl('?action=all'+areaParam), {signal:ctrl.signal});
     clearTimeout(tid);
     const data = await res.json();
+    if (isAuthError(data)) { forceRelogin(); return; }
     allAccounts = data.accounts || [];
     localStorage.setItem(CK, JSON.stringify(allAccounts));
     localStorage.setItem(CT, Date.now()+'');
@@ -535,16 +594,19 @@ async function loadAll(force) {
 async function bgRefresh() {
   try {
     const areaParam = selectedArea!=='all'?'&area='+encodeURIComponent(selectedArea):'';
-    const res = await fetch(API+'?action=all'+areaParam);
+    const res = await fetch(authUrl('?action=all'+areaParam));
     const data = await res.json();
+    if (isAuthError(data)) { forceRelogin(); return; }
     if (data.accounts) {
       allAccounts = data.accounts;
       localStorage.setItem(CK, JSON.stringify(allAccounts));
       localStorage.setItem(CT, Date.now()+'');
-      // Re-render list silently if we're on the home screen
-      if (document.getElementById('screen-home').classList.contains('active')) {
-        renderList();
-      }
+      // Reapply the current search filter so `filtered` points at fresh data,
+      // then restore pagination so "Load more" state isn't lost.
+      const pg = page;
+      filterList((document.getElementById('sinput').value || '').trim());
+      page = pg;
+      renderList();
     }
   } catch(e) {}
 }
@@ -618,8 +680,9 @@ async function openAccount(acno) {
   if (a) { currentAcct=a; fillDetail(a); show('detail'); return; }
   showBar('Loading...','syncing');
   try {
-    const res = await fetch(API+'?action=search&acno='+encodeURIComponent(acno));
+    const res = await fetch(authUrl('?action=search&acno='+encodeURIComponent(acno)));
     const data = await res.json();
+    if (isAuthError(data)) { forceRelogin(); return; }
     document.getElementById('sbar').className='sbar';
     if (data.found) { currentAcct=data; fillDetail(data); show('detail'); }
   } catch(e) { showBar('Could not load account','offline'); }
@@ -673,22 +736,42 @@ async function saveReading(goNext) {
     return;
   }
 
+  // ── Sanity check: catch typos before they hit the sheet ──
+  if (reading !== '') {
+    const prev = parseFloat(currentAcct.prevReading);
+    const cur = parseFloat(reading);
+    if (!isNaN(prev) && !isNaN(cur)) {
+      const diff = cur - prev;
+      if (diff < 0) {
+        if (!confirm('⚠ New reading (' + cur + ') is LOWER than previous (' + prev + ').\n\nSave anyway? (OK if meter was replaced/rolled over)')) return;
+      } else if (diff > 5000) {
+        if (!confirm('⚠ Very high consumption: ' + diff + ' units since last reading.\n\nSave anyway?')) return;
+      }
+    }
+  }
+
+  // Capture photo now — it belongs to this account's update
+  const capturedPhotoB64 = photoB64;
+  photoB64 = null;
+  clearPhoto();
+
   const update={
     action:'update',acno:currentAcct.acno,row:currentAcct.row,
     newReading:reading,newDate:date,remarks:remarks,
     worker:document.getElementById('wlabel').textContent,
-    savedAt:new Date().toLocaleString(),synced:false
+    savedAt:new Date().toLocaleString(),
+    id:makeId(),                 // unique key — no more same-second collisions
+    ts:Date.now(),
+    dateKey:new Date().toISOString().split('T')[0],
+    photo:capturedPhotoB64||null, // stored offline too, uploaded on sync
+    synced:false
   };
 
   pending.push(update);
   await dbPut(update);
   // Don't add to updatedSet yet — only after confirmed sheet sync
   updateDot();
-
-  // Don't mark as done in cache until sheet confirms — keeps status honest
-  // const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
-  // if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
-  // localStorage.setItem(CK,JSON.stringify(allAccounts));
+  updateTodayChip();
 
   const currentIdx = filtered.findIndex(a=>String(a.acno)===String(update.acno));
   const nextAcct = goNext ? filtered[currentIdx + 1] : null;
@@ -712,17 +795,14 @@ async function saveReading(goNext) {
     showBar('ACNO '+update.acno+' saved — syncing in background...','syncing');
   }
 
-  const capturedPhotoB64 = photoB64;
-  photoB64 = null;
-  clearPhoto();
-
   if (navigator.onLine) {
-    fetch(API, {method:'POST', body:JSON.stringify(update)})
+    inFlight.add(update.id);
+    fetch(API, {method:'POST', body:JSON.stringify(Object.assign({}, update, {token: tok()}))})
       .then(r=>r.json())
       .then(async data=>{
+        if (isAuthError(data)) { forceRelogin(); return; }
         if (data.success) {
-          const i = pending.findIndex(p=>p.acno===update.acno&&p.savedAt===update.savedAt);
-          if (i>=0) { pending[i].synced=true; dbPut(pending[i]).catch(()=>{}); }
+          update.synced=true;
           updatedSet.add(String(update.acno));
           const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
           if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
@@ -730,12 +810,15 @@ async function saveReading(goNext) {
           updateDot();
           renderList();
           showBar('ACNO '+update.acno+' synced ✓','ok');
-          if (capturedPhotoB64) {
-            uploadPhotoImgbb(capturedPhotoB64, update.acno, update.newDate, update.worker);
+          if (update.photo) {
+            const ok = await uploadPhotoImgbb(update.photo, update.acno, update.newDate, update.worker);
+            if (ok) update.photo = null; // uploaded — drop from local storage
           }
+          dbPut(update).catch(()=>{});
         }
       })
-      .catch(()=>{ showBar('Saved locally — will sync when connected','offline'); });
+      .catch(()=>{ showBar('Saved locally — will sync when connected','offline'); })
+      .finally(()=>{ inFlight.delete(update.id); });
   } else {
     showBar('Offline — will sync when connected','offline');
   }
@@ -753,11 +836,13 @@ async function uploadPhotoImgbb(b64, acno, date, worker) {
     if (data.success) {
       const photoUrl = data.data.url;
       fetch(API, {method:'POST', body:JSON.stringify({
-        action:'save_photo_url', acno, photoUrl, worker
+        action:'save_photo_url', acno, photoUrl, worker, token: tok()
       })}).catch(()=>{});
       showBar('Photo uploaded ✓','ok');
+      return true;
     }
   } catch(e) { console.log('Photo upload error:', e); }
+  return false;
 }
 
 async function syncAll() {
@@ -769,23 +854,44 @@ async function syncAll() {
   showBar('Syncing ' + unsynced.length + ' updates...', 'syncing');
   let done = 0;
   for (const u of unsynced) {
+    if (inFlight.has(u.id)) continue; // already being sent by saveReading — skip
+    inFlight.add(u.id);
     try {
       const ctrl = new AbortController();
       const tid = setTimeout(() => ctrl.abort(), 10000); // 10s per request max
-      const r = await fetch(API, { method: 'POST', body: JSON.stringify(u), signal: ctrl.signal });
+      const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({}, u, {token: tok()})), signal: ctrl.signal });
       clearTimeout(tid);
       const d = await r.json();
+      if (isAuthError(d)) { inFlight.delete(u.id); forceRelogin(); break; }
       if (d.success) {
-        const i = pending.findIndex(p => p.acno === u.acno && p.savedAt === u.savedAt);
-        if (i >= 0) { pending[i].synced = true; dbPut(pending[i]).catch(() => {}); }
+        u.synced = true;
         updatedSet.add(String(u.acno));
+        const ci = allAccounts.findIndex(a => String(a.acno) === String(u.acno));
+        if (ci >= 0) { allAccounts[ci].status = 'done'; allAccounts[ci].newDate = u.newDate; }
+        if (u.photo) {
+          const ok = await uploadPhotoImgbb(u.photo, u.acno, u.newDate, u.worker);
+          if (ok) u.photo = null;
+        }
+        await dbPut(u);
         done++;
       }
     } catch(e) { /* skip failed, try next */ }
+    inFlight.delete(u.id);
   }
-  updateDot(); renderPending();
+  localStorage.setItem(CK, JSON.stringify(allAccounts));
+  updateDot(); renderPending(); renderList();
   if (btn) { btn.innerHTML = '🔄 Sync all now'; btn.disabled = false; }
   showBar('Synced ' + done + ' of ' + unsynced.length + ' ✓', 'ok');
+}
+
+async function clearSynced() {
+  const s = pending.filter(p => p.synced);
+  if (!s.length) { showBar('Nothing to clear', 'ok'); return; }
+  if (!confirm('Remove ' + s.length + ' synced record(s) from this device?\n\nSheet data is NOT affected.')) return;
+  for (const x of s) { try { await dbDelete(x.id); } catch(e){} }
+  pending = pending.filter(p => !p.synced);
+  renderPending(); updateDot(); updateTodayChip();
+  showBar('Cleared ✓', 'ok');
 }
 
 function renderPending() {
@@ -799,7 +905,7 @@ function renderPending() {
     <div class="acard${p.synced?' updated':''}">
       <div class="ainfo">
         <div class="aacno">ACNO ${p.acno}${p.synced?'<span class="utag">✓ Synced</span>':''}</div>
-        <div class="ardate">${p.newReading?'Reading: '+p.newReading+' · ':''}${p.savedAt}</div>
+        <div class="ardate">${p.newReading?'Reading: '+p.newReading+' · ':''}${p.savedAt}${p.photo?' · 📷 photo pending':''}</div>
       </div>
       <span class="badge ${p.synced?'bd':'bp'}">${p.synced?'Synced':'Pending'}</span>
     </div>`).join('');
@@ -883,7 +989,6 @@ document.addEventListener('keydown', e => {
 });
 
 // ── LOGIN ──
-let currentUser = null;
 
 async function doLogin() {
   const username = document.getElementById('l-user').value.trim();
@@ -894,10 +999,12 @@ async function doLogin() {
   if (!username || !password) { err.textContent = 'Please enter username and password.'; err.style.display = 'block'; return; }
   btn.textContent = 'Signing in...'; btn.disabled = true;
   try {
-    const res = await fetch(API + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password));
+    // POST so credentials never appear in a URL or in server request logs
+    const res = await fetch(API, { method:'POST', body: JSON.stringify({ action:'login', username, password }) });
     const data = await res.json();
     if (data.success) {
-      currentUser = data.user;
+      currentUser = data.user || {};
+      currentUser.token = data.token;
       localStorage.setItem('ub_session', JSON.stringify(currentUser));
       selectedArea = String(currentUser.area);
       localStorage.setItem('ub_area', selectedArea);
@@ -907,6 +1014,7 @@ async function doLogin() {
       await loadAll(true);
       show('home');
       switchNav('home');
+      if (pending.some(p=>!p.synced)) syncAll(); // readings saved before session expired
     } else {
       err.textContent = data.message || 'Invalid username or password.';
       err.style.display = 'block';
@@ -920,6 +1028,8 @@ async function doLogin() {
 
 function doLogout() {
   if (!confirm('Log out?')) return;
+  const unsyncedCount = pending.filter(p=>!p.synced).length;
+  if (unsyncedCount > 0 && !confirm('⚠ You have ' + unsyncedCount + ' UNSYNCED reading(s) that will be DELETED.\n\nLog out anyway?')) return;
   localStorage.removeItem('ub_session');
   localStorage.removeItem(CK); localStorage.removeItem(CT);
   localStorage.removeItem('ub_area');
@@ -934,6 +1044,11 @@ function doLogout() {
 window.addEventListener('online',()=>{showBar('Back online — syncing...','syncing');syncAll();});
 window.addEventListener('offline',()=>showBar('Offline — updates saved locally','offline'));
 if(!navigator.onLine)showBar('Offline — updates saved locally','offline');
+
+// ── Service worker: makes the app installable + openable offline ──
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
 
 // Init — show UI instantly, do everything else after
 function initApp() {
@@ -969,6 +1084,7 @@ function initApp() {
     // Open IndexedDB and sync in background
     openDB().then(() => loadPending()).then(() => {
       updateDot();
+      renderList(); // re-render with pending/synced tags now that pending is loaded
       if (navigator.onLine) {
         const unsynced = pending.filter(p => !p.synced);
         if (unsynced.length) {
