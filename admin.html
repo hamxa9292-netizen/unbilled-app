@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1F4E79">
+<title>Unbilled Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh;color:#111;}
+.wrap{max-width:860px;margin:0 auto;padding:0 14px 40px;}
+.hdr{background:#1F4E79;color:#fff;padding:14px 0;margin:0 -14px 18px;}
+.hdr-in{max-width:860px;margin:0 auto;padding:0 14px;display:flex;align-items:center;gap:10px;}
+.hdr h1{font-size:17px;font-weight:700;flex:1;}
+.hdr .who{font-size:12px;opacity:.85;}
+.hdr button{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;}
+
+/* Login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1F4E79;padding:24px;}
+.login-box{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.login-logo{text-align:center;margin-bottom:20px;}
+.login-logo .ico{font-size:40px;}
+.login-logo h2{font-size:20px;font-weight:800;color:#1F4E79;margin-top:6px;}
+.login-logo p{font-size:13px;color:#6b7280;margin-top:2px;}
+.lfield{margin-bottom:14px;}
+.lfield label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;}
+.lfield input,.lfield select{width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;color:#111;background:#fff;}
+.lfield input:focus,.lfield select:focus{border-color:#1F4E79;}
+.bigbtn{width:100%;padding:13px;background:#1F4E79;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.bigbtn:active{opacity:.85;}
+.bigbtn:disabled{opacity:.6;cursor:default;}
+.err{background:#fee2e2;color:#b91c1c;padding:9px 13px;border-radius:8px;font-size:13px;margin-top:12px;display:none;text-align:center;}
+
+/* Tabs */
+.tabs{display:flex;gap:8px;margin-bottom:16px;}
+.tab{padding:9px 18px;border-radius:20px;font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:inherit;background:#fff;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.tab.active{background:#1F4E79;color:#fff;}
+
+/* Cards & tables */
+.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:16px;}
+.card h3{font-size:15px;font-weight:700;color:#1F4E79;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;font-weight:700;padding:8px 10px;border-bottom:2px solid #e5e7eb;}
+td{padding:10px;border-bottom:1px solid #f3f4f6;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.role-b{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;}
+.role-admin{background:#ede9fe;color:#5b21b6;}
+.role-worker{background:#e0f2fe;color:#075985;}
+.area-b{font-size:12px;font-weight:700;color:#1F4E79;background:#eff6ff;padding:3px 10px;border-radius:20px;display:inline-block;}
+.act{background:#f3f4f6;border:none;border-radius:7px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:4px;}
+.act.del{background:#fee2e2;color:#b91c1c;}
+.addbtn{background:#1E7145;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.loading{text-align:center;padding:36px;color:#9ca3af;font-size:14px;}
+.msg{font-size:13px;padding:9px 13px;border-radius:8px;margin-bottom:12px;display:none;}
+.msg.ok{background:#dcfce7;color:#14532d;display:block;}
+.msg.bad{background:#fee2e2;color:#b91c1c;display:block;}
+
+/* Overview bars */
+.bar-bg{background:#f3f4f6;border-radius:10px;height:16px;overflow:hidden;min-width:120px;}
+.bar-fill{background:#1E7145;height:100%;border-radius:10px;transition:width .4s;}
+.pct{font-size:12px;font-weight:700;color:#374151;}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:200;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:400px;box-shadow:0 12px 40px rgba(0,0,0,.3);}
+.modal h3{font-size:16px;font-weight:700;color:#1F4E79;margin-bottom:16px;}
+.modal .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal .btns{display:flex;gap:8px;margin-top:6px;}
+.modal .btns button{flex:1;}
+.cancel{background:#f3f4f6;color:#374151;}
+.hint{font-size:11px;color:#9ca3af;margin-top:3px;}
+
+@media(max-width:560px){
+  th:nth-child(2),td:nth-child(2){display:none;} /* hide Name column on narrow screens */
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="v-login" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="ico">🛠️</div>
+      <h2>Unbilled Admin</h2>
+      <p>STELCO — user &amp; area management</p>
+    </div>
+    <div class="lfield">
+      <label>Username</label>
+      <input type="text" id="l-user" placeholder="Admin username" autocomplete="username" autocapitalize="none">
+    </div>
+    <div class="lfield">
+      <label>Password</label>
+      <input type="password" id="l-pass" placeholder="Password" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="bigbtn" id="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="v-main" style="display:none">
+  <div class="hdr">
+    <div class="hdr-in">
+      <span style="font-size:20px">🛠️</span>
+      <h1>Unbilled Admin</h1>
+      <span class="who" id="who"></span>
+      <button onclick="doLogout()">Log out</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab active" id="tab-users" onclick="switchTab('users')">👥 Users</button>
+      <button class="tab" id="tab-overview" onclick="switchTab('overview')">📊 Area Progress</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <!-- USERS TAB -->
+    <div id="pane-users">
+      <div class="card">
+        <h3>
+          Users
+          <button class="addbtn" onclick="openAdd()">＋ Add user</button>
+        </h3>
+        <div id="users-body" class="loading">Loading users...</div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="pane-overview" style="display:none">
+      <div class="card">
+        <h3>
+          Readings progress by area
+          <button class="addbtn" style="background:#1F4E79" onclick="loadOverview()">🔄 Refresh</button>
+        </h3>
+        <div id="ov-body" class="loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT USER MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="m-title">Add user</h3>
+    <div class="lfield">
+      <label>Username</label>
+      <input type="text" id="m-username" autocapitalize="none" autocomplete="off">
+    </div>
+    <div class="lfield">
+      <label>Full name</label>
+      <input type="text" id="m-name" autocomplete="off">
+    </div>
+    <div class="row2">
+      <div class="lfield">
+        <label>Area</label>
+        <select id="m-area"></select>
+      </div>
+      <div class="lfield">
+        <label>Role</label>
+        <select id="m-role">
+          <option value="worker">Worker</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="lfield">
+      <label id="m-pass-label">Password</label>
+      <input type="text" id="m-password" autocomplete="off" autocapitalize="none">
+      <div class="hint" id="m-pass-hint" style="display:none">Leave blank to keep the current password.</div>
+    </div>
+    <div class="err" id="m-err"></div>
+    <div class="btns" style="display:flex;gap:8px;margin-top:10px;">
+      <button class="bigbtn cancel" onclick="closeModal()">Cancel</button>
+      <button class="bigbtn" id="m-save" onclick="saveUser()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
+
+let session = null;   // { token, user:{username,name,area,role} }
+let users = [];
+let editingUsername = null; // null = adding
+
+function tok(){ return session ? session.token : ''; }
+
+async function api(body) {
+  const res = await fetch(API, { method:'POST', body: JSON.stringify(Object.assign({}, body, { token: tok() })) });
+  const data = await res.json();
+  if (data && data.error === 'auth') { forceRelogin(); throw new Error('auth'); }
+  return data;
+}
+
+function forceRelogin() {
+  session = null;
+  localStorage.removeItem('ub_admin_session');
+  document.getElementById('v-main').style.display = 'none';
+  document.getElementById('v-login').style.display = 'flex';
+  showLoginErr('Session expired — please sign in again.');
+}
+
+function showLoginErr(m) {
+  const e = document.getElementById('login-err');
+  e.textContent = m; e.style.display = 'block';
+}
+
+function flash(m, ok) {
+  const el = document.getElementById('msg');
+  el.className = 'msg ' + (ok ? 'ok' : 'bad');
+  el.textContent = m;
+  setTimeout(()=>{ el.className='msg'; }, 4000);
+}
+
+/* ── Login / logout ── */
+async function doLogin() {
+  const username = document.getElementById('l-user').value.trim();
+  const password = document.getElementById('l-pass').value.trim();
+  const err = document.getElementById('login-err');
+  const btn = document.getElementById('login-btn');
+  err.style.display = 'none';
+  if (!username || !password) { showLoginErr('Please enter username and password.'); return; }
+  btn.textContent = 'Signing in...'; btn.disabled = true;
+  try {
+    const res = await fetch(API, { method:'POST', body: JSON.stringify({ action:'login', username, password }) });
+    const data = await res.json();
+    if (data.success) {
+      if (!data.user || data.user.role !== 'admin') {
+        showLoginErr('This account is not an admin. Ask an admin to set your Role to "admin" in the users sheet.');
+      } else {
+        session = { token: data.token, user: data.user };
+        localStorage.setItem('ub_admin_session', JSON.stringify(session));
+        enterMain();
+      }
+    } else {
+      showLoginErr(data.message || 'Invalid username or password.');
+    }
+  } catch(e) {
+    showLoginErr('Could not connect. Check internet.');
+  }
+  btn.textContent = 'Sign In'; btn.disabled = false;
+}
+
+function doLogout() {
+  if (!confirm('Log out?')) return;
+  session = null;
+  localStorage.removeItem('ub_admin_session');
+  document.getElementById('l-user').value = '';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('v-main').style.display = 'none';
+  document.getElementById('v-login').style.display = 'flex';
+}
+
+function enterMain() {
+  document.getElementById('v-login').style.display = 'none';
+  document.getElementById('v-main').style.display = 'block';
+  document.getElementById('who').textContent = '👤 ' + (session.user.name || session.user.username);
+  fillAreaSelect();
+  loadUsers();
+}
+
+/* ── Tabs ── */
+function switchTab(t) {
+  document.getElementById('tab-users').classList.toggle('active', t==='users');
+  document.getElementById('tab-overview').classList.toggle('active', t==='overview');
+  document.getElementById('pane-users').style.display = t==='users' ? 'block' : 'none';
+  document.getElementById('pane-overview').style.display = t==='overview' ? 'block' : 'none';
+  if (t==='overview') loadOverview();
+}
+
+/* ── Users ── */
+async function loadUsers() {
+  const body = document.getElementById('users-body');
+  body.className = 'loading'; body.textContent = 'Loading users...';
+  try {
+    const d = await api({ action:'admin_list_users' });
+    if (!d.success) { body.textContent = d.message || 'Could not load users.'; return; }
+    users = d.users || [];
+    renderUsers();
+  } catch(e) {
+    if (e.message !== 'auth') body.textContent = 'Could not connect.';
+  }
+}
+
+function renderUsers() {
+  const body = document.getElementById('users-body');
+  body.className = '';
+  if (!users.length) { body.innerHTML = '<div class="loading">No users yet — add the first one.</div>'; return; }
+  body.innerHTML = `<table>
+    <thead><tr><th>Username</th><th>Name</th><th>Area</th><th>Role</th><th></th></tr></thead>
+    <tbody>` + users.map(u => `
+      <tr>
+        <td style="font-weight:700;color:#1F4E79;">${esc(u.username)}${u.username.toLowerCase()===session.user.username.toLowerCase()?' <span style="font-size:11px;color:#9ca3af;">(you)</span>':''}</td>
+        <td>${esc(u.name)||'—'}</td>
+        <td><span class="area-b">${u.area==='all'||!u.area?'All':'Area '+esc(u.area)}</span></td>
+        <td><span class="role-b role-${u.role}">${u.role==='admin'?'Admin':'Worker'}</span></td>
+        <td style="text-align:right;white-space:nowrap;">
+          <button class="act" onclick="openEdit('${esc(u.username)}')">✏️ Edit</button>
+          <button class="act del" onclick="delUser('${esc(u.username)}')">🗑</button>
+        </td>
+      </tr>`).join('') + `</tbody></table>`;
+}
+
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+/* ── Add / edit modal ── */
+function fillAreaSelect() {
+  const sel = document.getElementById('m-area');
+  sel.innerHTML = '<option value="all">All areas</option>';
+  for (let i = 1; i <= 24; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = 'Area ' + i;
+    sel.appendChild(o);
+  }
+}
+
+function openAdd() {
+  editingUsername = null;
+  document.getElementById('m-title').textContent = 'Add user';
+  document.getElementById('m-username').value = '';
+  document.getElementById('m-username').disabled = false;
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-area').value = 'all';
+  document.getElementById('m-role').value = 'worker';
+  document.getElementById('m-password').value = '';
+  document.getElementById('m-pass-label').textContent = 'Password';
+  document.getElementById('m-pass-hint').style.display = 'none';
+  document.getElementById('m-err').style.display = 'none';
+  document.getElementById('modal-bg').classList.add('show');
+  setTimeout(()=>document.getElementById('m-username').focus(), 100);
+}
+
+function openEdit(username) {
+  const u = users.find(x => x.username === username);
+  if (!u) return;
+  editingUsername = username;
+  document.getElementById('m-title').textContent = 'Edit user — ' + username;
+  document.getElementById('m-username').value = u.username;
+  document.getElementById('m-username').disabled = true;
+  document.getElementById('m-name').value = u.name || '';
+  document.getElementById('m-area').value = (u.area && u.area !== 'all') ? u.area : 'all';
+  if (document.getElementById('m-area').value !== String(u.area) && u.area && u.area !== 'all') {
+    // area outside 1–24 — add it so it isn't silently changed
+    const o = document.createElement('option');
+    o.value = u.area; o.textContent = 'Area ' + u.area;
+    document.getElementById('m-area').appendChild(o);
+    document.getElementById('m-area').value = u.area;
+  }
+  document.getElementById('m-role').value = u.role;
+  document.getElementById('m-password').value = '';
+  document.getElementById('m-pass-label').textContent = 'New password (optional)';
+  document.getElementById('m-pass-hint').style.display = 'block';
+  document.getElementById('m-err').style.display = 'none';
+  document.getElementById('modal-bg').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('show');
+}
+
+async function saveUser() {
+  const errEl = document.getElementById('m-err');
+  errEl.style.display = 'none';
+  const username = document.getElementById('m-username').value.trim();
+  const name = document.getElementById('m-name').value.trim();
+  const area = document.getElementById('m-area').value;
+  const role = document.getElementById('m-role').value;
+  const password = document.getElementById('m-password').value.trim();
+
+  if (!username) { errEl.textContent = 'Username is required.'; errEl.style.display='block'; return; }
+  if (!editingUsername && !password) { errEl.textContent = 'Password is required for a new user.'; errEl.style.display='block'; return; }
+
+  const btn = document.getElementById('m-save');
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  try {
+    let d;
+    if (editingUsername) {
+      const payload = { action:'admin_update_user', username: editingUsername, name, area, role };
+      if (password) payload.password = password;
+      d = await api(payload);
+    } else {
+      d = await api({ action:'admin_add_user', username, password, name, area, role });
+    }
+    if (d.success) {
+      closeModal();
+      flash(editingUsername ? 'User updated ✓' : 'User added ✓', true);
+      loadUsers();
+    } else {
+      errEl.textContent = d.message || 'Could not save.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    if (e.message !== 'auth') { errEl.textContent = 'Could not connect.'; errEl.style.display='block'; }
+  }
+  btn.textContent = 'Save'; btn.disabled = false;
+}
+
+async function delUser(username) {
+  if (!confirm('Delete user "' + username + '"?\n\nThey will no longer be able to sign in.')) return;
+  try {
+    const d = await api({ action:'admin_delete_user', username });
+    if (d.success) { flash('User deleted ✓', true); loadUsers(); }
+    else flash(d.message || 'Could not delete.', false);
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+}
+
+/* ── Overview ── */
+async function loadOverview() {
+  const body = document.getElementById('ov-body');
+  body.className = 'loading'; body.textContent = 'Loading...';
+  try {
+    const d = await api({ action:'admin_overview' });
+    if (!d.success) { body.textContent = d.message || 'Could not load.'; return; }
+    const areas = d.areas || [];
+    body.className = '';
+    if (!areas.length) { body.innerHTML = '<div class="loading">No account data found.</div>'; return; }
+    let tDone = 0, tPend = 0;
+    areas.forEach(a => { tDone += a.done; tPend += a.pending; });
+    const rows = areas.map(a => {
+      const total = a.done + a.pending;
+      const pct = total ? Math.round(a.done / total * 100) : 0;
+      return `<tr>
+        <td><span class="area-b">Area ${esc(a.area)}</span></td>
+        <td style="color:#16a34a;font-weight:700;">${a.done}</td>
+        <td style="color:#92400e;font-weight:700;">${a.pending}</td>
+        <td>${total}</td>
+        <td><div style="display:flex;align-items:center;gap:8px;">
+          <div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:${pct}%;"></div></div>
+          <span class="pct">${pct}%</span>
+        </div></td>
+      </tr>`;
+    }).join('');
+    const tTotal = tDone + tPend;
+    const tPct = tTotal ? Math.round(tDone / tTotal * 100) : 0;
+    body.innerHTML = `<table>
+      <thead><tr><th>Area</th><th>Done</th><th>Pending</th><th>Total</th><th style="min-width:160px;">Progress</th></tr></thead>
+      <tbody>${rows}
+        <tr style="background:#f9fafb;">
+          <td style="font-weight:800;">All</td>
+          <td style="color:#16a34a;font-weight:800;">${tDone}</td>
+          <td style="color:#92400e;font-weight:800;">${tPend}</td>
+          <td style="font-weight:800;">${tTotal}</td>
+          <td><div style="display:flex;align-items:center;gap:8px;">
+            <div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:${tPct}%;"></div></div>
+            <span class="pct">${tPct}%</span>
+          </div></td>
+        </tr>
+      </tbody></table>`;
+  } catch(e) {
+    if (e.message !== 'auth') body.textContent = 'Could not connect.';
+  }
+}
+
+/* ── Init ── */
+(function init() {
+  const saved = localStorage.getItem('ub_admin_session');
+  if (saved) {
+    try {
+      session = JSON.parse(saved);
+      if (session && session.token && session.user && session.user.role === 'admin') {
+        enterMain();
+        return;
+      }
+    } catch(e) {}
+    session = null;
+    localStorage.removeItem('ub_admin_session');
+  }
+  document.getElementById('v-login').style.display = 'flex';
+})();
+</script>
+</body>
+</html>
