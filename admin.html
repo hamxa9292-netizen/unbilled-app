@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v17 · no-meter</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v19 · nm-instant</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -259,11 +259,7 @@ tr:last-child td{border-bottom:none;}
       <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
         <div class="card" style="flex:1;min-width:320px;">
           <h3>Mark an account as No-Meter</h3>
-          <div style="font-size:13px;color:#6b7280;margin-bottom:14px;line-height:1.5;">
-            Enter an account number to look it up in the unbilled sheet. Tick <b>No meter</b> and Save
-            to add it to the no-meters list. On the next data upload, matching accounts are flagged
-            <b>NO METER</b> in column K.
-          </div>
+          <div id="nm-areas-hint" style="display:none;font-size:12px;color:#075985;background:#e0f2fe;border-radius:8px;padding:8px 12px;margin-bottom:14px;"></div>
           <div style="display:flex;gap:10px;align-items:end;margin-bottom:14px;flex-wrap:wrap;">
             <div class="lfield" style="margin:0;min-width:180px;">
               <label>Account number</label>
@@ -462,7 +458,7 @@ function switchTab(t) {
   document.getElementById('pane-nometer').style.display = t==='nometer' ? 'block' : 'none';
   if (t==='overview') loadOverview();
   if (t==='entered') initEnteredTab();
-  if (t==='nometer') nmLoadList();
+  if (t==='nometer') { nmShowAreas(); nmLoadList(); }
 }
 
 /* ── Users ── */
@@ -1215,6 +1211,20 @@ function pjCopyResult() {
 /* ── No-Meter tab ── */
 let nmCurrent = null; // last looked-up account
 
+function nmShowAreas() {
+  const el = document.getElementById('nm-areas-hint');
+  if (!el) return;
+  if (session.user.role === 'supervisor') {
+    const areas = (session.user.areas || []);
+    el.style.display = 'block';
+    el.innerHTML = areas.length
+      ? 'You can mark accounts in your areas only: <b>' + areas.map(a => 'Area ' + esc(a)).join(', ') + '</b>.'
+      : 'No areas are assigned to you — contact an admin.';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 async function nmLookup() {
   const acno = document.getElementById('nm-acno').value.trim();
   const box = document.getElementById('nm-result');
@@ -1253,7 +1263,7 @@ async function nmSave() {
   try {
     const d = await api({ action: 'nometer_save', acno: nmCurrent.acno, address: nmCurrent.address, meter: nmCurrent.meter, area: nmCurrent.area });
     if (d.success) {
-      flash('ACNO ' + nmCurrent.acno + ' added to no-meter list ✓', true);
+      flash('ACNO ' + nmCurrent.acno + ' marked NO METER' + (d.flagged ? ' — ' + d.flagged + ' row(s) updated in sheet' : '') + ' ✓', true);
       document.getElementById('nm-acno').value = '';
       document.getElementById('nm-result').innerHTML = '';
       nmCurrent = null;
