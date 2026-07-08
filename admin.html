@@ -113,7 +113,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v10 · locked-bottom</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v11 · preload</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -193,6 +193,7 @@ tr:last-child td{border-bottom:none;}
               style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;outline:none;color:#111;background:#fff;">
           </div>
           <button class="addbtn" style="height:40px;background:#1E7145;" onclick="loadEntered()">🔍 Load</button>
+          <button class="act" style="height:40px;" onclick="refreshEntered()">🔄 Refresh</button>
           <button class="act" style="height:40px;" onclick="clearEnteredFilters()">Clear</button>
         </div>
         <div id="entered-body" class="loading" style="color:#9ca3af;">Select an area and press Load.</div>
@@ -794,37 +795,98 @@ const ENTERED_COLS = [
   { i: 20, label: 'CUTOFF READING' }
 ];
 
-// Populate the area dropdown when the tab opens — WITHOUT loading any data.
-// Supervisors get their assigned areas; admins get areas 1..24.
+// Populate the area dropdown when the tab opens — WITHOUT blocking on data.
+// Also warm up the backend and preload all the supervisor's areas in the
+// background so pressing Load is instant.
 let enteredTabReady = false;
+let preloadCache = null;      // { rows, headers, at } — all assigned areas, any date
+let preloadPromise = null;    // in-flight preload, so Load can await it
+
+function assignedAreaList() {
+  if (session.user.role === 'supervisor') {
+    return (session.user.areas || []).slice().sort((a, b) => Number(a) - Number(b));
+  }
+  const all = [];
+  for (let i = 1; i <= 24; i++) all.push(String(i));
+  return all;
+}
+
 function initEnteredTab() {
   const areaSel = document.getElementById('ent-area');
   let opts = '<option value="">Select area…</option>';
-  if (session.user.role === 'supervisor') {
-    (session.user.areas || []).slice().sort((a, b) => Number(a) - Number(b))
-      .forEach(a => { opts += '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>'; });
-  } else {
-    for (let i = 1; i <= 24; i++) opts += '<option value="' + i + '">Area ' + i + '</option>';
-  }
+  assignedAreaList().forEach(a => { opts += '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>'; });
   areaSel.innerHTML = opts;
+
   if (!enteredTabReady) {
     enteredRows = [];
     document.getElementById('entered-body').innerHTML =
-      '<div class="loading" style="color:#9ca3af;">Select an area and press Load.</div>';
+      '<div class="loading" style="color:#9ca3af;">Preparing data in the background… you can select an area now.</div>';
     document.getElementById('lock-btn').disabled = true;
     enteredTabReady = true;
   }
+
+  // 1) Warm the Apps Script container (kills cold-start on the real request)
+  fetch(API + '?action=ping').catch(() => {});
+
+  // 2) Preload all assigned areas in the background (admins: skip — 24 areas is too much)
+  if (session.user.role === 'supervisor') startPreload();
+}
+
+function startPreload() {
+  const areas = assignedAreaList().join(',');
+  if (!areas) return;
+  preloadPromise = api({ action: 'supervisor_entered', areas: areas })
+    .then(d => {
+      if (d && d.success) {
+        preloadCache = { rows: d.rows || [], headers: d.headers || [], at: Date.now() };
+        // If the user is waiting on the prompt with an area chosen, show it now
+        const areaSel = document.getElementById('ent-area');
+        if (areaSel.value && !enteredRows.length) renderFromCacheOrSkip();
+      }
+      return d;
+    })
+    .catch(() => {});
+}
+
+function renderFromCacheOrSkip() {
+  // Only auto-render if the user has actually picked an area
+  if (!document.getElementById('ent-area').value) return;
+  applyFromCache();
+}
+
+// Filter the preloaded cache to the chosen area (+ date) and render — instant.
+function applyFromCache() {
+  const area = document.getElementById('ent-area').value;
+  const date = document.getElementById('ent-date').value; // '' = any
+  if (!preloadCache) return false;
+  enteredHeaders = preloadCache.headers;
+  enteredRows = preloadCache.rows.filter(r =>
+    String(r.area ?? r.cells[ENT_AREA_COL - 1] ?? '').trim() === area &&
+    (!date || normDate_(r.cells[ENT_RDATE_COL - 1]) === date)
+  );
+  renderEntered();
+  return true;
 }
 
 async function loadEntered() {
   const area = document.getElementById('ent-area').value;
   const date = document.getElementById('ent-date').value; // '' = any date
   const body = document.getElementById('entered-body');
-  const errArea = !area;
-  if (errArea) { body.className = 'loading'; body.style.color = '#b91c1c'; body.textContent = 'Please select an area first.'; return; }
+  if (!area) { body.className = 'loading'; body.style.color = '#b91c1c'; body.textContent = 'Please select an area first.'; return; }
+  document.getElementById('lock-btn').disabled = true;
+
+  // Fast path: preload already finished → filter it client-side, no wait
+  if (preloadCache) { applyFromCache(); return; }
+
+  // Preload still running → wait for it rather than firing a second scan
   body.className = 'loading'; body.style.color = '#9ca3af';
   body.textContent = 'Loading Area ' + area + (date ? ' · ' + date : '') + '…';
-  document.getElementById('lock-btn').disabled = true;
+  if (preloadPromise) {
+    try { await preloadPromise; } catch(e) {}
+    if (preloadCache) { applyFromCache(); return; }
+  }
+
+  // No preload (e.g. admin, or preload failed) → direct fetch for this area
   try {
     const d = await api({ action: 'supervisor_entered', area: area, date: date });
     if (!d.success) { body.style.color = '#b91c1c'; body.textContent = d.message || 'Could not load.'; return; }
@@ -852,6 +914,19 @@ function normDate_(v) {
     return y + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[1]).slice(-2);
   }
   return s;
+}
+
+function refreshEntered() {
+  preloadCache = null;
+  preloadPromise = null;
+  const area = document.getElementById('ent-area').value;
+  if (session.user.role === 'supervisor') startPreload();
+  if (area) loadEntered();
+  else {
+    const body = document.getElementById('entered-body');
+    body.className = 'loading'; body.style.color = '#9ca3af';
+    body.textContent = 'Refreshing in the background… select an area.';
+  }
 }
 
 function clearEnteredFilters() {
@@ -967,6 +1042,8 @@ async function lockSelected() {
     const d = await api({ action: 'supervisor_lock_rows', items: items });
     if (d.success) {
       flash(d.locked + ' account(s) locked → billing' + (d.mismatch ? ', ' + d.mismatch + ' skipped (sheet changed — refresh)' : '') + ' ✓', true);
+      preloadCache = null;                                    // stale after locking
+      if (session.user.role === 'supervisor') startPreload(); // rebuild in background
       loadEntered();
     } else {
       flash(d.message || 'Could not lock.', false);
