@@ -666,7 +666,7 @@ async function doCsvUpload() {
     if (d.needsLockConfirm) {
       if (!confirm('⚠ NEW MONTH DETECTED\n\n' +
           'This file (' + fileDate + ') is for a newer month than the existing data in ' + areaLabel + '.\n\n' +
-          'Uploading it will LOCK ' + d.lockCount + ' previous-month row(s) — field staff will no longer be able to enter or change readings for those accounts.\n\nContinue and lock the previous month?')) {
+          'Uploading it will archive & lock ' + d.lockCount + ' previous-month row(s) — they move to the "unbilled_archive" sheet and field staff can no longer enter or change readings for those accounts.\n\nContinue and close the previous month?')) {
         btn.textContent = 'Upload to sheet'; btn.disabled = false;
         return;
       }
@@ -679,10 +679,11 @@ async function doCsvUpload() {
       if (mode === 'replace') bits.push(d.removed + ' replaced');
       if (d.kept) bits.push(d.kept + ' kept (already have readings)');
       if (d.duplicates) bits.push(d.duplicates + ' duplicates skipped');
-      if (d.locked) bits.push(d.locked + ' previous-month rows locked 🔒');
+      if (d.archived) bits.push(d.archived + ' previous-month rows archived + locked 🔒');
       if (d.skipped) bits.push(d.skipped + ' invalid skipped');
       flash(areaLabel + ' · ' + d.fileDate + ': ' + bits.join(', ') +
-        (d.formulas === false ? ' · ⚠ columns O–T left empty: no formula row above to copy from' : '') + ' ✓', true);
+        (d.formulas === false ? ' · ⚠ columns O–T left empty: no formula row above to copy from' : '') +
+        (d.ms ? ' · server ' + d.ms.total + 'ms (scan ' + d.ms.scan + ', write ' + d.ms.write + ')' : '') + ' ✓', true);
       csvRows = null; fileRowsAll = null; detectedAreas = [];
       document.getElementById('sup-file').value = '';
       renderCsvPreview();
