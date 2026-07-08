@@ -113,7 +113,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v6 · tick-yellow</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v7 · entered-filters</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -182,6 +182,18 @@ tr:last-child td{border-bottom:none;}
           for pasting into the billing program. Tick a row once you've entered it into billing —
           then press <b>Mark selected done</b> to lock it (locked rows can no longer be changed and
           are archived at month close).
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+          <div class="lfield" style="margin:0;min-width:150px;">
+            <label>Area</label>
+            <select id="ent-area" onchange="renderEntered()"><option value="all">All areas</option></select>
+          </div>
+          <div class="lfield" style="margin:0;min-width:160px;">
+            <label>R_DATE (exact)</label>
+            <input type="date" id="ent-date" onchange="renderEntered()"
+              style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;outline:none;color:#111;background:#fff;">
+          </div>
+          <button class="act" style="height:40px;" onclick="clearEnteredFilters()">Clear filters</button>
         </div>
         <div id="entered-body" class="loading">Loading...</div>
       </div>
@@ -756,24 +768,73 @@ async function loadEntered() {
     if (!d.success) { body.textContent = d.message || 'Could not load.'; return; }
     enteredHeaders = d.headers || [];
     enteredRows = d.rows || [];
+    populateEnteredFilters();
     renderEntered();
   } catch(e) {
     if (e.message !== 'auth') body.textContent = 'Could not connect.';
   }
 }
 
+const ENT_AREA_COL = 7;  // G
+const ENT_RDATE_COL = 12; // L (R_DATE)
+
+// Normalize a date to yyyy-mm-dd for comparison. Handles the sheet's
+// dd/MM/yyyy or dd-MM-yyyy display and the picker's native yyyy-mm-dd.
+function normDate_(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);            // yyyy-mm-dd
+  if (m) return m[1] + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[3]).slice(-2);
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);    // dd/MM/yyyy or dd-MM-yyyy
+  if (m) {
+    let y = m[3]; if (y.length === 2) y = '20' + y;
+    return y + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[1]).slice(-2);
+  }
+  return s;
+}
+
+function populateEnteredFilters() {
+  const areaSel = document.getElementById('ent-area');
+  const prevArea = areaSel.value;
+  const areas = Array.from(new Set(enteredRows.map(r => String(r.cells[ENT_AREA_COL - 1] ?? '').trim()).filter(Boolean)))
+    .sort((a, b) => Number(a) - Number(b));
+  areaSel.innerHTML = '<option value="all">All areas</option>' +
+    areas.map(a => '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>').join('');
+  if (areas.indexOf(prevArea) !== -1) areaSel.value = prevArea;
+}
+
+function clearEnteredFilters() {
+  document.getElementById('ent-area').value = 'all';
+  document.getElementById('ent-date').value = '';
+  renderEntered();
+}
+
 function renderEntered() {
   const body = document.getElementById('entered-body');
   body.className = '';
+
+  const fArea = document.getElementById('ent-area').value;
+  const fDate = document.getElementById('ent-date').value; // yyyy-mm-dd or ''
+  const shown = enteredRows.filter(r =>
+    (fArea === 'all' || String(r.cells[ENT_AREA_COL - 1] ?? '').trim() === fArea) &&
+    (!fDate || normDate_(r.cells[ENT_RDATE_COL - 1]) === fDate)
+  );
+
   if (!enteredRows.length) {
     body.innerHTML = '<div class="loading">No entered readings waiting. 🎉</div>';
+    document.getElementById('lock-btn').disabled = true;
+    return;
+  }
+  if (!shown.length) {
+    body.innerHTML = '<div class="loading">No rows match the selected filters.</div>';
     document.getElementById('lock-btn').disabled = true;
     return;
   }
   const head = '<th style="width:34px;text-align:center;"><input type="checkbox" id="ent-all" onchange="toggleAllEntered(this)"></th>' +
     '<th style="text-align:center;">Status</th>' +
     ENTERED_COLS.map(c => '<th style="white-space:nowrap;">' + esc(c.label) + '</th>').join('');
-  const rows = enteredRows.map((r, ri) => {
+  const rows = shown.map(r => {
+    const ri = enteredRows.indexOf(r);
     const cells = ENTERED_COLS.map(c => {
       const v = r.cells[c.i - 1];
       return '<td class="copycell" title="Click to copy" onclick="copyCell(this)" data-v="' + esc(v ?? '') + '"' +
@@ -793,8 +854,8 @@ function renderEntered() {
     '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:9px;">' +
     '<table style="font-size:12.5px;width:100%;">' +
     '<thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="hint" style="margin-top:6px;">' + enteredRows.length +
-    ' account(s) with new readings — locked rows shown in green. Click a cell to copy its value.</div>';
+    '<div class="hint" style="margin-top:6px;">' + shown.length +
+    ' of ' + enteredRows.length + ' account(s) shown — locked rows in green. Click a cell to copy its value.</div>';
   updateLockBtn();
 }
 
