@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1F4E79">
 <title>Unbilled Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh;color:#111;}
@@ -124,9 +125,10 @@ tr:last-child td{border-bottom:none;}
     <!-- SUPERVISOR TAB — CSV import -->
     <div id="pane-sup" style="display:none">
       <div class="card">
-        <h3>Upload area unbilled CSV</h3>
+        <h3>Upload area unbilled file</h3>
         <div style="font-size:13px;color:#6b7280;margin-bottom:14px;line-height:1.5;">
-          The CSV columns must be in the <b>same order as the unbilled sheet</b> (column A onwards).
+          Upload the area's unbilled file as <b>XLS, XLSX, or CSV</b>. The columns must be in the
+          <b>same order as the unbilled sheet</b> (column A onwards, ACNO in column B).
           The Area column will be set automatically to the area you choose below.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:440px;">
@@ -143,8 +145,8 @@ tr:last-child td{border-bottom:none;}
           </div>
         </div>
         <div class="lfield" style="max-width:440px;">
-          <label>CSV file</label>
-          <input type="file" id="sup-file" accept=".csv,text/csv" onchange="handleCsvFile(this)"
+          <label>Data file (XLS / XLSX / CSV)</label>
+          <input type="file" id="sup-file" accept=".csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleCsvFile(this)"
             style="width:100%;padding:10px;border:1.5px dashed #d1d5db;border-radius:9px;font-size:14px;font-family:inherit;background:#fafafa;">
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#374151;margin-top:8px;cursor:pointer;">
             <input type="checkbox" id="sup-header" checked onchange="reparseCsv()"> First row is a header (skip it)
@@ -509,8 +511,56 @@ async function loadOverview() {
   }
 }
 
-/* ── Supervisor: CSV import ── */
-let csvRows = null, csvRaw = null, csvName = '';
+/* ── Supervisor: XLS/XLSX/CSV import ── */
+let fileRowsAll = null, csvRows = null, csvName = '';
+
+function handleCsvFile(input) {
+  const errEl = document.getElementById('sup-err');
+  errEl.style.display = 'none';
+  const f = input.files[0];
+  if (!f) { fileRowsAll = null; csvRows = null; renderCsvPreview(); return; }
+  csvName = f.name;
+  const ext = f.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+
+  if (ext === 'csv') {
+    reader.onload = e => { fileRowsAll = parseCSV(e.target.result); reparseCsv(); };
+    reader.readAsText(f);
+  } else {
+    // XLS / XLSX via SheetJS — first worksheet
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+        // Normalize: Excel date cells → 'yyyy-mm-dd' strings the backend parses into real dates
+        fileRowsAll = raw.map(r => r.map(cell => {
+          if (cell instanceof Date) {
+            const y = cell.getFullYear(),
+                  m = ('0' + (cell.getMonth() + 1)).slice(-2),
+                  d = ('0' + cell.getDate()).slice(-2);
+            return y + '-' + m + '-' + d;
+          }
+          return cell;
+        }));
+        reparseCsv();
+      } catch(err) {
+        fileRowsAll = null; csvRows = null; renderCsvPreview();
+        errEl.textContent = 'Could not read the Excel file: ' + err.message;
+        errEl.style.display = 'block';
+      }
+    };
+    reader.readAsArrayBuffer(f);
+  }
+}
+
+function reparseCsv() {
+  if (!fileRowsAll) return;
+  let rows = fileRowsAll;
+  if (document.getElementById('sup-header').checked && rows.length) rows = rows.slice(1);
+  csvRows = rows;
+  renderCsvPreview();
+}
 
 function fillSupAreaSelect() {
   const sel = document.getElementById('sup-area');
@@ -545,23 +595,6 @@ function parseCSV(text) {
   row.push(field);
   if (row.length > 1 || row[0] !== '') rows.push(row);
   return rows;
-}
-
-function handleCsvFile(input) {
-  const f = input.files[0];
-  if (!f) { csvRows = null; csvRaw = null; renderCsvPreview(); return; }
-  csvName = f.name;
-  const reader = new FileReader();
-  reader.onload = e => { csvRaw = e.target.result; reparseCsv(); };
-  reader.readAsText(f);
-}
-
-function reparseCsv() {
-  if (csvRaw === null) return;
-  let rows = parseCSV(csvRaw);
-  if (document.getElementById('sup-header').checked && rows.length) rows = rows.slice(1);
-  csvRows = rows;
-  renderCsvPreview();
 }
 
 function renderCsvPreview() {
@@ -608,7 +641,7 @@ async function doCsvUpload() {
     const d = await api({ action: 'supervisor_upload_csv', area: area, mode: mode, rows: csvRows });
     if (d.success) {
       flash('Area ' + area + ': ' + d.added + ' rows added' + (mode === 'replace' ? ', ' + d.removed + ' old rows removed' : '') + ' ✓', true);
-      csvRows = null; csvRaw = null;
+      csvRows = null; fileRowsAll = null;
       document.getElementById('sup-file').value = '';
       renderCsvPreview();
     } else {
