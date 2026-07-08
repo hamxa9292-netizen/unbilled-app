@@ -546,7 +546,7 @@ async function loadAll(force) {
   if (!force) {
     const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
     if (c && (Date.now()-ts)<TTL) {
-      allAccounts = JSON.parse(c);
+      allAccounts = JSON.parse(c).filter(a => !a.locked);
       filtered = allAccounts; // consistent with network path — show all, pending first in count
       renderList();
       const pc = allAccounts.filter(a=>a.status==='pending').length;
@@ -566,7 +566,7 @@ async function loadAll(force) {
     clearTimeout(tid);
     const data = await res.json();
     if (isAuthError(data)) { forceRelogin(); return; }
-    allAccounts = data.accounts || [];
+    allAccounts = (data.accounts || []).filter(a => !a.locked); // locked accounts are hidden from reading entry
     localStorage.setItem(CK, JSON.stringify(allAccounts));
     localStorage.setItem(CT, Date.now()+'');
     filtered = allAccounts;
@@ -577,7 +577,7 @@ async function loadAll(force) {
   } catch(e) {
     const c = localStorage.getItem(CK);
     if (c) {
-      allAccounts = JSON.parse(c);
+      allAccounts = JSON.parse(c).filter(a => !a.locked);
       filtered = allAccounts;
       renderList();
       const pc2 = allAccounts.filter(a=>a.status==='pending').length;
@@ -598,7 +598,7 @@ async function bgRefresh() {
     const data = await res.json();
     if (isAuthError(data)) { forceRelogin(); return; }
     if (data.accounts) {
-      allAccounts = data.accounts;
+      allAccounts = data.accounts.filter(a => !a.locked);
       localStorage.setItem(CK, JSON.stringify(allAccounts));
       localStorage.setItem(CT, Date.now()+'');
       // Reapply the current search filter so `filtered` points at fresh data,
@@ -686,7 +686,10 @@ async function openAccount(acno) {
     const data = await res.json();
     if (isAuthError(data)) { forceRelogin(); return; }
     document.getElementById('sbar').className='sbar';
-    if (data.found) { currentAcct=data; fillDetail(data); show('detail'); }
+    if (data.found) {
+      if (data.locked) { showBar('\u{1F512} ACNO '+acno+' is locked \u2014 previous month is closed','offline'); return; }
+      currentAcct=data; fillDetail(data); show('detail');
+    }
   } catch(e) { showBar('Could not load account','offline'); }
 }
 
@@ -1098,7 +1101,7 @@ function initApp() {
     try {
       const cached = localStorage.getItem(CK);
       if (cached) {
-        allAccounts = JSON.parse(cached);
+        allAccounts = JSON.parse(cached).filter(a => !a.locked);
         filtered = allAccounts;
         page = 1;
         renderList();
