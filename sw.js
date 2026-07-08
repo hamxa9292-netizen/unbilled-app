@@ -2,7 +2,7 @@
 // Strategy: network-first for same-origin GETs (so app updates propagate),
 // falling back to cache when offline. API calls (script.google.com, imgbb)
 // are cross-origin and pass straight through to the network untouched.
-const CACHE = 'unbilled-v1';
+const CACHE = 'unbilled-v3';
 const ASSETS = [
   './',
   './index.html',
