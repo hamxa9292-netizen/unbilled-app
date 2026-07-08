@@ -628,7 +628,9 @@ function renderList() {
     const hasPendingLocal = pending.some(p => String(p.acno) === String(a.acno) && !p.synced);
     const cls = isGreen ? 'updated' : '';
     let tag = '';
-    if (isGreen) {
+    if (a.locked) {
+      tag = '<span class="utag" style="background:#f3f4f6;color:#6b7280;">\u{1F512} Locked</span>';
+    } else if (isGreen) {
       tag = '<span class="utag">✓ Updated</span>';
     } else if (hasPendingLocal) {
       tag = '<span class="utag" style="background:#fef3c7;color:#92400e;">⏳ Saving...</span>';
@@ -697,8 +699,8 @@ function fillDetail(d, keepKeyboard) {
   document.getElementById('d-pdate').textContent=d.prevDate||'—';
   document.getElementById('d-rdate').textContent=d.rdate||'—';
   const b=document.getElementById('d-status');
-  b.textContent=d.status==='done'?'Done':'Pending';
-  b.className='badge '+(d.status==='done'?'bd':'bp');
+  b.textContent=d.locked?'\u{1F512} Locked':(d.status==='done'?'Done':'Pending');
+  b.className='badge '+(d.locked?'bp':(d.status==='done'?'bd':'bp'));
   const inp = document.getElementById('f-reading');
   inp.value='';
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
@@ -738,6 +740,12 @@ async function saveReading(goNext) {
       err.textContent='Please enter a reading or remarks.';
       err.style.display='block';
     }
+    return;
+  }
+
+  if (currentAcct && currentAcct.locked) {
+    err.textContent='\u{1F512} ACNO '+currentAcct.acno+' is locked (previous month) — entry is not allowed.';
+    err.style.display='block';
     return;
   }
 
@@ -806,6 +814,13 @@ async function saveReading(goNext) {
       .then(r=>r.json())
       .then(async data=>{
         if (isAuthError(data)) { forceRelogin(); return; }
+        if (data.error === 'locked') {
+          update.synced = true; update.rejected = true; update.photo = null; // stop retrying — sheet refused it
+          dbPut(update).catch(()=>{});
+          updateDot();
+          showBar('\u{1F512} ACNO '+update.acno+' is LOCKED — reading NOT saved','offline');
+          return;
+        }
         if (data.success) {
           update.synced=true;
           updatedSet.add(String(update.acno));
@@ -862,6 +877,12 @@ async function syncAll() {
       clearTimeout(tid);
       const d = await r.json();
       if (isAuthError(d)) { inFlight.delete(u.id); forceRelogin(); break; }
+      if (d.error === 'locked') {
+        u.synced = true; u.rejected = true; u.photo = null; // sheet refused it — don't retry
+        await dbPut(u);
+        inFlight.delete(u.id);
+        continue;
+      }
       if (d.success) {
         u.synced = true;
         updatedSet.add(String(u.acno));
@@ -912,7 +933,7 @@ function renderPending() {
         <div class="aacno">ACNO ${p.acno}${p.synced?'<span class="utag">✓ Synced</span>':''}</div>
         <div class="ardate">${p.newReading?'Reading: '+p.newReading+' · ':''}${p.savedAt}${p.photo?' · 📷 photo pending':''}</div>
       </div>
-      <span class="badge ${p.synced?'bd':'bp'}">${p.synced?'Synced':'Pending'}</span>
+      <span class="badge ${p.rejected?'bp':(p.synced?'bd':'bp')}">${p.rejected?'\u{1F512} Rejected':(p.synced?'Synced':'Pending')}</span>
     </div>`).join('');
 }
 
