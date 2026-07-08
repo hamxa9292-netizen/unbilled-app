@@ -142,7 +142,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="hdr">
   <span style="font-size:21px">⚡</span>
   <h1>Unbilled Readings</h1>
-  <span class="hdr-name" onclick="changeName()">👤 <span id="wlabel">Field Worker</span></span>
+  <span class="hdr-name" onclick="changeName()">👤 <span id="wlabel">Field Staff</span></span>
   <button class="hdr-rf" id="rfbtn" onclick="hardRefresh()">🔄</button>
   <button class="hdr-rf" onclick="doLogout()" style="margin-left:0;">🚪</button>
 </div>
@@ -157,7 +157,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App</p>
+          <p>STELCO Field App · v3</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -724,6 +724,11 @@ async function saveReading(goNext) {
 
   // If navigating without entering anything, just move to next/prev account
   if (!reading && !remarks) {
+    if (photoB64) {
+      err.textContent='You took a photo — enter the reading first, or tap \u2715 next to the photo to discard it.';
+      err.style.display='block';
+      return;
+    }
     if (goNext) {
       const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
       const nextAcct = filtered[currentIdx + 1];
@@ -1057,7 +1062,7 @@ function initApp() {
 
   currentUser = JSON.parse(savedSession);
   selectedArea = String(currentUser.area || selectedArea);
-  document.getElementById('wlabel').textContent = currentUser.name || 'Field Worker';
+  document.getElementById('wlabel').textContent = currentUser.name || 'Field Staff';
   document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
   loadAreas();
 
