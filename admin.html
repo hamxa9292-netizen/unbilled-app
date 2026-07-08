@@ -113,7 +113,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v8 · sup-areas</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v10 · locked-bottom</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -174,7 +174,6 @@ tr:last-child td{border-bottom:none;}
           Accounts with new readings
           <span style="display:flex;gap:8px;">
             <button class="addbtn" id="lock-btn" style="background:#b45309;" onclick="lockSelected()" disabled>🔒 Mark selected done → billing</button>
-            <button class="addbtn" style="background:#1F4E79" onclick="loadEntered()">🔄 Refresh</button>
           </span>
         </h3>
         <div style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.5;">
@@ -186,16 +185,17 @@ tr:last-child td{border-bottom:none;}
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
           <div class="lfield" style="margin:0;min-width:150px;">
             <label>Area</label>
-            <select id="ent-area" onchange="renderEntered()"><option value="all">All areas</option></select>
+            <select id="ent-area"><option value="">Select area…</option></select>
           </div>
           <div class="lfield" style="margin:0;min-width:160px;">
-            <label>R_DATE (exact)</label>
-            <input type="date" id="ent-date" onchange="renderEntered()"
+            <label>R_DATE (optional)</label>
+            <input type="date" id="ent-date"
               style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;outline:none;color:#111;background:#fff;">
           </div>
-          <button class="act" style="height:40px;" onclick="clearEnteredFilters()">Clear filters</button>
+          <button class="addbtn" style="height:40px;background:#1E7145;" onclick="loadEntered()">🔍 Load</button>
+          <button class="act" style="height:40px;" onclick="clearEnteredFilters()">Clear</button>
         </div>
-        <div id="entered-body" class="loading">Loading...</div>
+        <div id="entered-body" class="loading" style="color:#9ca3af;">Select an area and press Load.</div>
       </div>
     </div>
 
@@ -371,7 +371,7 @@ function switchTab(t) {
   document.getElementById('pane-sup').style.display = t==='sup' ? 'block' : 'none';
   document.getElementById('pane-entered').style.display = t==='entered' ? 'block' : 'none';
   if (t==='overview') loadOverview();
-  if (t==='entered') loadEntered();
+  if (t==='entered') initEnteredTab();
 }
 
 /* ── Users ── */
@@ -794,19 +794,45 @@ const ENTERED_COLS = [
   { i: 20, label: 'CUTOFF READING' }
 ];
 
+// Populate the area dropdown when the tab opens — WITHOUT loading any data.
+// Supervisors get their assigned areas; admins get areas 1..24.
+let enteredTabReady = false;
+function initEnteredTab() {
+  const areaSel = document.getElementById('ent-area');
+  let opts = '<option value="">Select area…</option>';
+  if (session.user.role === 'supervisor') {
+    (session.user.areas || []).slice().sort((a, b) => Number(a) - Number(b))
+      .forEach(a => { opts += '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>'; });
+  } else {
+    for (let i = 1; i <= 24; i++) opts += '<option value="' + i + '">Area ' + i + '</option>';
+  }
+  areaSel.innerHTML = opts;
+  if (!enteredTabReady) {
+    enteredRows = [];
+    document.getElementById('entered-body').innerHTML =
+      '<div class="loading" style="color:#9ca3af;">Select an area and press Load.</div>';
+    document.getElementById('lock-btn').disabled = true;
+    enteredTabReady = true;
+  }
+}
+
 async function loadEntered() {
+  const area = document.getElementById('ent-area').value;
+  const date = document.getElementById('ent-date').value; // '' = any date
   const body = document.getElementById('entered-body');
-  body.className = 'loading'; body.textContent = 'Loading...';
+  const errArea = !area;
+  if (errArea) { body.className = 'loading'; body.style.color = '#b91c1c'; body.textContent = 'Please select an area first.'; return; }
+  body.className = 'loading'; body.style.color = '#9ca3af';
+  body.textContent = 'Loading Area ' + area + (date ? ' · ' + date : '') + '…';
   document.getElementById('lock-btn').disabled = true;
   try {
-    const d = await api({ action: 'supervisor_entered' });
-    if (!d.success) { body.textContent = d.message || 'Could not load.'; return; }
+    const d = await api({ action: 'supervisor_entered', area: area, date: date });
+    if (!d.success) { body.style.color = '#b91c1c'; body.textContent = d.message || 'Could not load.'; return; }
     enteredHeaders = d.headers || [];
     enteredRows = d.rows || [];
-    populateEnteredFilters();
     renderEntered();
   } catch(e) {
-    if (e.message !== 'auth') body.textContent = 'Could not connect.';
+    if (e.message !== 'auth') { body.style.color = '#b91c1c'; body.textContent = 'Could not connect.'; }
   }
 }
 
@@ -828,43 +854,24 @@ function normDate_(v) {
   return s;
 }
 
-function populateEnteredFilters() {
-  const areaSel = document.getElementById('ent-area');
-  const prevArea = areaSel.value;
-  const areas = Array.from(new Set(enteredRows.map(r => String(r.cells[ENT_AREA_COL - 1] ?? '').trim()).filter(Boolean)))
-    .sort((a, b) => Number(a) - Number(b));
-  // For supervisors the server only returns their assigned areas, so this list
-  // is already restricted. Label the catch-all accordingly.
-  const allLabel = (session.user.role === 'supervisor') ? 'My areas' : 'All areas';
-  areaSel.innerHTML = '<option value="all">' + allLabel + '</option>' +
-    areas.map(a => '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>').join('');
-  if (areas.indexOf(prevArea) !== -1) areaSel.value = prevArea;
-}
-
 function clearEnteredFilters() {
-  document.getElementById('ent-area').value = 'all';
+  document.getElementById('ent-area').value = '';
   document.getElementById('ent-date').value = '';
-  renderEntered();
+  enteredRows = [];
+  const body = document.getElementById('entered-body');
+  body.className = 'loading'; body.style.color = '#9ca3af';
+  body.textContent = 'Select an area and press Load.';
+  document.getElementById('lock-btn').disabled = true;
 }
 
 function renderEntered() {
   const body = document.getElementById('entered-body');
-  body.className = '';
+  body.className = ''; body.style.color = '';
 
-  const fArea = document.getElementById('ent-area').value;
-  const fDate = document.getElementById('ent-date').value; // yyyy-mm-dd or ''
-  const shown = enteredRows.filter(r =>
-    (fArea === 'all' || String(r.cells[ENT_AREA_COL - 1] ?? '').trim() === fArea) &&
-    (!fDate || normDate_(r.cells[ENT_RDATE_COL - 1]) === fDate)
-  );
+  const shown = enteredRows.slice().sort((a, b) => (a.locked ? 1 : 0) - (b.locked ? 1 : 0)); // pending first, locked at bottom
 
   if (!enteredRows.length) {
-    body.innerHTML = '<div class="loading">No entered readings waiting. 🎉</div>';
-    document.getElementById('lock-btn').disabled = true;
-    return;
-  }
-  if (!shown.length) {
-    body.innerHTML = '<div class="loading">No rows match the selected filters.</div>';
+    body.innerHTML = '<div class="loading">No entered readings found for this area/date.</div>';
     document.getElementById('lock-btn').disabled = true;
     return;
   }
