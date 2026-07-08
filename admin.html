@@ -52,6 +52,11 @@ tr:last-child td{border-bottom:none;}
 .copycell:active{background:#dbeafe !important;}
 .locked-row td{background:#dcfce7;}
 .locked-row .copycell:hover{background:#bbf7d0 !important;}
+.ckey{padding:12px 0;font-size:16px;font-weight:600;border:none;border-radius:8px;background:#f3f4f6;color:#111;cursor:pointer;font-family:inherit;}
+.ckey:active{transform:scale(.95);}
+.ckey.cop{background:#dbeafe;color:#1d4ed8;}
+.ckey.cfn{background:#fee2e2;color:#b91c1c;font-size:14px;}
+.ckey.ceq{background:#1E7145;color:#fff;}
 .ticked-row td{background:#fef9c3;}
 .ticked-row .copycell:hover{background:#fef08a !important;}
 .area-b{font-size:12px;font-weight:700;color:#1F4E79;background:#eff6ff;padding:3px 10px;border-radius:20px;display:inline-block;}
@@ -113,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v11 · preload</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v13 · projection</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -169,7 +174,8 @@ tr:last-child td{border-bottom:none;}
 
     <!-- ENTERED READINGS TAB -->
     <div id="pane-entered" style="display:none">
-      <div class="card">
+     <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <div class="card" style="flex:1;min-width:320px;">
         <h3>
           Accounts with new readings
           <span style="display:flex;gap:8px;">
@@ -198,6 +204,49 @@ tr:last-child td{border-bottom:none;}
         </div>
         <div id="entered-body" class="loading" style="color:#9ca3af;">Select an area and press Load.</div>
       </div>
+
+      <!-- Projection calculator -->
+      <div class="card" style="width:260px;flex:none;">
+        <h3 style="margin-bottom:4px;">📐 Projection</h3>
+        <div class="hint" style="margin-bottom:12px;">Tick a row to load its readings.</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">Previous</div>
+            <input type="number" id="pj-prev" oninput="pjCalc()" placeholder="—"
+              style="width:100%;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">Current</div>
+            <input type="number" id="pj-cur" oninput="pjCalc()" placeholder="—"
+              style="width:100%;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">Reading days</div>
+            <input type="number" id="pj-days" oninput="pjCalc()" placeholder="—"
+              style="width:100%;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">Target days</div>
+            <input type="number" id="pj-target" value="30" oninput="pjCalc()"
+              style="width:100%;padding:8px;border:1.5px solid #2563eb;border-radius:8px;font-size:14px;font-weight:700;font-family:inherit;outline:none;">
+          </div>
+        </div>
+
+        <div style="background:#f9fafb;border-radius:9px;padding:10px 12px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span style="color:#6b7280;">Daily usage</span>
+            <span id="pj-daily" style="font-weight:700;color:#111;">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#6b7280;font-size:13px;">Projected reading</span>
+            <span id="pj-result" onclick="pjCopyResult()" title="Click to copy"
+              style="font-weight:800;font-size:18px;color:#1E7145;cursor:pointer;">—</span>
+          </div>
+        </div>
+        <div class="hint">Daily = (Current − Prev) ÷ Reading days.<br>Projected = Daily × Target + Prev. Click the result to copy.</div>
+      </div>
+     </div>
     </div>
 
     <!-- USERS TAB -->
@@ -1019,7 +1068,13 @@ function updateLockBtn() {
 // Highlight a row yellow while its checkbox is ticked (locked rows stay green)
 function onEnteredTick(cb) {
   const tr = cb.closest('tr');
-  if (tr) tr.classList.toggle('ticked-row', cb.checked);
+  if (tr) {
+    tr.classList.toggle('ticked-row', cb.checked);
+    if (cb.checked) {
+      const r = enteredRows[parseInt(tr.getAttribute('data-ri'))];
+      pjLoadFromRow(r); // fill the calculator with this row's readings
+    }
+  }
   updateLockBtn();
 }
 
@@ -1052,6 +1107,50 @@ async function lockSelected() {
     if (e.message !== 'auth') flash('Could not connect.', false);
   }
   btn.innerHTML = '🔒 Mark selected done → billing';
+}
+
+/* ── Projection calculator ── */
+const PJ_PREV_COL = 8;   // H  PREV READING
+const PJ_CUR_COL  = 13;  // M  NEW READING
+const PJ_DAYS_COL = 17;  // Q  NEW DAYS (reading days)
+
+function pjNum(id) {
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? null : v;
+}
+
+function pjCalc() {
+  const prev = pjNum('pj-prev'), cur = pjNum('pj-cur'), days = pjNum('pj-days'), target = pjNum('pj-target');
+  const dailyEl = document.getElementById('pj-daily'), resEl = document.getElementById('pj-result');
+  if (prev === null || cur === null || days === null || days === 0) {
+    dailyEl.textContent = '—'; resEl.textContent = '—'; resEl.dataset.v = '';
+    return;
+  }
+  const daily = (cur - prev) / days;
+  dailyEl.textContent = (Math.round(daily * 1000) / 1000);
+  if (target === null) { resEl.textContent = '—'; resEl.dataset.v = ''; return; }
+  const projected = daily * target + prev;
+  const rounded = Math.round(projected * 100) / 100;
+  resEl.textContent = rounded;
+  resEl.dataset.v = String(rounded);
+}
+
+// Fill the calculator from a ticked row and compute
+function pjLoadFromRow(r) {
+  if (!r) return;
+  const g = (i) => String(r.cells[i - 1] ?? '').replace(/,/g, '').trim();
+  document.getElementById('pj-prev').value = g(PJ_PREV_COL);
+  document.getElementById('pj-cur').value  = g(PJ_CUR_COL);
+  document.getElementById('pj-days').value = g(PJ_DAYS_COL);
+  pjCalc();
+}
+
+function pjCopyResult() {
+  const v = document.getElementById('pj-result').dataset.v || '';
+  if (!v) return;
+  const done = () => flash('Copied projected reading: ' + v, true);
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done).catch(()=>{});
+  else done();
 }
 
 /* ── Init ── */
