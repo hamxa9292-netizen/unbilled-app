@@ -48,6 +48,8 @@ tr:last-child td{border-bottom:none;}
 .role-admin{background:#ede9fe;color:#5b21b6;}
 .role-supervisor{background:#fef3c7;color:#92400e;}
 .role-worker{background:#e0f2fe;color:#075985;}
+.copycell:hover{background:#eff6ff !important;}
+.copycell:active{background:#dbeafe !important;}
 .area-b{font-size:12px;font-weight:700;color:#1F4E79;background:#eff6ff;padding:3px 10px;border-radius:20px;display:inline-block;}
 .act{background:#f3f4f6;border:none;border-radius:7px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:4px;}
 .act.del{background:#fee2e2;color:#b91c1c;}
@@ -118,6 +120,7 @@ tr:last-child td{border-bottom:none;}
       <button class="tab active" id="tab-users" onclick="switchTab('users')">👥 Users</button>
       <button class="tab" id="tab-overview" onclick="switchTab('overview')">📊 Area Progress</button>
       <button class="tab" id="tab-sup" onclick="switchTab('sup')">📤 Supervisor</button>
+      <button class="tab" id="tab-entered" onclick="switchTab('entered')">✅ Entered Readings</button>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -157,6 +160,26 @@ tr:last-child td{border-bottom:none;}
         <div id="sup-preview"></div>
         <button class="bigbtn" id="sup-upload" onclick="doCsvUpload()" style="max-width:440px;margin-top:10px;" disabled>Upload to sheet</button>
         <div class="err" id="sup-err"></div>
+      </div>
+    </div>
+
+    <!-- ENTERED READINGS TAB -->
+    <div id="pane-entered" style="display:none">
+      <div class="card">
+        <h3>
+          Accounts with new readings
+          <span style="display:flex;gap:8px;">
+            <button class="addbtn" id="lock-btn" style="background:#b45309;" onclick="lockSelected()" disabled>🔒 Mark selected done → billing</button>
+            <button class="addbtn" style="background:#1F4E79" onclick="loadEntered()">🔄 Refresh</button>
+          </span>
+        </h3>
+        <div style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.5;">
+          These accounts have a new reading entered by field staff. <b>Click any cell to copy it</b>
+          for pasting into the billing program. Tick a row once you've entered it into billing —
+          then press <b>Mark selected done</b> to lock it (locked rows can no longer be changed and
+          are archived at month close).
+        </div>
+        <div id="entered-body" class="loading">Loading...</div>
       </div>
     </div>
 
@@ -322,10 +345,13 @@ function switchTab(t) {
   document.getElementById('tab-users').classList.toggle('active', t==='users');
   document.getElementById('tab-overview').classList.toggle('active', t==='overview');
   document.getElementById('tab-sup').classList.toggle('active', t==='sup');
+  document.getElementById('tab-entered').classList.toggle('active', t==='entered');
   document.getElementById('pane-users').style.display = t==='users' ? 'block' : 'none';
   document.getElementById('pane-overview').style.display = t==='overview' ? 'block' : 'none';
   document.getElementById('pane-sup').style.display = t==='sup' ? 'block' : 'none';
+  document.getElementById('pane-entered').style.display = t==='entered' ? 'block' : 'none';
   if (t==='overview') loadOverview();
+  if (t==='entered') loadEntered();
 }
 
 /* ── Users ── */
@@ -695,6 +721,115 @@ async function doCsvUpload() {
     if (e.message !== 'auth') { errEl.textContent = 'Could not connect — the file may be too large or the network dropped.'; errEl.style.display = 'block'; }
   }
   btn.textContent = 'Upload to sheet'; btn.disabled = !csvRows;
+}
+
+/* ── Entered Readings: list, copy-on-click, lock ── */
+let enteredHeaders = [], enteredRows = [];
+
+async function loadEntered() {
+  const body = document.getElementById('entered-body');
+  body.className = 'loading'; body.textContent = 'Loading...';
+  document.getElementById('lock-btn').disabled = true;
+  try {
+    const d = await api({ action: 'supervisor_entered' });
+    if (!d.success) { body.textContent = d.message || 'Could not load.'; return; }
+    enteredHeaders = d.headers || [];
+    enteredRows = d.rows || [];
+    renderEntered();
+  } catch(e) {
+    if (e.message !== 'auth') body.textContent = 'Could not connect.';
+  }
+}
+
+function renderEntered() {
+  const body = document.getElementById('entered-body');
+  body.className = '';
+  if (!enteredRows.length) {
+    body.innerHTML = '<div class="loading">No entered readings waiting. 🎉</div>';
+    document.getElementById('lock-btn').disabled = true;
+    return;
+  }
+  const ncols = enteredHeaders.length;
+  const head = '<th style="width:34px;text-align:center;"><input type="checkbox" id="ent-all" onchange="toggleAllEntered(this)"></th>' +
+    enteredHeaders.map(h => '<th style="white-space:nowrap;">' + esc(h || '') + '</th>').join('');
+  const rows = enteredRows.map((r, ri) => {
+    const cells = r.cells.map((c, ci) =>
+      '<td class="copycell" title="Click to copy" onclick="copyCell(this)" data-v="' + esc(c ?? '') + '"' +
+      ' style="white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">' +
+      esc(c ?? '') + '</td>'
+    ).join('');
+    return '<tr data-ri="' + ri + '">' +
+      '<td style="text-align:center;"><input type="checkbox" class="ent-cb" onchange="updateLockBtn()"></td>' +
+      cells + '</tr>';
+  }).join('');
+  body.innerHTML =
+    '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:9px;">' +
+    '<table style="font-size:12px;min-width:' + Math.max(600, ncols * 90) + 'px;">' +
+    '<thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="hint" style="margin-top:6px;">' + enteredRows.length + ' account(s) with new readings. Click a cell to copy its value.</div>';
+  updateLockBtn();
+}
+
+function copyCell(td) {
+  const v = td.getAttribute('data-v') || '';
+  const done = () => {
+    const old = td.style.background;
+    td.style.background = '#dcfce7';
+    flash('Copied: ' + (v.length > 40 ? v.slice(0, 40) + '…' : v), true);
+    setTimeout(() => { td.style.background = old; }, 500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(v).then(done).catch(() => fallbackCopy(v, done));
+  } else {
+    fallbackCopy(v, done);
+  }
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch(e) { flash('Copy failed — select manually', false); }
+  document.body.removeChild(ta);
+}
+
+function toggleAllEntered(cb) {
+  document.querySelectorAll('.ent-cb').forEach(x => { x.checked = cb.checked; });
+  updateLockBtn();
+}
+
+function updateLockBtn() {
+  const anyChecked = Array.from(document.querySelectorAll('.ent-cb')).some(x => x.checked);
+  document.getElementById('lock-btn').disabled = !anyChecked;
+}
+
+async function lockSelected() {
+  const items = [];
+  document.querySelectorAll('#entered-body tbody tr').forEach(tr => {
+    const cb = tr.querySelector('.ent-cb');
+    if (cb && cb.checked) {
+      const r = enteredRows[parseInt(tr.getAttribute('data-ri'))];
+      if (r) items.push({ row: r.row, acno: r.acno });
+    }
+  });
+  if (!items.length) return;
+  if (!confirm('Mark ' + items.length + ' account(s) as done and entered into billing?\n\n' +
+    'They will be LOCKED — field staff can no longer change them, and they will be archived at month close.')) return;
+
+  const btn = document.getElementById('lock-btn');
+  btn.textContent = 'Locking...'; btn.disabled = true;
+  try {
+    const d = await api({ action: 'supervisor_lock_rows', items: items });
+    if (d.success) {
+      flash(d.locked + ' account(s) locked → billing' + (d.mismatch ? ', ' + d.mismatch + ' skipped (sheet changed — refresh)' : '') + ' ✓', true);
+      loadEntered();
+    } else {
+      flash(d.message || 'Could not lock.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+  btn.innerHTML = '🔒 Mark selected done → billing';
 }
 
 /* ── Init ── */
