@@ -9,9 +9,9 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh;color:#111;}
-.wrap{max-width:860px;margin:0 auto;padding:0 14px 40px;}
+.wrap{max-width:1280px;margin:0 auto;padding:0 14px 40px;}
 .hdr{background:#1F4E79;color:#fff;padding:14px 0;margin:0 -14px 18px;}
-.hdr-in{max-width:860px;margin:0 auto;padding:0 14px;display:flex;align-items:center;gap:10px;}
+.hdr-in{max-width:1280px;margin:0 auto;padding:0 14px;display:flex;align-items:center;gap:10px;}
 .hdr h1{font-size:17px;font-weight:700;flex:1;}
 .hdr .who{font-size:12px;opacity:.85;}
 .hdr button{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;}
@@ -50,6 +50,8 @@ tr:last-child td{border-bottom:none;}
 .role-worker{background:#e0f2fe;color:#075985;}
 .copycell:hover{background:#eff6ff !important;}
 .copycell:active{background:#dbeafe !important;}
+.locked-row td{background:#dcfce7;}
+.locked-row .copycell:hover{background:#bbf7d0 !important;}
 .area-b{font-size:12px;font-weight:700;color:#1F4E79;background:#eff6ff;padding:3px 10px;border-radius:20px;display:inline-block;}
 .act{background:#f3f4f6;border:none;border-radius:7px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:4px;}
 .act.del{background:#fee2e2;color:#b91c1c;}
@@ -76,7 +78,7 @@ tr:last-child td{border-bottom:none;}
 .hint{font-size:11px;color:#9ca3af;margin-top:3px;}
 
 @media(max-width:560px){
-  th:nth-child(2),td:nth-child(2){display:none;} /* hide Name column on narrow screens */
+  #pane-users th:nth-child(2),#pane-users td:nth-child(2){display:none;} /* hide Name column on narrow screens (Users table only) */
 }
 </style>
 </head>
@@ -726,6 +728,23 @@ async function doCsvUpload() {
 /* ── Entered Readings: list, copy-on-click, lock ── */
 let enteredHeaders = [], enteredRows = [];
 
+// The 12 columns to show, by sheet index (1-based), in display order.
+// B ACNO, C CAT, D METER_NO, E CONSADDRESS, H prev reading, I prev date,
+// M new reading, N new date, O C.USAGE, S CUTOFF DATE, T CUTOFF READING.
+const ENTERED_COLS = [
+  { i: 2,  label: 'ACNO' },
+  { i: 3,  label: 'CAT' },
+  { i: 4,  label: 'METER NO' },
+  { i: 5,  label: 'CONS ADDRESS' },
+  { i: 8,  label: 'PREV READING' },
+  { i: 9,  label: 'PREV DATE' },
+  { i: 13, label: 'NEW READING' },
+  { i: 14, label: 'NEW DATE' },
+  { i: 15, label: 'USAGE' },
+  { i: 19, label: 'CUTOFF DATE' },
+  { i: 20, label: 'CUTOFF READING' }
+];
+
 async function loadEntered() {
   const body = document.getElementById('entered-body');
   body.className = 'loading'; body.textContent = 'Loading...';
@@ -749,24 +768,31 @@ function renderEntered() {
     document.getElementById('lock-btn').disabled = true;
     return;
   }
-  const ncols = enteredHeaders.length;
   const head = '<th style="width:34px;text-align:center;"><input type="checkbox" id="ent-all" onchange="toggleAllEntered(this)"></th>' +
-    enteredHeaders.map(h => '<th style="white-space:nowrap;">' + esc(h || '') + '</th>').join('');
+    '<th style="text-align:center;">Status</th>' +
+    ENTERED_COLS.map(c => '<th style="white-space:nowrap;">' + esc(c.label) + '</th>').join('');
   const rows = enteredRows.map((r, ri) => {
-    const cells = r.cells.map((c, ci) =>
-      '<td class="copycell" title="Click to copy" onclick="copyCell(this)" data-v="' + esc(c ?? '') + '"' +
-      ' style="white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">' +
-      esc(c ?? '') + '</td>'
-    ).join('');
-    return '<tr data-ri="' + ri + '">' +
-      '<td style="text-align:center;"><input type="checkbox" class="ent-cb" onchange="updateLockBtn()"></td>' +
-      cells + '</tr>';
+    const cells = ENTERED_COLS.map(c => {
+      const v = r.cells[c.i - 1];
+      return '<td class="copycell" title="Click to copy" onclick="copyCell(this)" data-v="' + esc(v ?? '') + '"' +
+        ' style="white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">' +
+        esc(v ?? '') + '</td>';
+    }).join('');
+    const cb = r.locked
+      ? '<input type="checkbox" disabled title="Already locked">'
+      : '<input type="checkbox" class="ent-cb" onchange="updateLockBtn()">';
+    const statusCell = r.locked
+      ? '<td style="text-align:center;"><span class="role-b" style="background:#dcfce7;color:#166534;">🔒 Locked</span></td>'
+      : '<td style="text-align:center;"><span class="role-b" style="background:#fef3c7;color:#92400e;">Pending</span></td>';
+    return '<tr class="' + (r.locked ? 'locked-row' : '') + '" data-ri="' + ri + '">' +
+      '<td style="text-align:center;">' + cb + '</td>' + statusCell + cells + '</tr>';
   }).join('');
   body.innerHTML =
     '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:9px;">' +
-    '<table style="font-size:12px;min-width:' + Math.max(600, ncols * 90) + 'px;">' +
+    '<table style="font-size:12.5px;width:100%;">' +
     '<thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="hint" style="margin-top:6px;">' + enteredRows.length + ' account(s) with new readings. Click a cell to copy its value.</div>';
+    '<div class="hint" style="margin-top:6px;">' + enteredRows.length +
+    ' account(s) with new readings — locked rows shown in green. Click a cell to copy its value.</div>';
   updateLockBtn();
 }
 
