@@ -666,7 +666,8 @@ async function doCsvUpload() {
     if (d.success) {
       flash(areaLabel + ' · ' + d.fileDate + ': ' + d.added + ' rows added' +
         (mode === 'replace' ? ', ' + d.removed + ' old rows replaced' : '') +
-        (d.skipped ? ' (' + d.skipped + ' rows skipped — no ACNO or area)' : '') + ' ✓', true);
+        (d.skipped ? ' (' + d.skipped + ' rows skipped — no ACNO or area)' : '') +
+        (d.formulas === false ? ' · ⚠ columns O–T left empty: no formula row above to copy from' : '') + ' ✓', true);
       csvRows = null; fileRowsAll = null; detectedAreas = [];
       document.getElementById('sup-file').value = '';
       renderCsvPreview();
