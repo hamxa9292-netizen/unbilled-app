@@ -127,11 +127,7 @@ tr:last-child td{border-bottom:none;}
       <div class="card">
         <h3>Upload area unbilled file</h3>
         <div style="font-size:13px;color:#6b7280;margin-bottom:14px;line-height:1.5;">
-          Upload the area's unbilled file as <b>XLS, XLSX, or CSV</b>. The columns must be in the
-          <b>same order as the unbilled sheet</b> (column A onwards, ACNO in column B).
-          The <b>area is detected automatically</b> from the file (column G), and every row's
-          R_DATE is set to the file date you choose. Replace mode removes only the old rows
-          matching that same area <i>and</i> file date.
+          Upload the exported unbilled file, the date should be same as current reading date.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:440px;">
           <div class="lfield">
@@ -141,8 +137,8 @@ tr:last-child td{border-bottom:none;}
           <div class="lfield">
             <label>Mode</label>
             <select id="sup-mode">
+              <option value="append" selected>Append to existing</option>
               <option value="replace">Replace (same area + month)</option>
-              <option value="append">Append to existing</option>
             </select>
           </div>
         </div>
