@@ -129,20 +129,26 @@ tr:last-child td{border-bottom:none;}
         <div style="font-size:13px;color:#6b7280;margin-bottom:14px;line-height:1.5;">
           Upload the area's unbilled file as <b>XLS, XLSX, or CSV</b>. The columns must be in the
           <b>same order as the unbilled sheet</b> (column A onwards, ACNO in column B).
-          The Area column will be set automatically to the area you choose below.
+          The <b>area is detected automatically</b> from the file (column G), and every row's
+          R_DATE is set to the file date you choose. Replace mode removes only the old rows
+          matching that same area <i>and</i> file date.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:440px;">
           <div class="lfield">
-            <label>Area</label>
-            <select id="sup-area"></select>
+            <label>File date</label>
+            <input type="date" id="sup-date" style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;color:#111;background:#fff;">
           </div>
           <div class="lfield">
             <label>Mode</label>
             <select id="sup-mode">
-              <option value="replace">Replace area data</option>
+              <option value="replace">Replace (same area + date)</option>
               <option value="append">Append to existing</option>
             </select>
           </div>
+        </div>
+        <div class="lfield" style="max-width:440px;">
+          <label>Detected area</label>
+          <div id="sup-area-detect" style="padding:11px 14px;border:1.5px dashed #d1d5db;border-radius:9px;font-size:14px;color:#9ca3af;background:#fafafa;">Choose a file to detect the area</div>
         </div>
         <div class="lfield" style="max-width:440px;">
           <label>Data file (XLS / XLSX / CSV)</label>
@@ -305,7 +311,7 @@ function enterMain() {
   const isAdmin = session.user.role === 'admin';
   document.getElementById('tab-users').style.display = isAdmin ? '' : 'none';
   document.getElementById('tab-overview').style.display = isAdmin ? '' : 'none';
-  fillSupAreaSelect();
+  initSupPane();
   if (isAdmin) {
     fillAreaSelect();
     switchTab('users');
@@ -512,7 +518,8 @@ async function loadOverview() {
 }
 
 /* ── Supervisor: XLS/XLSX/CSV import ── */
-let fileRowsAll = null, csvRows = null, csvName = '';
+let fileRowsAll = null, csvRows = null, csvName = '', detectedAreas = [];
+const FILE_AREA_COL = 7; // column G in the file = Area (matches the unbilled sheet)
 
 function handleCsvFile(input) {
   const errEl = document.getElementById('sup-err');
@@ -562,16 +569,9 @@ function reparseCsv() {
   renderCsvPreview();
 }
 
-function fillSupAreaSelect() {
-  const sel = document.getElementById('sup-area');
-  sel.innerHTML = '';
-  for (let i = 1; i <= 24; i++) {
-    const o = document.createElement('option');
-    o.value = i; o.textContent = 'Area ' + i;
-    sel.appendChild(o);
-  }
-  // Default a supervisor to their own assigned area
-  if (session && session.user.area && session.user.area !== 'all') sel.value = session.user.area;
+function initSupPane() {
+  const d = document.getElementById('sup-date');
+  if (d && !d.value) d.value = new Date().toISOString().split('T')[0];
 }
 
 function parseCSV(text) {
@@ -600,12 +600,32 @@ function parseCSV(text) {
 function renderCsvPreview() {
   const el = document.getElementById('sup-preview');
   const btn = document.getElementById('sup-upload');
+  const areaEl = document.getElementById('sup-area-detect');
   document.getElementById('sup-err').style.display = 'none';
   if (!csvRows || !csvRows.length) {
     el.innerHTML = '';
     btn.disabled = true;
+    detectedAreas = [];
+    areaEl.textContent = 'Choose a file to detect the area';
+    areaEl.style.color = '#9ca3af';
     return;
   }
+
+  // Detect area(s) from column G
+  detectedAreas = Array.from(new Set(
+    csvRows.map(r => String(r[FILE_AREA_COL - 1] ?? '').trim()).filter(Boolean)
+  )).sort((a, b) => Number(a) - Number(b));
+
+  if (!detectedAreas.length) {
+    areaEl.textContent = '⚠ No area found in column G — check the file layout';
+    areaEl.style.color = '#b91c1c';
+    btn.disabled = true;
+  } else {
+    areaEl.innerHTML = detectedAreas.map(a => '<span class="area-b">Area ' + esc(a) + '</span>').join(' ');
+    areaEl.style.color = '#111';
+    btn.disabled = false;
+  }
+
   const previewRows = csvRows.slice(0, 5);
   const cols = Math.min(8, Math.max.apply(null, previewRows.map(r => r.length)));
   el.innerHTML = `
@@ -622,26 +642,32 @@ function renderCsvPreview() {
         ).join('')}</tbody>
       </table>
     </div>
-    <div class="hint" style="margin-top:5px;">Showing first ${previewRows.length} rows. Column B should be ACNO.</div>`;
-  btn.disabled = false;
+    <div class="hint" style="margin-top:5px;">Showing first ${previewRows.length} rows. Column B should be ACNO, column G the area.</div>`;
 }
 
 async function doCsvUpload() {
   const errEl = document.getElementById('sup-err');
   errEl.style.display = 'none';
-  const area = document.getElementById('sup-area').value;
+  const fileDate = document.getElementById('sup-date').value;
   const mode = document.getElementById('sup-mode').value;
-  if (!csvRows || !csvRows.length) { errEl.textContent = 'Choose a CSV file first.'; errEl.style.display = 'block'; return; }
+  if (!csvRows || !csvRows.length) { errEl.textContent = 'Choose a file first.'; errEl.style.display = 'block'; return; }
+  if (!fileDate) { errEl.textContent = 'Select the file date.'; errEl.style.display = 'block'; return; }
+  if (!detectedAreas.length) { errEl.textContent = 'No area detected in the file (column G).'; errEl.style.display = 'block'; return; }
+
+  const areaLabel = detectedAreas.map(a => 'Area ' + a).join(', ');
   if (mode === 'replace' &&
-      !confirm('Replace ALL existing rows for Area ' + area + ' with ' + csvRows.length + ' new rows?\n\nOld rows for this area will be DELETED from the sheet.')) return;
+      !confirm('Replace existing rows for ' + areaLabel + ' with file date ' + fileDate + '?\n\n' +
+        'Only old rows matching that same area AND date will be deleted (' + csvRows.length + ' new rows will be added). Other dates are untouched.')) return;
 
   const btn = document.getElementById('sup-upload');
   btn.textContent = 'Uploading ' + csvRows.length + ' rows...'; btn.disabled = true;
   try {
-    const d = await api({ action: 'supervisor_upload_csv', area: area, mode: mode, rows: csvRows });
+    const d = await api({ action: 'supervisor_upload_file', fileDate: fileDate, mode: mode, rows: csvRows });
     if (d.success) {
-      flash('Area ' + area + ': ' + d.added + ' rows added' + (mode === 'replace' ? ', ' + d.removed + ' old rows removed' : '') + ' ✓', true);
-      csvRows = null; fileRowsAll = null;
+      flash(areaLabel + ' · ' + d.fileDate + ': ' + d.added + ' rows added' +
+        (mode === 'replace' ? ', ' + d.removed + ' old rows replaced' : '') +
+        (d.skipped ? ' (' + d.skipped + ' rows skipped — no ACNO or area)' : '') + ' ✓', true);
+      csvRows = null; fileRowsAll = null; detectedAreas = [];
       document.getElementById('sup-file').value = '';
       renderCsvPreview();
     } else {
