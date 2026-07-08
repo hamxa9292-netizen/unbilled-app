@@ -64,7 +64,7 @@ tr:last-child td{border-bottom:none;}
 .act.del{background:#fee2e2;color:#b91c1c;}
 .addbtn{background:#1E7145;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
 .loading{text-align:center;padding:36px;color:#9ca3af;font-size:14px;}
-.msg{font-size:13px;padding:9px 13px;border-radius:8px;margin-bottom:12px;display:none;}
+.msg{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:300;font-size:13px;padding:10px 18px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:none;max-width:90%;}
 .msg.ok{background:#dcfce7;color:#14532d;display:block;}
 .msg.bad{background:#fee2e2;color:#b91c1c;display:block;}
 
@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v15 · fit-cols</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v16 · no-shift</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -1039,10 +1039,11 @@ function renderEntered() {
 function copyCell(td) {
   const v = td.getAttribute('data-v') || '';
   const done = () => {
+    // Inline feedback only — no top banner (it shifts the table). Briefly
+    // highlight the cell so the user sees the copy landed.
     const old = td.style.background;
-    td.style.background = '#dcfce7';
-    flash('Copied: ' + (v.length > 40 ? v.slice(0, 40) + '…' : v), true);
-    setTimeout(() => { td.style.background = old; }, 500);
+    td.style.background = '#bbf7d0';
+    setTimeout(() => { td.style.background = old; }, 400);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(v).then(done).catch(() => fallbackCopy(v, done));
