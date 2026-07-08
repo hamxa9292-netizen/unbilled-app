@@ -45,6 +45,7 @@ td{padding:10px;border-bottom:1px solid #f3f4f6;vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
 .role-b{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;}
 .role-admin{background:#ede9fe;color:#5b21b6;}
+.role-supervisor{background:#fef3c7;color:#92400e;}
 .role-worker{background:#e0f2fe;color:#075985;}
 .area-b{font-size:12px;font-weight:700;color:#1F4E79;background:#eff6ff;padding:3px 10px;border-radius:20px;display:inline-block;}
 .act{background:#f3f4f6;border:none;border-radius:7px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:4px;}
@@ -115,9 +116,45 @@ tr:last-child td{border-bottom:none;}
     <div class="tabs">
       <button class="tab active" id="tab-users" onclick="switchTab('users')">👥 Users</button>
       <button class="tab" id="tab-overview" onclick="switchTab('overview')">📊 Area Progress</button>
+      <button class="tab" id="tab-sup" onclick="switchTab('sup')">📤 Supervisor</button>
     </div>
 
     <div class="msg" id="msg"></div>
+
+    <!-- SUPERVISOR TAB — CSV import -->
+    <div id="pane-sup" style="display:none">
+      <div class="card">
+        <h3>Upload area unbilled CSV</h3>
+        <div style="font-size:13px;color:#6b7280;margin-bottom:14px;line-height:1.5;">
+          The CSV columns must be in the <b>same order as the unbilled sheet</b> (column A onwards).
+          The Area column will be set automatically to the area you choose below.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:440px;">
+          <div class="lfield">
+            <label>Area</label>
+            <select id="sup-area"></select>
+          </div>
+          <div class="lfield">
+            <label>Mode</label>
+            <select id="sup-mode">
+              <option value="replace">Replace area data</option>
+              <option value="append">Append to existing</option>
+            </select>
+          </div>
+        </div>
+        <div class="lfield" style="max-width:440px;">
+          <label>CSV file</label>
+          <input type="file" id="sup-file" accept=".csv,text/csv" onchange="handleCsvFile(this)"
+            style="width:100%;padding:10px;border:1.5px dashed #d1d5db;border-radius:9px;font-size:14px;font-family:inherit;background:#fafafa;">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#374151;margin-top:8px;cursor:pointer;">
+            <input type="checkbox" id="sup-header" checked onchange="reparseCsv()"> First row is a header (skip it)
+          </label>
+        </div>
+        <div id="sup-preview"></div>
+        <button class="bigbtn" id="sup-upload" onclick="doCsvUpload()" style="max-width:440px;margin-top:10px;" disabled>Upload to sheet</button>
+        <div class="err" id="sup-err"></div>
+      </div>
+    </div>
 
     <!-- USERS TAB -->
     <div id="pane-users">
@@ -163,7 +200,8 @@ tr:last-child td{border-bottom:none;}
       <div class="lfield">
         <label>Role</label>
         <select id="m-role">
-          <option value="worker">Worker</option>
+          <option value="worker">Field Staff</option>
+          <option value="supervisor">Supervisor</option>
           <option value="admin">Admin</option>
         </select>
       </div>
@@ -230,8 +268,9 @@ async function doLogin() {
     const res = await fetch(API, { method:'POST', body: JSON.stringify({ action:'login', username, password }) });
     const data = await res.json();
     if (data.success) {
-      if (!data.user || data.user.role !== 'admin') {
-        showLoginErr('This account is not an admin. Ask an admin to set your Role to "admin" in the users sheet.');
+      const role = data.user && data.user.role;
+      if (role !== 'admin' && role !== 'supervisor') {
+        showLoginErr('This account does not have admin or supervisor access.');
       } else {
         session = { token: data.token, user: data.user };
         localStorage.setItem('ub_admin_session', JSON.stringify(session));
@@ -259,17 +298,29 @@ function doLogout() {
 function enterMain() {
   document.getElementById('v-login').style.display = 'none';
   document.getElementById('v-main').style.display = 'block';
-  document.getElementById('who').textContent = '👤 ' + (session.user.name || session.user.username);
-  fillAreaSelect();
-  loadUsers();
+  const roleTag = session.user.role === 'admin' ? 'Admin' : 'Supervisor';
+  document.getElementById('who').textContent = '👤 ' + (session.user.name || session.user.username) + ' · ' + roleTag;
+  const isAdmin = session.user.role === 'admin';
+  document.getElementById('tab-users').style.display = isAdmin ? '' : 'none';
+  document.getElementById('tab-overview').style.display = isAdmin ? '' : 'none';
+  fillSupAreaSelect();
+  if (isAdmin) {
+    fillAreaSelect();
+    switchTab('users');
+    loadUsers();
+  } else {
+    switchTab('sup');
+  }
 }
 
 /* ── Tabs ── */
 function switchTab(t) {
   document.getElementById('tab-users').classList.toggle('active', t==='users');
   document.getElementById('tab-overview').classList.toggle('active', t==='overview');
+  document.getElementById('tab-sup').classList.toggle('active', t==='sup');
   document.getElementById('pane-users').style.display = t==='users' ? 'block' : 'none';
   document.getElementById('pane-overview').style.display = t==='overview' ? 'block' : 'none';
+  document.getElementById('pane-sup').style.display = t==='sup' ? 'block' : 'none';
   if (t==='overview') loadOverview();
 }
 
@@ -298,7 +349,7 @@ function renderUsers() {
         <td style="font-weight:700;color:#1F4E79;">${esc(u.username)}${u.username.toLowerCase()===session.user.username.toLowerCase()?' <span style="font-size:11px;color:#9ca3af;">(you)</span>':''}</td>
         <td>${esc(u.name)||'—'}</td>
         <td><span class="area-b">${u.area==='all'||!u.area?'All':'Area '+esc(u.area)}</span></td>
-        <td><span class="role-b role-${u.role}">${u.role==='admin'?'Admin':'Worker'}</span></td>
+        <td><span class="role-b role-${u.role}">${u.role==='admin'?'Admin':u.role==='supervisor'?'Supervisor':'Field Staff'}</span></td>
         <td style="text-align:right;white-space:nowrap;">
           <button class="act" onclick="openEdit('${esc(u.username)}')">✏️ Edit</button>
           <button class="act del" onclick="delUser('${esc(u.username)}')">🗑</button>
@@ -458,13 +509,126 @@ async function loadOverview() {
   }
 }
 
+/* ── Supervisor: CSV import ── */
+let csvRows = null, csvRaw = null, csvName = '';
+
+function fillSupAreaSelect() {
+  const sel = document.getElementById('sup-area');
+  sel.innerHTML = '';
+  for (let i = 1; i <= 24; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = 'Area ' + i;
+    sel.appendChild(o);
+  }
+  // Default a supervisor to their own assigned area
+  if (session && session.user.area && session.user.area !== 'all') sel.value = session.user.area;
+}
+
+function parseCSV(text) {
+  const rows = []; let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      } else field += c;
+    }
+  }
+  row.push(field);
+  if (row.length > 1 || row[0] !== '') rows.push(row);
+  return rows;
+}
+
+function handleCsvFile(input) {
+  const f = input.files[0];
+  if (!f) { csvRows = null; csvRaw = null; renderCsvPreview(); return; }
+  csvName = f.name;
+  const reader = new FileReader();
+  reader.onload = e => { csvRaw = e.target.result; reparseCsv(); };
+  reader.readAsText(f);
+}
+
+function reparseCsv() {
+  if (csvRaw === null) return;
+  let rows = parseCSV(csvRaw);
+  if (document.getElementById('sup-header').checked && rows.length) rows = rows.slice(1);
+  csvRows = rows;
+  renderCsvPreview();
+}
+
+function renderCsvPreview() {
+  const el = document.getElementById('sup-preview');
+  const btn = document.getElementById('sup-upload');
+  document.getElementById('sup-err').style.display = 'none';
+  if (!csvRows || !csvRows.length) {
+    el.innerHTML = '';
+    btn.disabled = true;
+    return;
+  }
+  const previewRows = csvRows.slice(0, 5);
+  const cols = Math.min(8, Math.max.apply(null, previewRows.map(r => r.length)));
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:#1F4E79;margin:6px 0;">
+      ${esc(csvName)} — ${csvRows.length} rows detected
+    </div>
+    <div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:9px;">
+      <table style="font-size:12px;min-width:520px;">
+        <thead><tr>${Array.from({length: cols}, (_, i) =>
+          '<th style="padding:6px 8px;">Col ' + String.fromCharCode(65 + i) + '</th>').join('')}</tr></thead>
+        <tbody>${previewRows.map(r =>
+          '<tr>' + Array.from({length: cols}, (_, i) =>
+            '<td style="padding:6px 8px;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;">' + esc(r[i] ?? '') + '</td>').join('') + '</tr>'
+        ).join('')}</tbody>
+      </table>
+    </div>
+    <div class="hint" style="margin-top:5px;">Showing first ${previewRows.length} rows. Column B should be ACNO.</div>`;
+  btn.disabled = false;
+}
+
+async function doCsvUpload() {
+  const errEl = document.getElementById('sup-err');
+  errEl.style.display = 'none';
+  const area = document.getElementById('sup-area').value;
+  const mode = document.getElementById('sup-mode').value;
+  if (!csvRows || !csvRows.length) { errEl.textContent = 'Choose a CSV file first.'; errEl.style.display = 'block'; return; }
+  if (mode === 'replace' &&
+      !confirm('Replace ALL existing rows for Area ' + area + ' with ' + csvRows.length + ' new rows?\n\nOld rows for this area will be DELETED from the sheet.')) return;
+
+  const btn = document.getElementById('sup-upload');
+  btn.textContent = 'Uploading ' + csvRows.length + ' rows...'; btn.disabled = true;
+  try {
+    const d = await api({ action: 'supervisor_upload_csv', area: area, mode: mode, rows: csvRows });
+    if (d.success) {
+      flash('Area ' + area + ': ' + d.added + ' rows added' + (mode === 'replace' ? ', ' + d.removed + ' old rows removed' : '') + ' ✓', true);
+      csvRows = null; csvRaw = null;
+      document.getElementById('sup-file').value = '';
+      renderCsvPreview();
+    } else {
+      errEl.textContent = d.message || 'Upload failed.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    if (e.message !== 'auth') { errEl.textContent = 'Could not connect — the file may be too large or the network dropped.'; errEl.style.display = 'block'; }
+  }
+  btn.textContent = 'Upload to sheet'; btn.disabled = !csvRows;
+}
+
 /* ── Init ── */
 (function init() {
   const saved = localStorage.getItem('ub_admin_session');
   if (saved) {
     try {
       session = JSON.parse(saved);
-      if (session && session.token && session.user && session.user.role === 'admin') {
+      if (session && session.token && session.user &&
+          (session.user.role === 'admin' || session.user.role === 'supervisor')) {
         enterMain();
         return;
       }
