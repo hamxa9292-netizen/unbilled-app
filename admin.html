@@ -141,7 +141,7 @@ tr:last-child td{border-bottom:none;}
           <div class="lfield">
             <label>Mode</label>
             <select id="sup-mode">
-              <option value="replace">Replace (same area + date)</option>
+              <option value="replace">Replace (same area + month)</option>
               <option value="append">Append to existing</option>
             </select>
           </div>
@@ -657,9 +657,9 @@ async function doCsvUpload() {
   const areaLabel = detectedAreas.map(a => 'Area ' + a).join(', ');
   if (mode === 'replace' &&
       !confirm('Replace existing rows for ' + areaLabel + ' with file date ' + fileDate + '?\n\n' +
-        'Only old rows of that same area AND date WITHOUT readings will be deleted.\n' +
-        'Rows already worked by field staff are kept, and duplicate accounts are skipped.\n' +
-        'Other dates are untouched.')) return;
+        'Only old rows of that same area AND MONTH without readings will be deleted.\n' +
+        'Rows already worked by field staff are kept, and an account can only exist once per month.\n' +
+        'Other months are untouched.')) return;
 
   const btn = document.getElementById('sup-upload');
   btn.textContent = 'Uploading ' + csvRows.length + ' rows...'; btn.disabled = true;
