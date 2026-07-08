@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v16 · no-shift</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v17 · no-meter</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -130,6 +130,7 @@ tr:last-child td{border-bottom:none;}
       <button class="tab" id="tab-overview" onclick="switchTab('overview')">📊 Area Progress</button>
       <button class="tab" id="tab-sup" onclick="switchTab('sup')">📤 Supervisor</button>
       <button class="tab" id="tab-entered" onclick="switchTab('entered')">✅ Unbilled Taken</button>
+      <button class="tab" id="tab-nometer" onclick="switchTab('nometer')">🚫 No-Meter</button>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -251,6 +252,39 @@ tr:last-child td{border-bottom:none;}
         <div class="hint">Daily = (Current − Prev) ÷ Reading days.<br>Projected = round(Daily × Target + Prev).<br>Date = Prev date + Target days.</div>
       </div>
      </div>
+    </div>
+
+    <!-- NO-METER TAB -->
+    <div id="pane-nometer" style="display:none">
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+        <div class="card" style="flex:1;min-width:320px;">
+          <h3>Mark an account as No-Meter</h3>
+          <div style="font-size:13px;color:#6b7280;margin-bottom:14px;line-height:1.5;">
+            Enter an account number to look it up in the unbilled sheet. Tick <b>No meter</b> and Save
+            to add it to the no-meters list. On the next data upload, matching accounts are flagged
+            <b>NO METER</b> in column K.
+          </div>
+          <div style="display:flex;gap:10px;align-items:end;margin-bottom:14px;flex-wrap:wrap;">
+            <div class="lfield" style="margin:0;min-width:180px;">
+              <label>Account number</label>
+              <input type="number" id="nm-acno" placeholder="e.g. 65567"
+                onkeydown="if(event.key==='Enter')nmLookup()"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;">
+            </div>
+            <button class="addbtn" style="height:42px;background:#1F4E79;" onclick="nmLookup()">🔍 Look up</button>
+          </div>
+          <div id="nm-result"></div>
+        </div>
+
+        <!-- Current no-meter list -->
+        <div class="card" style="width:300px;flex:none;">
+          <h3 style="display:flex;justify-content:space-between;align-items:center;">
+            No-meter list
+            <button class="act" onclick="nmLoadList()">🔄</button>
+          </h3>
+          <div id="nm-list" class="loading" style="color:#9ca3af;">Loading…</div>
+        </div>
+      </div>
     </div>
 
     <!-- USERS TAB -->
@@ -420,12 +454,15 @@ function switchTab(t) {
   document.getElementById('tab-overview').classList.toggle('active', t==='overview');
   document.getElementById('tab-sup').classList.toggle('active', t==='sup');
   document.getElementById('tab-entered').classList.toggle('active', t==='entered');
+  document.getElementById('tab-nometer').classList.toggle('active', t==='nometer');
   document.getElementById('pane-users').style.display = t==='users' ? 'block' : 'none';
   document.getElementById('pane-overview').style.display = t==='overview' ? 'block' : 'none';
   document.getElementById('pane-sup').style.display = t==='sup' ? 'block' : 'none';
   document.getElementById('pane-entered').style.display = t==='entered' ? 'block' : 'none';
+  document.getElementById('pane-nometer').style.display = t==='nometer' ? 'block' : 'none';
   if (t==='overview') loadOverview();
   if (t==='entered') initEnteredTab();
+  if (t==='nometer') nmLoadList();
 }
 
 /* ── Users ── */
@@ -811,6 +848,7 @@ async function doCsvUpload() {
       if (d.kept) bits.push(d.kept + ' kept (already have readings)');
       if (d.duplicates) bits.push(d.duplicates + ' duplicates skipped');
       if (d.archived) bits.push(d.archived + ' previous-month rows archived + locked 🔒');
+      if (d.noMeter) bits.push(d.noMeter + ' flagged NO METER 🚫');
       if (d.skipped) bits.push(d.skipped + ' invalid skipped');
       flash(areaLabel + ' · ' + d.fileDate + ': ' + bits.join(', ') +
         (d.formulas === false ? ' · ⚠ columns O–T left empty: no formula row above to copy from' : '') +
@@ -1172,6 +1210,85 @@ function pjCopyResult() {
   const done = () => flash('Copied projected reading: ' + v, true);
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done).catch(()=>{});
   else done();
+}
+
+/* ── No-Meter tab ── */
+let nmCurrent = null; // last looked-up account
+
+async function nmLookup() {
+  const acno = document.getElementById('nm-acno').value.trim();
+  const box = document.getElementById('nm-result');
+  nmCurrent = null;
+  if (!acno) { box.innerHTML = '<div class="msg bad" style="position:static;transform:none;box-shadow:none;">Enter an account number.</div>'; return; }
+  box.innerHTML = '<div class="loading" style="color:#9ca3af;">Looking up…</div>';
+  try {
+    const d = await api({ action: 'nometer_lookup', acno: acno });
+    if (!d.success) { box.innerHTML = '<div class="hint" style="color:#b91c1c;">' + esc(d.message || 'Lookup failed.') + '</div>'; return; }
+    if (!d.found) { box.innerHTML = '<div class="hint" style="color:#b91c1c;">' + esc(d.message || 'Not found.') + '</div>'; return; }
+    nmCurrent = d;
+    const dis = d.already ? ' disabled' : '';
+    box.innerHTML =
+      '<div style="background:#f9fafb;border-radius:10px;padding:14px;">' +
+        '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin-bottom:12px;">' +
+          '<span style="color:#6b7280;">ACNO</span><b>' + esc(d.acno) + '</b>' +
+          '<span style="color:#6b7280;">Area</span><span>' + esc(d.area || '—') + '</span>' +
+          '<span style="color:#6b7280;">Meter</span><span>' + esc(d.meter || '—') + '</span>' +
+          '<span style="color:#6b7280;">Address</span><span>' + esc(d.address || '—') + '</span>' +
+        '</div>' +
+        (d.already
+          ? '<div class="hint" style="color:#166534;">✓ Already in the no-meters list.</div>'
+          : '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;">' +
+              '<input type="checkbox" id="nm-flag"> This account has NO METER</label>' +
+            '<button class="bigbtn" style="max-width:200px;" onclick="nmSave()">Save to no-meter list</button>') +
+      '</div>';
+  } catch(e) {
+    if (e.message !== 'auth') box.innerHTML = '<div class="hint" style="color:#b91c1c;">Could not connect.</div>';
+  }
+}
+
+async function nmSave() {
+  if (!nmCurrent) return;
+  const flag = document.getElementById('nm-flag');
+  if (!flag || !flag.checked) { flash('Tick "This account has NO METER" first.', false); return; }
+  try {
+    const d = await api({ action: 'nometer_save', acno: nmCurrent.acno, address: nmCurrent.address, meter: nmCurrent.meter, area: nmCurrent.area });
+    if (d.success) {
+      flash('ACNO ' + nmCurrent.acno + ' added to no-meter list ✓', true);
+      document.getElementById('nm-acno').value = '';
+      document.getElementById('nm-result').innerHTML = '';
+      nmCurrent = null;
+      nmLoadList();
+    } else {
+      flash(d.message || 'Could not save.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+}
+
+async function nmLoadList() {
+  const box = document.getElementById('nm-list');
+  if (!box) return;
+  box.className = 'loading'; box.style.color = '#9ca3af'; box.textContent = 'Loading…';
+  try {
+    const d = await api({ action: 'nometer_list' });
+    if (!d.success) { box.textContent = d.message || 'Could not load.'; return; }
+    const rows = d.rows || [];
+    box.className = '';
+    if (!rows.length) { box.innerHTML = '<div class="hint">No accounts flagged yet.</div>'; return; }
+    box.innerHTML =
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:8px;">' + rows.length + ' account(s)</div>' +
+      '<div style="max-height:420px;overflow-y:auto;">' +
+      rows.slice().reverse().map(r =>
+        '<div style="border-bottom:1px solid #f3f4f6;padding:7px 0;">' +
+          '<div style="font-weight:700;color:#1F4E79;font-size:13px;">' + esc(r.acno) +
+            '<span class="area-b" style="margin-left:6px;">Area ' + esc(r.area || '—') + '</span></div>' +
+          '<div style="font-size:12px;color:#6b7280;">' + esc(r.address || '—') + '</div>' +
+        '</div>'
+      ).join('') + '</div>';
+  } catch(e) {
+    if (e.message !== 'auth') box.textContent = 'Could not connect.';
+  }
 }
 
 /* ── Init ── */
