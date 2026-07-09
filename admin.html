@@ -57,6 +57,8 @@ tr:last-child td{border-bottom:none;}
 .ckey.cop{background:#dbeafe;color:#1d4ed8;}
 .ckey.cfn{background:#fee2e2;color:#b91c1c;font-size:14px;}
 .ckey.ceq{background:#1E7145;color:#fff;}
+@keyframes blinkpulse{0%,100%{background:#1E7145;color:#fff;box-shadow:0 0 0 0 rgba(30,113,69,.5);}50%{background:#16a34a;color:#fff;box-shadow:0 0 0 6px rgba(30,113,69,0);}}
+.blink{animation:blinkpulse 1s ease-in-out infinite;}
 .ticked-row td{background:#fef9c3;}
 .ticked-row .copycell:hover{background:#fef08a !important;}
 .area-b{font-size:12px;font-weight:700;color:#1F4E79;background:#eff6ff;padding:3px 10px;border-radius:20px;display:inline-block;}
@@ -118,7 +120,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v27 · taken-auto</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v28 · blink-new</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -201,7 +203,7 @@ tr:last-child td{border-bottom:none;}
             <input type="date" id="ent-date" onchange="onEntAreaChange()"
               style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;outline:none;color:#111;background:#fff;">
           </div>
-          <button class="act" style="height:40px;" onclick="refreshEntered()">🔄 Refresh</button>
+          <button class="act" id="ent-refresh-btn" style="height:40px;" onclick="refreshEntered()">🔄 Refresh</button>
           <button class="act" style="height:40px;" onclick="clearEnteredFilters()">Clear</button>
         </div>
         <div id="entered-body" class="loading" style="color:#9ca3af;">Select an area and press Load.</div>
@@ -558,6 +560,7 @@ function switchTab(t) {
   document.getElementById('pane-new').style.display = t==='new' ? 'block' : 'none';
   document.getElementById('pane-nometer').style.display = t==='nometer' ? 'block' : 'none';
   document.getElementById('pane-dash').style.display = t==='dash' ? 'block' : 'none';
+  if (t !== 'entered') { entStopPolling(); entBlinkRefresh(false); }
   if (t==='users') loadUsers();
   if (t==='overview') loadOverview();
   if (t==='dash') loadDashboard();
@@ -1057,24 +1060,73 @@ function renderFromCacheOrSkip() {
 // Filter the preloaded cache to the chosen area (+ date) and render — instant.
 // Auto-render the selected area from the preload cache (instant, no fetch).
 // Falls back to a live load only if the preload hasn't arrived yet.
+// ── Poll for new readings in the selected area; blink Refresh if found ──
+let entPollTimer = null;
+let entKnownCount = null; // taken-count last seen for the selected area
+
+function entStartPolling() {
+  entStopPolling();
+  entPollTimer = setInterval(entPollCheck, 30000); // every 30s
+}
+function entStopPolling() {
+  if (entPollTimer) { clearInterval(entPollTimer); entPollTimer = null; }
+}
+function entBlinkRefresh(on) {
+  const b = document.getElementById('ent-refresh-btn');
+  if (!b) return;
+  b.classList.toggle('blink', !!on);
+  b.textContent = on ? '🔄 New readings!' : '🔄 Refresh';
+}
+function entCountFor(rows, area) {
+  return rows.filter(r => String(r.area ?? r.cells[ENT_AREA_COL - 1] ?? '').trim() === area).length;
+}
+async function entPollCheck() {
+  // Only poll while the tab is visible and an area is chosen
+  if (document.getElementById('pane-entered').style.display === 'none') return;
+  const area = document.getElementById('ent-area').value;
+  if (!area) return;
+  const areas = assignedAreaList().join(',');
+  if (!areas) return;
+  try {
+    const d = await api({ action: 'supervisor_entered', areas: areas });
+    if (!d || !d.success) return;
+    const fresh = d.rows || [];
+    const count = entCountFor(fresh, area);
+    if (entKnownCount != null && count > entKnownCount) {
+      entBlinkRefresh(true); // more taken readings than before → alert
+    }
+    entKnownCount = count;
+    // stash so Refresh uses this fresh data without another round-trip
+    preloadCache = { rows: fresh, headers: d.headers || (preloadCache && preloadCache.headers) || [], at: Date.now() };
+  } catch(e) {}
+}
+
+// Auto-render the selected area from the preload cache (instant, no fetch).
 function onEntAreaChange() {
   const area = document.getElementById('ent-area').value;
   const body = document.getElementById('entered-body');
+  entBlinkRefresh(false); // switching area clears any prior alert
   if (!area) {
     enteredRows = [];
     body.className = 'loading'; body.style.color = '#9ca3af';
     body.textContent = 'Select an area to view.';
     document.getElementById('lock-btn').disabled = true;
+    entKnownCount = null;
+    entStopPolling();
     return;
   }
-  if (preloadCache) { applyFromCache(); return; }
+  const setBaselineAndPoll = () => {
+    entKnownCount = preloadCache ? entCountFor(preloadCache.rows, area) : null;
+    entStartPolling();
+  };
+  if (preloadCache) { applyFromCache(); setBaselineAndPoll(); return; }
   // Preload not ready yet — wait for it, then show
   body.className = 'loading'; body.style.color = '#9ca3af';
   body.textContent = 'Loading Area ' + area + '…';
   if (preloadPromise) {
-    preloadPromise.then(() => { if (preloadCache) applyFromCache(); else loadEntered(); });
+    preloadPromise.then(() => { if (preloadCache) applyFromCache(); else loadEntered(); setBaselineAndPoll(); });
   } else {
-    loadEntered();
+    loadEntered(); setBaselineAndPoll();
   }
 }
 
@@ -1140,12 +1192,16 @@ function normDate_(v) {
 }
 
 function refreshEntered() {
+  entBlinkRefresh(false); // clear the alert
   preloadCache = null;
   preloadPromise = null;
   const area = document.getElementById('ent-area').value;
   if (session.user.role === 'supervisor') startPreload();
-  if (area) loadEntered();
-  else {
+  if (area) {
+    loadEntered();
+    // reset baseline once fresh data lands
+    if (preloadPromise) preloadPromise.then(() => { entKnownCount = preloadCache ? entCountFor(preloadCache.rows, area) : null; });
+  } else {
     const body = document.getElementById('entered-body');
     body.className = 'loading'; body.style.color = '#9ca3af';
     body.textContent = 'Refreshing in the background… select an area.';
