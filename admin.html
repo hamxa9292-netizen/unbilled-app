@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v20 · unbilled-new</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v21 · login-preload</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -262,7 +262,7 @@ tr:last-child td{border-bottom:none;}
           Unbilled — new (not taken)
           <span style="display:flex;gap:8px;">
             <button class="addbtn" id="rmk-save-btn" style="background:#1E7145;" onclick="saveRemarks()" disabled>💾 Save remarks</button>
-            <button class="act" onclick="loadUnbilledNew()">🔄 Refresh</button>
+            <button class="act" onclick="loadUnbilledNew(true)">🔄 Refresh</button>
           </span>
         </h3>
         <div style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.5;">
@@ -461,6 +461,29 @@ function enterMain() {
   } else {
     switchTab('sup');
   }
+  // Warm the backend + preload tab data in the background (non-blocking) so
+  // switching tabs feels instant. Runs after the UI is already visible.
+  setTimeout(preloadEverything, 50);
+}
+
+// Preload caches for each tab. Populated in the background after login.
+let newCache = null;      // Unbilled New rows
+let nmListCache = null;   // No-meter list rows
+
+function preloadEverything() {
+  fetch(API + '?action=ping').catch(() => {}); // wake the container
+
+  if (session.user.role === 'supervisor') {
+    startPreload(); // Unbilled Taken (existing)
+    // Unbilled New
+    api({ action: 'unbilled_new' }).then(d => {
+      if (d && d.success) { newCache = d.rows || []; }
+    }).catch(() => {});
+  }
+  // No-meter list (both roles)
+  api({ action: 'nometer_list' }).then(d => {
+    if (d && d.success) { nmListCache = d.rows || []; }
+  }).catch(() => {});
 }
 
 /* ── Tabs ── */
@@ -1289,7 +1312,8 @@ async function nmSave() {
       document.getElementById('nm-acno').value = '';
       document.getElementById('nm-result').innerHTML = '';
       nmCurrent = null;
-      nmLoadList();
+      nmListCache = null; // refresh list after adding
+      nmLoadList(true);
     } else {
       flash(d.message || 'Could not save.', false);
     }
@@ -1298,14 +1322,10 @@ async function nmSave() {
   }
 }
 
-async function nmLoadList() {
+async function nmLoadList(force) {
   const box = document.getElementById('nm-list');
   if (!box) return;
-  box.className = 'loading'; box.style.color = '#9ca3af'; box.textContent = 'Loading…';
-  try {
-    const d = await api({ action: 'nometer_list' });
-    if (!d.success) { box.textContent = d.message || 'Could not load.'; return; }
-    const rows = d.rows || [];
+  const render = (rows) => {
     box.className = '';
     if (!rows.length) { box.innerHTML = '<div class="hint">No accounts flagged yet.</div>'; return; }
     box.innerHTML =
@@ -1318,6 +1338,15 @@ async function nmLoadList() {
           '<div style="font-size:12px;color:#6b7280;">' + esc(r.address || '—') + '</div>' +
         '</div>'
       ).join('') + '</div>';
+  };
+  // Instant from cache
+  if (!force && nmListCache) { render(nmListCache); return; }
+  box.className = 'loading'; box.style.color = '#9ca3af'; box.textContent = 'Loading…';
+  try {
+    const d = await api({ action: 'nometer_list' });
+    if (!d.success) { box.textContent = d.message || 'Could not load.'; return; }
+    nmListCache = d.rows || [];
+    render(nmListCache);
   } catch(e) {
     if (e.message !== 'auth') box.textContent = 'Could not connect.';
   }
@@ -1328,14 +1357,21 @@ const NEW_COLS = ENTERED_COLS; // same visible columns as Unbilled Taken
 const COL_REMARKS_IDX = 21;    // U — Remarks
 let newRows = [];
 
-async function loadUnbilledNew() {
+async function loadUnbilledNew(force) {
   const body = document.getElementById('new-body');
+  // Use preloaded cache instantly if available (unless a forced refresh)
+  if (!force && newCache) {
+    newRows = newCache;
+    renderUnbilledNew();
+    return;
+  }
   body.className = 'loading'; body.style.color = '#9ca3af'; body.textContent = 'Loading…';
   document.getElementById('rmk-save-btn').disabled = true;
   try {
     const d = await api({ action: 'unbilled_new' });
     if (!d.success) { body.style.color = '#b91c1c'; body.textContent = d.message || 'Could not load.'; return; }
     newRows = d.rows || [];
+    newCache = newRows;
     renderUnbilledNew();
   } catch(e) {
     if (e.message !== 'auth') { body.style.color = '#b91c1c'; body.textContent = 'Could not connect.'; }
@@ -1394,6 +1430,7 @@ async function saveRemarks() {
       flash(d.saved + ' remark(s) saved' + (d.skipped ? ', ' + d.skipped + ' skipped' : '') + ' ✓', true);
       // reflect saved values locally so further edits compare correctly
       items.forEach(it => { const r = newRows.find(x => x.row === it.row); if (r) r.remarks = it.remarks; });
+      newCache = newRows; // keep cache in sync with saved remarks
     } else {
       flash(d.message || 'Could not save.', false);
     }
