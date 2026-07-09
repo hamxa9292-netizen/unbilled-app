@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v26 · preload-fix</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v27 · taken-auto</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -194,14 +194,13 @@ tr:last-child td{border-bottom:none;}
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
           <div class="lfield" style="margin:0;min-width:150px;">
             <label>Area</label>
-            <select id="ent-area"><option value="">Select area…</option></select>
+            <select id="ent-area" onchange="onEntAreaChange()"><option value="">Select area…</option></select>
           </div>
           <div class="lfield" style="margin:0;min-width:160px;">
             <label>R_DATE (optional)</label>
-            <input type="date" id="ent-date"
+            <input type="date" id="ent-date" onchange="onEntAreaChange()"
               style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;outline:none;color:#111;background:#fff;">
           </div>
-          <button class="addbtn" style="height:40px;background:#1E7145;" onclick="loadEntered()">🔍 Load</button>
           <button class="act" style="height:40px;" onclick="refreshEntered()">🔄 Refresh</button>
           <button class="act" style="height:40px;" onclick="clearEnteredFilters()">Clear</button>
         </div>
@@ -280,6 +279,10 @@ tr:last-child td{border-bottom:none;}
         <div style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.5;">
           Accounts with no reading taken yet (excludes no-meter accounts). Edit the <b>Remarks</b>
           column inline, then press <b>Save remarks</b> to write all changes back to the sheet.
+        </div>
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+          <label style="font-size:13px;font-weight:600;color:#374151;">Area:</label>
+          <select id="new-area-filter" onchange="renderUnbilledNew()" style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:#111;"><option value="all">All areas</option></select>
         </div>
         <div id="new-body" class="loading" style="color:#9ca3af;">Loading…</div>
       </div>
@@ -1017,7 +1020,7 @@ function initEnteredTab() {
   if (!enteredTabReady) {
     enteredRows = [];
     document.getElementById('entered-body').innerHTML =
-      '<div class="loading" style="color:#9ca3af;">Preparing data in the background… you can select an area now.</div>';
+      '<div class="loading" style="color:#9ca3af;">Select an area to view its accounts instantly.</div>';
     document.getElementById('lock-btn').disabled = true;
     enteredTabReady = true;
   }
@@ -1052,6 +1055,29 @@ function renderFromCacheOrSkip() {
 }
 
 // Filter the preloaded cache to the chosen area (+ date) and render — instant.
+// Auto-render the selected area from the preload cache (instant, no fetch).
+// Falls back to a live load only if the preload hasn't arrived yet.
+function onEntAreaChange() {
+  const area = document.getElementById('ent-area').value;
+  const body = document.getElementById('entered-body');
+  if (!area) {
+    enteredRows = [];
+    body.className = 'loading'; body.style.color = '#9ca3af';
+    body.textContent = 'Select an area to view.';
+    document.getElementById('lock-btn').disabled = true;
+    return;
+  }
+  if (preloadCache) { applyFromCache(); return; }
+  // Preload not ready yet — wait for it, then show
+  body.className = 'loading'; body.style.color = '#9ca3af';
+  body.textContent = 'Loading Area ' + area + '…';
+  if (preloadPromise) {
+    preloadPromise.then(() => { if (preloadCache) applyFromCache(); else loadEntered(); });
+  } else {
+    loadEntered();
+  }
+}
+
 function applyFromCache() {
   const area = document.getElementById('ent-area').value;
   const date = document.getElementById('ent-date').value; // '' = any
@@ -1443,17 +1469,38 @@ async function loadUnbilledNew(force) {
   }
 }
 
+const NEW_AREA_COL = 7; // G
+
+function populateNewAreaFilter() {
+  const sel = document.getElementById('new-area-filter');
+  if (!sel) return;
+  const prev = sel.value;
+  const areas = Array.from(new Set(newRows.map(r => String(r.area ?? r.cells[NEW_AREA_COL - 1] ?? '').trim()).filter(Boolean)))
+    .sort((a, b) => Number(a) - Number(b));
+  sel.innerHTML = '<option value="all">All areas</option>' +
+    areas.map(a => '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>').join('');
+  if (prev && (prev === 'all' || areas.indexOf(prev) !== -1)) sel.value = prev;
+}
+
 function renderUnbilledNew() {
   const body = document.getElementById('new-body');
   body.className = ''; body.style.color = '';
+  populateNewAreaFilter();
+  const fArea = document.getElementById('new-area-filter').value;
+
   if (!newRows.length) {
     body.innerHTML = '<div class="loading" style="color:#9ca3af;">No untaken accounts. 🎉</div>';
     document.getElementById('rmk-save-btn').disabled = true;
     return;
   }
+  // Keep the TRUE index into newRows in data-ri so remarks save maps correctly
+  const shown = newRows
+    .map((r, ri) => ({ r, ri }))
+    .filter(x => fArea === 'all' || String(x.r.area ?? x.r.cells[NEW_AREA_COL - 1] ?? '').trim() === fArea);
+
   const head = NEW_COLS.map(c => '<th style="white-space:nowrap;padding:5px 4px;">' + esc(c.label) + '</th>').join('') +
     '<th style="padding:5px 4px;min-width:160px;">REMARKS ✎</th>';
-  const rows = newRows.map((r, ri) => {
+  const rows = shown.map(({ r, ri }) => {
     const cells = NEW_COLS.map(c => {
       const v = r.cells[c.i - 1];
       const wrap = (c.i === 5) ? 'white-space:normal;word-break:break-word;min-width:120px;' : 'white-space:nowrap;';
@@ -1469,7 +1516,7 @@ function renderUnbilledNew() {
     '<div style="border:1px solid #e5e7eb;border-radius:9px;overflow:hidden;">' +
     '<table style="font-size:11.5px;width:100%;">' +
     '<thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="hint" style="margin-top:6px;">' + newRows.length + ' untaken account(s). Edit Remarks then press Save.</div>';
+    '<div class="hint" style="margin-top:6px;">' + shown.length + ' of ' + newRows.length + ' untaken account(s). Edit Remarks then press Save.</div>';
   document.getElementById('rmk-save-btn').disabled = true;
 }
 
