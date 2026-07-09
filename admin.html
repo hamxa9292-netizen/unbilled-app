@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v23 · dash-init</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v25 · preload-all</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -330,7 +330,7 @@ tr:last-child td{border-bottom:none;}
       <div class="card">
         <h3>
           Readings progress by area
-          <button class="addbtn" style="background:#1F4E79" onclick="loadOverview()">🔄 Refresh</button>
+          <button class="addbtn" style="background:#1F4E79" onclick="loadOverview(true)">🔄 Refresh</button>
         </h3>
         <div id="ov-body" class="loading">Loading...</div>
       </div>
@@ -509,23 +509,34 @@ function hideInitOverlay() {
 let newCache = null;      // Unbilled New rows
 let nmListCache = null;   // No-meter list rows
 let dashCache = null;     // Dashboard aggregates
+let usersCache = null;    // Admin: user list
+let overviewCache = null; // Admin: area progress
 
 function preloadEverything() {
   const jobs = [];
+  const isAdmin = session.user.role === 'admin';
   fetch(API + '?action=ping').catch(() => {}); // wake the container
 
-  setInitStatus('Loading dashboard…', 25);
+  setInitStatus('Loading dashboard…', 20);
   jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
 
-  if (session.user.role === 'supervisor') {
-    setInitStatus('Loading your areas…', 45);
-    jobs.push(Promise.resolve(startPreload && startPreload())); // Unbilled Taken (existing)
-    jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
-  }
-  setInitStatus('Loading lists…', 70);
+  setInitStatus('Loading unbilled data…', 40);
+  // Unbilled Taken: supervisors preload their areas; admins load per-area on demand
+  if (!isAdmin) jobs.push(Promise.resolve(startPreload && startPreload()));
+  // Unbilled New — both roles
+  jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
+
+  setInitStatus('Loading lists…', 60);
   jobs.push(api({ action: 'nometer_list' }).then(d => { if (d && d.success) nmListCache = d.rows || []; }).catch(() => {}));
 
-  return Promise.all(jobs).then(() => setInitStatus('Almost ready…', 90));
+  if (isAdmin) {
+    setInitStatus('Loading users & areas…', 78);
+    // Admin-only tabs: prime their caches so they open instantly
+    jobs.push(api({ action: 'admin_list_users' }).then(d => { if (d && d.success) usersCache = d.users || []; }).catch(() => {}));
+    jobs.push(api({ action: 'admin_overview' }).then(d => { if (d && d.success) overviewCache = d.areas || []; }).catch(() => {}));
+  }
+
+  return Promise.all(jobs).then(() => setInitStatus('Almost ready…', 92));
 }
 
 /* ── Tabs ── */
@@ -552,13 +563,15 @@ function switchTab(t) {
 }
 
 /* ── Users ── */
-async function loadUsers() {
+async function loadUsers(force) {
   const body = document.getElementById('users-body');
+  if (!force && usersCache) { users = usersCache; renderUsers(); return; }
   body.className = 'loading'; body.textContent = 'Loading users...';
   try {
     const d = await api({ action:'admin_list_users' });
     if (!d.success) { body.textContent = d.message || 'Could not load users.'; return; }
     users = d.users || [];
+    usersCache = users;
     renderUsers();
   } catch(e) {
     if (e.message !== 'auth') body.textContent = 'Could not connect.';
@@ -698,7 +711,7 @@ async function saveUser() {
     if (d.success) {
       closeModal();
       flash(editingUsername ? 'User updated ✓' : 'User added ✓', true);
-      loadUsers();
+      usersCache = null; loadUsers(true);
     } else {
       errEl.textContent = d.message || 'Could not save.';
       errEl.style.display = 'block';
@@ -713,7 +726,7 @@ async function delUser(username) {
   if (!confirm('Delete user "' + username + '"?\n\nThey will no longer be able to sign in.')) return;
   try {
     const d = await api({ action:'admin_delete_user', username });
-    if (d.success) { flash('User deleted ✓', true); loadUsers(); }
+    if (d.success) { flash('User deleted ✓', true); usersCache = null; loadUsers(true); }
     else flash(d.message || 'Could not delete.', false);
   } catch(e) {
     if (e.message !== 'auth') flash('Could not connect.', false);
@@ -721,50 +734,56 @@ async function delUser(username) {
 }
 
 /* ── Overview ── */
-async function loadOverview() {
+async function loadOverview(force) {
   const body = document.getElementById('ov-body');
+  if (!force && overviewCache) { renderOverview(overviewCache); return; }
   body.className = 'loading'; body.textContent = 'Loading...';
   try {
     const d = await api({ action:'admin_overview' });
     if (!d.success) { body.textContent = d.message || 'Could not load.'; return; }
-    const areas = d.areas || [];
-    body.className = '';
-    if (!areas.length) { body.innerHTML = '<div class="loading">No account data found.</div>'; return; }
-    let tDone = 0, tPend = 0;
-    areas.forEach(a => { tDone += a.done; tPend += a.pending; });
-    const rows = areas.map(a => {
-      const total = a.done + a.pending;
-      const pct = total ? Math.round(a.done / total * 100) : 0;
-      return `<tr>
-        <td><span class="area-b">Area ${esc(a.area)}</span></td>
-        <td style="color:#16a34a;font-weight:700;">${a.done}</td>
-        <td style="color:#92400e;font-weight:700;">${a.pending}</td>
-        <td>${total}</td>
-        <td><div style="display:flex;align-items:center;gap:8px;">
-          <div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:${pct}%;"></div></div>
-          <span class="pct">${pct}%</span>
-        </div></td>
-      </tr>`;
-    }).join('');
-    const tTotal = tDone + tPend;
-    const tPct = tTotal ? Math.round(tDone / tTotal * 100) : 0;
-    body.innerHTML = `<table>
-      <thead><tr><th>Area</th><th>Done</th><th>Pending</th><th>Total</th><th style="min-width:160px;">Progress</th></tr></thead>
-      <tbody>${rows}
-        <tr style="background:#f9fafb;">
-          <td style="font-weight:800;">All</td>
-          <td style="color:#16a34a;font-weight:800;">${tDone}</td>
-          <td style="color:#92400e;font-weight:800;">${tPend}</td>
-          <td style="font-weight:800;">${tTotal}</td>
-          <td><div style="display:flex;align-items:center;gap:8px;">
-            <div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:${tPct}%;"></div></div>
-            <span class="pct">${tPct}%</span>
-          </div></td>
-        </tr>
-      </tbody></table>`;
+    overviewCache = d.areas || [];
+    renderOverview(overviewCache);
   } catch(e) {
     if (e.message !== 'auth') body.textContent = 'Could not connect.';
   }
+}
+
+function renderOverview(areas) {
+  const body = document.getElementById('ov-body');
+  body.className = '';
+  if (!areas.length) { body.innerHTML = '<div class="loading">No account data found.</div>'; return; }
+  let tDone = 0, tPend = 0;
+  areas.forEach(a => { tDone += a.done; tPend += a.pending; });
+  const rows = areas.map(a => {
+    const total = a.done + a.pending;
+    const pct = total ? Math.round(a.done / total * 100) : 0;
+    return `<tr>
+      <td><span class="area-b">Area ${esc(a.area)}</span></td>
+      <td style="color:#16a34a;font-weight:700;">${a.done}</td>
+      <td style="color:#92400e;font-weight:700;">${a.pending}</td>
+      <td>${total}</td>
+      <td><div style="display:flex;align-items:center;gap:8px;">
+        <div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:${pct}%;"></div></div>
+        <span class="pct">${pct}%</span>
+      </div></td>
+    </tr>`;
+  }).join('');
+  const tTotal = tDone + tPend;
+  const tPct = tTotal ? Math.round(tDone / tTotal * 100) : 0;
+  body.innerHTML = `<table>
+    <thead><tr><th>Area</th><th>Done</th><th>Pending</th><th>Total</th><th style="min-width:160px;">Progress</th></tr></thead>
+    <tbody>${rows}
+      <tr style="background:#f9fafb;">
+        <td style="font-weight:800;">All</td>
+        <td style="color:#16a34a;font-weight:800;">${tDone}</td>
+        <td style="color:#92400e;font-weight:800;">${tPend}</td>
+        <td style="font-weight:800;">${tTotal}</td>
+        <td><div style="display:flex;align-items:center;gap:8px;">
+          <div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:${tPct}%;"></div></div>
+          <span class="pct">${tPct}%</span>
+        </div></td>
+      </tr>
+    </tbody></table>`;
 }
 
 /* ── Supervisor: XLS/XLSX/CSV import ── */
@@ -1507,13 +1526,52 @@ function tile(label, value, color) {
     '<div class="statl">' + label + '</div></div>';
 }
 
+let dashAreaFilter = 'all';
+
 function renderDashboard(d) {
   const body = document.getElementById('dash-body');
   body.className = ''; body.style.color = '';
   document.getElementById('dash-month').textContent = d.currentMonth || '—';
-  const c = d.current || {};
 
-  // Tiles — current month
+  // Area filter dropdown (persist selection across refreshes)
+  const areaList = d.areaList || [];
+  const opts = '<option value="all">All areas</option>' +
+    areaList.map(a => '<option value="' + esc(a) + '"' + (dashAreaFilter === a ? ' selected' : '') + '>Area ' + esc(a) + '</option>').join('');
+  const filterBar = '<div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;">' +
+    '<label style="font-size:13px;font-weight:600;color:#374151;">View:</label>' +
+    '<select id="dash-area-filter" onchange="onDashAreaChange()" style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:#111;">' +
+    opts + '</select></div>';
+
+  body.innerHTML = filterBar + '<div id="dash-inner"></div>';
+  renderDashInner(d);
+}
+
+function onDashAreaChange() {
+  dashAreaFilter = document.getElementById('dash-area-filter').value;
+  if (dashCache) renderDashInner(dashCache);
+}
+
+// Build monthly series for the selected area (or combined for 'all')
+function dashMonthsFor(d, area) {
+  if (area === 'all') return d.months || [];
+  const rows = (d.monthAreas || []).filter(ma => String(ma.area) === String(area));
+  // ensure sorted by month
+  return rows.slice().sort((x, y) => x.month < y.month ? -1 : x.month > y.month ? 1 : 0);
+}
+
+function renderDashInner(d) {
+  const inner = document.getElementById('dash-inner');
+  const area = dashAreaFilter;
+  const months = dashMonthsFor(d, area);
+  const label = area === 'all' ? 'All areas' : 'Area ' + area;
+
+  // Current-month figures for the selected area
+  let c;
+  if (area === 'all') c = d.current || {};
+  else c = months.filter(m => m.month === d.currentMonth)[0] ||
+           { total: 0, taken: 0, pending: 0, noMeter: 0, dc: 0, completion: 0, units: 0 };
+  if (c.completion == null) c.completion = c.total ? Math.round(c.taken / c.total * 100) : 0;
+
   const tiles = '<div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));padding:0 0 14px;">' +
     tile('Total Unbilled', c.total || 0) +
     tile('Unbilled Taken', c.taken || 0, '#16a34a') +
@@ -1523,49 +1581,28 @@ function renderDashboard(d) {
     tile('Completion', (c.completion || 0) + '%', '#1d4ed8') +
     '</div>';
 
-  // Year snapshot — line graph of completion % per month
-  const months = d.months || [];
-  const graph = '<h3 style="margin:8px 0 10px;">Year snapshot — Unbilled progress</h3>' +
-    (months.length ? lineGraph(months) : '<div class="hint">No data yet.</div>');
+  const graph = '<h3 style="margin:8px 0 10px;">Year snapshot — Unbilled progress (' + esc(label) + ')</h3>' +
+    (months.length ? lineGraph(months) : '<div class="hint">No data for this selection.</div>');
 
-  // Monthly trend table
   const monthRows = months.map(m =>
     '<tr>' +
       '<td style="font-weight:700;">' + esc(m.month) + '</td>' +
       '<td>' + m.taken + ' / ' + m.total + '</td>' +
       '<td style="color:#b45309;">' + m.pending + '</td>' +
-      '<td style="min-width:160px;"><div style="display:flex;align-items:center;gap:8px;">' +
+      '<td style="color:#6b7280;">' + (m.noMeter || 0) + '</td>' +
+      '<td style="color:#dc2626;">' + (m.dc || 0) + '</td>' +
+      '<td style="min-width:150px;"><div style="display:flex;align-items:center;gap:8px;">' +
         '<div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:' + m.completion + '%;"></div></div>' +
         '<span class="pct">' + m.completion + '%</span></div></td>' +
-      '<td style="color:#7c3aed;">' + (m.units || 0).toLocaleString() + '</td>' +
     '</tr>').join('');
-  const monthly = '<h3 style="margin:8px 0 10px;">Monthly coverage (by R_DATE)</h3>' +
+  const monthly = '<h3 style="margin:8px 0 10px;">Monthly coverage — ' + esc(label) + ' (by R_DATE)</h3>' +
     (months.length
       ? '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:9px;"><table style="font-size:12.5px;width:100%;">' +
-        '<thead><tr><th>Month</th><th>Taken / Total</th><th>Pending</th><th style="min-width:160px;">Completion</th><th>Units</th></tr></thead>' +
+        '<thead><tr><th>Month</th><th>Taken / Total</th><th>Pending</th><th>No Meter</th><th>DC</th><th style="min-width:150px;">Completion</th></tr></thead>' +
         '<tbody>' + monthRows + '</tbody></table></div>'
       : '<div class="hint">No monthly data.</div>');
 
-  // Current-month area breakdown
-  const areas = d.areas || [];
-  const areaRows = areas.map(a =>
-    '<tr>' +
-      '<td><span class="area-b">Area ' + esc(a.area) + '</span></td>' +
-      '<td style="color:#16a34a;font-weight:700;">' + a.taken + '</td>' +
-      '<td style="color:#b45309;font-weight:700;">' + a.pending + '</td>' +
-      '<td>' + a.total + '</td>' +
-      '<td style="min-width:160px;"><div style="display:flex;align-items:center;gap:8px;">' +
-        '<div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:' + a.completion + '%;"></div></div>' +
-        '<span class="pct">' + a.completion + '%</span></div></td>' +
-    '</tr>').join('');
-  const areaTable = '<h3 style="margin:18px 0 10px;">Area breakdown — ' + esc(d.currentMonth || '') + '</h3>' +
-    (areas.length
-      ? '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:9px;"><table style="font-size:12.5px;width:100%;">' +
-        '<thead><tr><th>Area</th><th>Taken</th><th>Pending</th><th>Total</th><th style="min-width:160px;">Completion</th></tr></thead>' +
-        '<tbody>' + areaRows + '</tbody></table></div>'
-      : '<div class="hint">No area data for this month.</div>');
-
-  body.innerHTML = tiles + graph + monthly + areaTable +
+  inner.innerHTML = tiles + graph + monthly +
     (d.ms ? '<div class="hint" style="margin-top:8px;">Computed in ' + d.ms + 'ms.</div>' : '');
 }
 
