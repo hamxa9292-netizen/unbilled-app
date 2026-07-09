@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v25 · preload-all</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v26 · preload-fix</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -521,8 +521,8 @@ function preloadEverything() {
   jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
 
   setInitStatus('Loading unbilled data…', 40);
-  // Unbilled Taken: supervisors preload their areas; admins load per-area on demand
-  if (!isAdmin) jobs.push(Promise.resolve(startPreload && startPreload()));
+  // Unbilled Taken: supervisors preload their areas (wait for it); admins load per-area on demand
+  if (!isAdmin) { startPreload(); if (preloadPromise) jobs.push(preloadPromise); }
   // Unbilled New — both roles
   jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
 
@@ -555,6 +555,7 @@ function switchTab(t) {
   document.getElementById('pane-new').style.display = t==='new' ? 'block' : 'none';
   document.getElementById('pane-nometer').style.display = t==='nometer' ? 'block' : 'none';
   document.getElementById('pane-dash').style.display = t==='dash' ? 'block' : 'none';
+  if (t==='users') loadUsers();
   if (t==='overview') loadOverview();
   if (t==='dash') loadDashboard();
   if (t==='entered') initEnteredTab();
