@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v22 · dashboard</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v23 · dash-init</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -129,7 +129,7 @@ tr:last-child td{border-bottom:none;}
       <button class="tab" id="tab-dash" onclick="switchTab('dash')">📈 Dashboard</button>
       <button class="tab active" id="tab-users" onclick="switchTab('users')">👥 Users</button>
       <button class="tab" id="tab-overview" onclick="switchTab('overview')">📊 Area Progress</button>
-      <button class="tab" id="tab-sup" onclick="switchTab('sup')">📤 Supervisor</button>
+      <button class="tab" id="tab-sup" onclick="switchTab('sup')">📤 Upload Unbilled</button>
       <button class="tab" id="tab-entered" onclick="switchTab('entered')">✅ Unbilled Taken</button>
       <button class="tab" id="tab-new" onclick="switchTab('new')">📋 Unbilled New</button>
       <button class="tab" id="tab-nometer" onclick="switchTab('nometer')">🚫 No-Meter</button>
@@ -466,41 +466,66 @@ function enterMain() {
   document.getElementById('tab-users').style.display = isAdmin ? '' : 'none';
   document.getElementById('tab-overview').style.display = isAdmin ? '' : 'none';
   initSupPane();
-  if (isAdmin) {
-    fillAreaSelect();
-    switchTab('users');
-    loadUsers();
-  } else {
-    switchTab('sup');
-  }
-  // Warm the backend + preload tab data in the background (non-blocking) so
-  // switching tabs feels instant. Runs after the UI is already visible.
-  setTimeout(preloadEverything, 50);
+  if (isAdmin) fillAreaSelect();
+
+  // Show a full-screen "initializing" overlay while everything preloads,
+  // then land on the Dashboard (admins) / Upload (supervisors).
+  showInitOverlay();
+  preloadEverything().then(() => {
+    hideInitOverlay();
+    if (isAdmin) switchTab('dash');
+    else switchTab('sup');
+  });
 }
 
-// Preload caches for each tab. Populated in the background after login.
+function showInitOverlay() {
+  let ov = document.getElementById('init-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'init-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:#1F4E79;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;';
+    ov.innerHTML =
+      '<div style="font-size:40px;margin-bottom:16px;">⚡</div>' +
+      '<div style="font-size:18px;font-weight:700;margin-bottom:8px;">Initializing…</div>' +
+      '<div id="init-status" style="font-size:14px;opacity:.85;margin-bottom:20px;">Please wait while the system loads your data.</div>' +
+      '<div style="width:220px;height:6px;background:rgba(255,255,255,.2);border-radius:6px;overflow:hidden;">' +
+        '<div id="init-bar" style="width:10%;height:100%;background:#fbbf24;border-radius:6px;transition:width .4s;"></div></div>';
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'flex';
+}
+function setInitStatus(msg, pct) {
+  const s = document.getElementById('init-status'), b = document.getElementById('init-bar');
+  if (s && msg) s.textContent = msg;
+  if (b && pct != null) b.style.width = pct + '%';
+}
+function hideInitOverlay() {
+  setInitStatus('Ready!', 100);
+  const ov = document.getElementById('init-overlay');
+  if (ov) setTimeout(() => { ov.style.display = 'none'; }, 250);
+}
+
+// Preload caches for each tab. Returns a promise that resolves when done.
 let newCache = null;      // Unbilled New rows
 let nmListCache = null;   // No-meter list rows
 let dashCache = null;     // Dashboard aggregates
 
 function preloadEverything() {
+  const jobs = [];
   fetch(API + '?action=ping').catch(() => {}); // wake the container
 
+  setInitStatus('Loading dashboard…', 25);
+  jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
+
   if (session.user.role === 'supervisor') {
-    startPreload(); // Unbilled Taken (existing)
-    // Unbilled New
-    api({ action: 'unbilled_new' }).then(d => {
-      if (d && d.success) { newCache = d.rows || []; }
-    }).catch(() => {});
+    setInitStatus('Loading your areas…', 45);
+    jobs.push(Promise.resolve(startPreload && startPreload())); // Unbilled Taken (existing)
+    jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
   }
-  // No-meter list (both roles)
-  api({ action: 'nometer_list' }).then(d => {
-    if (d && d.success) { nmListCache = d.rows || []; }
-  }).catch(() => {});
-  // Dashboard (both roles, area-scoped server-side)
-  api({ action: 'dashboard' }).then(d => {
-    if (d && d.success) { dashCache = d; }
-  }).catch(() => {});
+  setInitStatus('Loading lists…', 70);
+  jobs.push(api({ action: 'nometer_list' }).then(d => { if (d && d.success) nmListCache = d.rows || []; }).catch(() => {}));
+
+  return Promise.all(jobs).then(() => setInitStatus('Almost ready…', 90));
 }
 
 /* ── Tabs ── */
@@ -1488,18 +1513,22 @@ function renderDashboard(d) {
   document.getElementById('dash-month').textContent = d.currentMonth || '—';
   const c = d.current || {};
 
-  // Tiles
+  // Tiles — current month
   const tiles = '<div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));padding:0 0 14px;">' +
-    tile('Accounts', c.total || 0) +
-    tile('Taken', c.taken || 0, '#16a34a') +
+    tile('Total Unbilled', c.total || 0) +
+    tile('Unbilled Taken', c.taken || 0, '#16a34a') +
     tile('Pending', c.pending || 0, '#b45309') +
+    tile('No Meters', c.noMeter || 0, '#6b7280') +
+    tile('DC Meters', c.dc || 0, '#dc2626') +
     tile('Completion', (c.completion || 0) + '%', '#1d4ed8') +
-    tile('No-meter', c.noMeter || 0, '#6b7280') +
-    tile('Units', (c.units || 0).toLocaleString(), '#7c3aed') +
     '</div>';
 
-  // Monthly trend — completion % bars + taken/total + units
+  // Year snapshot — line graph of completion % per month
   const months = d.months || [];
+  const graph = '<h3 style="margin:8px 0 10px;">Year snapshot — Unbilled progress</h3>' +
+    (months.length ? lineGraph(months) : '<div class="hint">No data yet.</div>');
+
+  // Monthly trend table
   const monthRows = months.map(m =>
     '<tr>' +
       '<td style="font-weight:700;">' + esc(m.month) + '</td>' +
@@ -1536,8 +1565,38 @@ function renderDashboard(d) {
         '<tbody>' + areaRows + '</tbody></table></div>'
       : '<div class="hint">No area data for this month.</div>');
 
-  body.innerHTML = tiles + monthly + areaTable +
+  body.innerHTML = tiles + graph + monthly + areaTable +
     (d.ms ? '<div class="hint" style="margin-top:8px;">Computed in ' + d.ms + 'ms.</div>' : '');
+}
+
+// SVG line graph: completion % per month across the year
+function lineGraph(months) {
+  const W = 720, H = 220, padL = 36, padR = 16, padT = 16, padB = 34;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const n = months.length;
+  const x = i => padL + (n <= 1 ? iw / 2 : (iw * i) / (n - 1));
+  const y = v => padT + ih - (ih * Math.max(0, Math.min(100, v))) / 100;
+  // gridlines at 0/25/50/75/100
+  let grid = '';
+  [0, 25, 50, 75, 100].forEach(g => {
+    const gy = y(g);
+    grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" stroke="#eef0f3"/>' +
+      '<text x="' + (padL - 6) + '" y="' + (gy + 3) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + g + '</text>';
+  });
+  const pts = months.map((m, i) => x(i) + ',' + y(m.completion));
+  const line = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#1F4E79" stroke-width="2.5"/>';
+  const dots = months.map((m, i) =>
+    '<circle cx="' + x(i) + '" cy="' + y(m.completion) + '" r="3.5" fill="#1F4E79"><title>' +
+    m.month + ': ' + m.completion + '% (' + m.taken + '/' + m.total + ')</title></circle>' +
+    '<text x="' + x(i) + '" y="' + (H - padB + 14) + '" text-anchor="middle" font-size="8.5" fill="#6b7280">' +
+    m.month.slice(2) + '</text>' +
+    '<text x="' + x(i) + '" y="' + (y(m.completion) - 8) + '" text-anchor="middle" font-size="9" font-weight="700" fill="#1F4E79">' +
+    m.completion + '%</text>'
+  ).join('');
+  return '<div style="border:1px solid #e5e7eb;border-radius:9px;padding:8px;overflow-x:auto;">' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;min-width:520px;height:auto;">' +
+    grid + line + dots + '</svg>' +
+    '<div class="hint" style="text-align:center;">Completion % by month (taken ÷ total).</div></div>';
 }
 
 /* ── Init ── */
