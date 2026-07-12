@@ -120,7 +120,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v32 · new-api</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v33 · remarks</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -252,7 +252,10 @@ tr:last-child td{border-bottom:none;}
             <span id="pj-date" style="font-weight:700;color:#1d4ed8;">—</span>
           </div>
         </div>
-        <div class="hint">Daily = (Current − Prev) ÷ Reading days.<br>Projected = round(Daily × Target + Prev).<br>Date = Prev date + Target days.</div>
+        <div id="pj-remarks-wrap" style="margin-top:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 10px;">
+          <div style="font-size:11px;font-weight:700;color:#b91c1c;margin-bottom:3px;">📝 Remarks</div>
+          <div id="pj-remarks" style="font-size:12px;color:#7f1d1d;line-height:1.4;">Tick a row to see its remarks.</div>
+        </div>
 
         <!-- Meter photo for the ticked row -->
         <div id="pj-photo-wrap" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px;">
@@ -1317,6 +1320,8 @@ function onEnteredTick(cb) {
     } else {
       const box = document.getElementById('pj-photo');
       if (box) box.innerHTML = '<span style="color:#9ca3af;">Tick a row to view its photo.</span>';
+      const rb = document.getElementById('pj-remarks');
+      if (rb) rb.innerHTML = 'Tick a row to see its remarks.';
     }
   }
   updateLockBtn();
@@ -1358,6 +1363,7 @@ const PJ_PREV_COL = 8;    // H  PREV READING
 const PJ_PDATE_COL = 9;   // I  PREV DATE
 const PJ_CUR_COL  = 13;   // M  NEW READING
 const PJ_DAYS_COL = 17;   // Q  NEW DAYS (reading days)
+const PJ_REMARKS_COL = 21; // U  REMARKS
 
 let pjPrevDate = ''; // yyyy-mm-dd of the ticked row's previous date
 
@@ -1400,6 +1406,19 @@ function pjLoadFromRow(r) {
   pjPrevDate = normDate_(g(PJ_PDATE_COL)); // for the projected-date calc
   pjCalc();
   pjShowPhoto(r);
+  pjShowRemarks(r);
+}
+
+// Show the ticked account's remarks (column U)
+function pjShowRemarks(r) {
+  const box = document.getElementById('pj-remarks');
+  if (!box) return;
+  const txt = r ? String(r.cells[PJ_REMARKS_COL - 1] ?? '').trim() : '';
+  if (!txt) {
+    box.innerHTML = '<span style="color:#9ca3af;font-style:italic;">No remarks for ACNO ' + esc(r ? r.acno : '') + '.</span>';
+  } else {
+    box.innerHTML = '<b>' + esc(txt) + '</b>';
+  }
 }
 
 // Show the meter photo for the ticked row. Drive share links need converting
