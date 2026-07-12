@@ -135,6 +135,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   border-top: 2px solid #1e293b;
   z-index: 999;
 }
+@keyframes needphoto{0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-4px);}40%,80%{transform:translateX(4px);}}
+.need-photo{animation:needphoto .5s ease-in-out 2;box-shadow:0 0 0 3px rgba(239,68,68,.6);}
 </style>
 </head>
 <body>
@@ -157,7 +159,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v3</p>
+          <p>STELCO Field App · v4 · photo required</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -240,7 +242,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <span style="opacity:.4;margin:0 2px;">|</span>
         <!-- Photo inline -->
         <span id="pbw" style="display:inline-flex;align-items:center;">
-          <button onclick="document.getElementById('pinput').click()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;">📷</button>
+          <button id="photo-btn" onclick="document.getElementById('pinput').click()" style="background:#fbbf24;border:none;color:#1f2937;font-weight:700;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;">📷 Photo *</button>
           <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
         </span>
         <span id="pp" style="display:none;align-items:center;gap:4px;">
@@ -749,6 +751,15 @@ async function saveReading(goNext) {
   if (currentAcct && currentAcct.locked) {
     err.textContent='\u{1F512} ACNO '+currentAcct.acno+' is locked (previous month) — entry is not allowed.';
     err.style.display='block';
+    return;
+  }
+
+  // ── Meter photo is MANDATORY for every reading ──
+  if (reading !== '' && !photoB64) {
+    err.innerHTML='\u{1F4F7} A meter photo is required for every reading. Tap <b>📷 Photo</b> before saving.';
+    err.style.display='block';
+    const pb = document.getElementById('photo-btn');
+    if (pb) { pb.classList.add('need-photo'); setTimeout(()=>pb.classList.remove('need-photo'), 2000); }
     return;
   }
 
