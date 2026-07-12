@@ -159,7 +159,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v5 · auto-camera</p>
+          <p>STELCO Field App · v6 · no-autofill</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -256,6 +256,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div id="detail-body">
       <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">New Reading</div>
       <input type="number" id="f-reading" placeholder="0" inputmode="numeric" autocomplete="off"
+        name="meter-reading" data-lpignore="true" data-1p-ignore data-form-type="other"
         style="width:100%;background:#fff;border:3px solid #2563eb;border-radius:10px;font-size:32px;font-weight:800;padding:12px 16px;color:#111;font-family:inherit;outline:none;text-align:center;margin-bottom:10px;">
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
@@ -265,7 +266,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <div>
           <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">Remarks</div>
-          <input type="text" id="f-remarks" placeholder="Done / Locked..." style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
+          <input type="text" id="f-remarks" placeholder="Done / Locked..." autocomplete="off" name="meter-remarks" data-lpignore="true" data-1p-ignore data-form-type="other" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
         </div>
       </div>
 
@@ -478,6 +479,14 @@ function show(id) {
   const el = document.getElementById('screen-' + id);
   el.classList.add('active');
   el.style.display = (id === 'detail') ? 'flex' : 'block';
+
+  // Once signed in, disable the login fields. A live password input left in
+  // the DOM makes Chrome show its autofill bar (key / card / address chips)
+  // above the keyboard on every other screen.
+  const lu = document.getElementById('l-user'), lp = document.getElementById('l-pass');
+  const onLogin = (id === 'login');
+  if (lu) lu.disabled = !onLogin;
+  if (lp) lp.disabled = !onLogin;
 
   const nav = document.querySelector('.nav');
   if (id === 'detail') {
@@ -731,12 +740,13 @@ function fillDetail(d, keepKeyboard) {
   document.getElementById('serr').style.display='none';
   clearPhoto();
   if (keepKeyboard) {
-    // Keep keyboard open — just select the input value without blur/refocus cycle
-    inp.focus();
+    // Moving to the next account: keep the keyboard up and the view still.
+    // preventScroll stops the page jumping/re-laying-out under the keyboard.
+    inp.focus({ preventScroll: true });
     inp.select();
   } else {
-    // First open — focus after short delay to let screen render
-    setTimeout(()=>{ inp.focus(); inp.click(); }, 300);
+    // First open — focus after a short delay to let the screen render
+    setTimeout(()=>{ inp.focus({ preventScroll: true }); inp.click(); }, 300);
   }
 }
 
