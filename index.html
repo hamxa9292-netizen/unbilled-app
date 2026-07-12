@@ -146,9 +146,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <h1>Unbilled Readings</h1>
   <span class="hdr-name" onclick="changeName()">👤 <span id="wlabel">Field Staff</span></span>
   <button class="hdr-rf" id="rfbtn" onclick="hardRefresh()">🔄</button>
+  <button class="hdr-rf" onclick="openPwModal()" style="margin-left:0;">🔑</button>
   <button class="hdr-rf" onclick="doLogout()" style="margin-left:0;">🚪</button>
 </div>
 <div class="sbar" id="sbar"></div>
+
+<!-- Change password -->
+<div id="pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;align-items:center;justify-content:center;padding:18px;">
+  <div style="background:#111827;border:1px solid #374151;border-radius:14px;padding:18px;width:100%;max-width:340px;">
+    <h3 style="color:#fff;font-size:16px;margin:0 0 14px;">🔑 Change password</h3>
+    <label style="display:block;color:#9ca3af;font-size:12px;margin-bottom:4px;">Current password</label>
+    <input type="password" id="pw-cur" autocomplete="current-password"
+      style="width:100%;padding:11px;border:1.5px solid #374151;border-radius:9px;background:#1f2937;color:#fff;font-size:15px;font-family:inherit;outline:none;margin-bottom:10px;">
+    <label style="display:block;color:#9ca3af;font-size:12px;margin-bottom:4px;">New password</label>
+    <input type="password" id="pw-new" autocomplete="new-password"
+      style="width:100%;padding:11px;border:1.5px solid #374151;border-radius:9px;background:#1f2937;color:#fff;font-size:15px;font-family:inherit;outline:none;margin-bottom:10px;">
+    <label style="display:block;color:#9ca3af;font-size:12px;margin-bottom:4px;">Confirm new password</label>
+    <input type="password" id="pw-new2" autocomplete="new-password"
+      style="width:100%;padding:11px;border:1.5px solid #374151;border-radius:9px;background:#1f2937;color:#fff;font-size:15px;font-family:inherit;outline:none;">
+    <div id="pw-err" style="display:none;color:#fca5a5;font-size:13px;margin-top:8px;"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="closePwModal()" style="flex:1;padding:12px;border:none;border-radius:9px;background:#374151;color:#fff;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;">Cancel</button>
+      <button id="pw-save" onclick="savePassword()" style="flex:1;padding:12px;border:none;border-radius:9px;background:#16a34a;color:#fff;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;">Change</button>
+    </div>
+  </div>
+</div>
 
 <div class="content">
 
@@ -159,7 +181,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v11 · row-order</p>
+          <p>STELCO Field App · v12 · password</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -1167,6 +1189,49 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
 }
 
 // Init — show UI instantly, do everything else after
+/* ── Change own password ── */
+function openPwModal() {
+  ['pw-cur','pw-new','pw-new2'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const e = document.getElementById('pw-err');
+  e.style.display = 'none'; e.textContent = '';
+  document.getElementById('pw-modal').style.display = 'flex';
+  document.getElementById('pw-cur').focus();
+}
+function closePwModal() { document.getElementById('pw-modal').style.display = 'none'; }
+
+async function savePassword() {
+  const cur = document.getElementById('pw-cur').value;
+  const nw  = document.getElementById('pw-new').value;
+  const nw2 = document.getElementById('pw-new2').value;
+  const err = document.getElementById('pw-err');
+  const fail = (m) => { err.textContent = m; err.style.display = 'block'; };
+  err.style.display = 'none';
+
+  if (!cur || !nw) return fail('Enter your current and new password.');
+  if (nw.length < 4) return fail('New password must be at least 4 characters.');
+  if (nw !== nw2) return fail('The two new passwords do not match.');
+  if (nw === cur) return fail('The new password is the same as the current one.');
+
+  const btn = document.getElementById('pw-save');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    const res = await fetch(API, { method:'POST', body: JSON.stringify({
+      action: 'change_password', currentPassword: cur, newPassword: nw, token: tok()
+    })});
+    const d = await res.json();
+    if (isAuthError(d)) { forceRelogin(); return; }
+    if (d.success) {
+      closePwModal();
+      showBar('Password changed ✓ — use it next time you sign in.', 'ok');
+    } else {
+      fail(d.message || 'Could not change password.');
+    }
+  } catch(e) {
+    fail('Could not connect. Check your signal and try again.');
+  }
+  btn.textContent = 'Change'; btn.disabled = false;
+}
+
 function initApp() {
   const savedSession = localStorage.getItem('ub_session');
   if (!savedSession) { show('login'); return; }
