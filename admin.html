@@ -123,7 +123,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v35 · password</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v36 · pw-bg</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -1902,25 +1902,32 @@ async function savePassword() {
   const fail = (m) => { err.textContent = m; err.style.display = 'block'; };
   err.style.display = 'none';
 
+  // Validate locally FIRST — anything we can catch here avoids a silent
+  // background failure after the window has closed.
   if (!cur || !nw) return fail('Enter your current and new password.');
   if (nw.length < 4) return fail('New password must be at least 4 characters.');
   if (nw !== nw2) return fail('The two new passwords do not match.');
   if (nw === cur) return fail('The new password is the same as the current one.');
 
-  const btn = document.getElementById('pw-save');
-  btn.textContent = 'Saving…'; btn.disabled = true;
-  try {
-    const d = await api({ action: 'change_password', currentPassword: cur, newPassword: nw });
-    if (d.success) {
-      closePwModal();
-      flash('Password changed ✓ — use it next time you sign in.', true);
-    } else {
-      fail(d.message || 'Could not change password.');
-    }
-  } catch(e) {
-    if (e.message !== 'auth') fail('Could not connect.');
-  }
-  btn.textContent = 'Change password'; btn.disabled = false;
+  // Close straight away and finish the save in the background.
+  closePwModal();
+  flash('Changing password…', true);
+
+  api({ action: 'change_password', currentPassword: cur, newPassword: nw })
+    .then(d => {
+      if (d && d.success) {
+        flash('Password changed ✓ — use it next time you sign in.', true);
+      } else {
+        // Loud failure: the password did NOT change, and they must know.
+        flash('⚠️ Password NOT changed: ' + ((d && d.message) || 'unknown error') +
+              ' — keep using your old password.', false);
+      }
+    })
+    .catch(e => {
+      if (e.message !== 'auth') {
+        flash('⚠️ Password NOT changed — could not connect. Keep using your old password.', false);
+      }
+    });
 }
 
 /* ── Init ── */
