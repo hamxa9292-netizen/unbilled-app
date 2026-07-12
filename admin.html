@@ -123,8 +123,9 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v34 · photo-viewer</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v35 · password</span></h1>
       <span class="who" id="who"></span>
+      <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
     </div>
   </div>
@@ -1883,6 +1884,45 @@ function pvApply() {
   });
 })();
 
+/* ── Change own password ── */
+function openPwModal() {
+  ['pw-cur','pw-new','pw-new2'].forEach(id => { document.getElementById(id).value = ''; });
+  const e = document.getElementById('pw-err');
+  e.style.display = 'none'; e.textContent = '';
+  document.getElementById('pw-modal').style.display = 'flex';
+  document.getElementById('pw-cur').focus();
+}
+function closePwModal() { document.getElementById('pw-modal').style.display = 'none'; }
+
+async function savePassword() {
+  const cur = document.getElementById('pw-cur').value;
+  const nw  = document.getElementById('pw-new').value;
+  const nw2 = document.getElementById('pw-new2').value;
+  const err = document.getElementById('pw-err');
+  const fail = (m) => { err.textContent = m; err.style.display = 'block'; };
+  err.style.display = 'none';
+
+  if (!cur || !nw) return fail('Enter your current and new password.');
+  if (nw.length < 4) return fail('New password must be at least 4 characters.');
+  if (nw !== nw2) return fail('The two new passwords do not match.');
+  if (nw === cur) return fail('The new password is the same as the current one.');
+
+  const btn = document.getElementById('pw-save');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    const d = await api({ action: 'change_password', currentPassword: cur, newPassword: nw });
+    if (d.success) {
+      closePwModal();
+      flash('Password changed ✓ — use it next time you sign in.', true);
+    } else {
+      fail(d.message || 'Could not change password.');
+    }
+  } catch(e) {
+    if (e.message !== 'auth') fail('Could not connect.');
+  }
+  btn.textContent = 'Change password'; btn.disabled = false;
+}
+
 /* ── Init ── */
 (function init() {
   const saved = localStorage.getItem('ub_admin_session');
@@ -1901,6 +1941,31 @@ function pvApply() {
   document.getElementById('v-login').style.display = 'flex';
 })();
 </script>
+  <!-- Change password -->
+  <div id="pw-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:550;align-items:center;justify-content:center;padding:16px;">
+    <div class="card" style="max-width:380px;width:100%;">
+      <h3 style="margin-bottom:14px;">🔑 Change your password</h3>
+      <div class="lfield">
+        <label>Current password</label>
+        <input type="password" id="pw-cur" autocomplete="current-password">
+      </div>
+      <div class="lfield">
+        <label>New password</label>
+        <input type="password" id="pw-new" autocomplete="new-password">
+      </div>
+      <div class="lfield">
+        <label>Confirm new password</label>
+        <input type="password" id="pw-new2" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter')savePassword()">
+      </div>
+      <div class="err" id="pw-err"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="bigbtn cancel" onclick="closePwModal()">Cancel</button>
+        <button class="bigbtn" id="pw-save" onclick="savePassword()">Change password</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Fullscreen photo viewer -->
   <div id="pv" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.92);z-index:600;flex-direction:column;">
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,0,0,.35);flex-wrap:wrap;">
