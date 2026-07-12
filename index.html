@@ -159,7 +159,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v6 · no-autofill</p>
+          <p>STELCO Field App · v7 · photo-manual</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -332,24 +332,6 @@ const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
 let pending = [];
 let allAccounts = [], filtered = [], page = 1, pageSize = 40;
 let currentAcct = null, photoB64 = null;
-let pendingSaveGoNext = null; // set when Save/Next opened the camera; resumes save after capture
-
-// If the camera is dismissed without taking a picture, most mobile browsers
-// never fire the file input's change event — so clear the pending save when
-// the window regains focus and still no photo has arrived.
-window.addEventListener('focus', () => {
-  if (pendingSaveGoNext === null) return;
-  setTimeout(() => {
-    if (pendingSaveGoNext !== null && !photoB64) {
-      pendingSaveGoNext = null;
-      const err = document.getElementById('serr');
-      if (err) {
-        err.innerHTML = '\u{1F4F7} A meter photo is required — the reading was not saved. Tap Save again to retake.';
-        err.style.display = 'block';
-      }
-    }
-  }, 800); // give the change event time to land first
-});
 let selectedArea = localStorage.getItem('ub_area') || 'all';
 let updatedSet = new Set();
 let inFlight = new Set(); // update ids currently being POSTed — prevents duplicate sends
@@ -467,7 +449,12 @@ function showBar(msg, type) {
   const b = document.getElementById('sbar');
   b.className = 'sbar show ' + type;
   b.textContent = msg;
-  if (type==='ok') setTimeout(()=>b.className='sbar',3000);
+  b.onclick = () => { b.className = 'sbar'; };   // tap to dismiss immediately
+  b.title = 'Tap to dismiss';
+  clearTimeout(showBar._t);
+  // Errors linger a bit longer than confirmations, but they DO go away.
+  const ms = (type === 'ok') ? 3000 : 8000;
+  showBar._t = setTimeout(() => { b.className = 'sbar'; }, ms);
 }
 
 function show(id) {
@@ -738,6 +725,8 @@ function fillDetail(d, keepKeyboard) {
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('f-remarks').value=d.remarks||'';
   document.getElementById('serr').style.display='none';
+  const sb = document.getElementById('sbar');
+  if (sb) sb.className = 'sbar'; // don't carry a stale error onto the next account
   clearPhoto();
   if (keepKeyboard) {
     // Moving to the next account: keep the keyboard up and the view still.
@@ -783,11 +772,11 @@ async function saveReading(goNext) {
   }
 
   // ── Meter photo is MANDATORY for every reading ──
-  // If none taken yet, open the camera straight away and resume this save
-  // once the photo comes back (see previewPhoto).
   if (reading !== '' && !photoB64) {
-    pendingSaveGoNext = goNext;      // remember what the user pressed
-    document.getElementById('pinput').click(); // opens the camera
+    err.innerHTML='\u{1F4F7} A meter photo is required. Tap <b>📷 Photo</b>, then Save.';
+    err.style.display='block';
+    const pb = document.getElementById('photo-btn');
+    if (pb) { pb.classList.add('need-photo'); setTimeout(()=>pb.classList.remove('need-photo'), 2000); }
     return;
   }
 
@@ -983,16 +972,7 @@ function updateDot(){document.getElementById('ndot').style.display=pending.some(
 
 function previewPhoto(input) {
   const file=input.files[0];
-  if(!file){
-    // Camera cancelled — abandon any save that was waiting on the photo
-    if (pendingSaveGoNext !== null) {
-      pendingSaveGoNext = null;
-      const err=document.getElementById('serr');
-      err.innerHTML='\u{1F4F7} A meter photo is required. The reading was not saved.';
-      err.style.display='block';
-    }
-    return;
-  }
+  if(!file) return;
   const reader=new FileReader();
   reader.onload=e=>{
     const img=new Image();
@@ -1019,14 +999,6 @@ function previewPhoto(input) {
       a.download = filename;
       a.click();
       showBar('Photo saved to Downloads: ' + filename, 'ok');
-
-      // If the user pressed Save/Next and we opened the camera for them,
-      // finish that save now that the photo is in hand.
-      if (pendingSaveGoNext !== null) {
-        const goNext = pendingSaveGoNext;
-        pendingSaveGoNext = null;
-        saveReading(goNext);
-      }
     };
     img.src=e.target.result;
   };
