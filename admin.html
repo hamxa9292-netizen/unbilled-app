@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v37 · dash-redesign</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v38 · photo-export</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -1430,6 +1430,7 @@ async function lockSelected() {
       preloadCache = null;                                    // stale after locking
       if (session.user.role === 'supervisor') startPreload(); // rebuild in background
       loadEntered();
+      await exportAndPurgePhotos(items);                      // download photos, then clear Drive
     } else {
       flash(d.message || 'Could not lock.', false);
     }
@@ -1437,6 +1438,60 @@ async function lockSelected() {
     if (e.message !== 'auth') flash('Could not connect.', false);
   }
   btn.innerHTML = '🔒 Mark selected done → billing';
+}
+
+// Bundle the locked accounts' photos into a ZIP, download it, and only then
+// permanently delete them from Drive. Deletion is irreversible, so it never
+// happens until the user confirms the file actually arrived.
+async function exportAndPurgePhotos(items) {
+  if (!confirm('Download the meter photos for these ' + items.length + ' account(s) as a ZIP?\n\n' +
+    'After you confirm the download, the photos will be PERMANENTLY deleted from Google Drive to free up space.')) return;
+
+  const btn = document.getElementById('lock-btn');
+  btn.textContent = 'Zipping photos…'; btn.disabled = true;
+  let d;
+  try {
+    d = await api({ action: 'export_photos', items: items });
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not build the ZIP. Photos were NOT deleted.', false);
+    return;
+  }
+  if (!d || !d.success) {
+    flash((d && d.message) || 'Could not build the ZIP. Photos were NOT deleted.', false);
+    return;
+  }
+
+  // Trigger the download
+  const a = document.createElement('a');
+  a.href = d.zipUrl;
+  a.download = d.zipName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  flash('Downloading ' + d.zipName + ' (' + d.count + ' photo' + (d.count === 1 ? '' : 's') + ')…', true);
+
+  // Only delete once the user confirms the file is really on their PC.
+  const ok = confirm('ZIP: ' + d.zipName + '\n' + d.count + ' photo(s)' +
+    (d.missing ? ', ' + d.missing + ' account(s) had no photo' : '') + '\n\n' +
+    'Has the ZIP finished downloading and opened correctly?\n\n' +
+    'Click OK to PERMANENTLY DELETE these photos from Google Drive.\n' +
+    'Click Cancel to keep them (you can export again later).');
+  if (!ok) { flash('Photos kept in Drive — nothing deleted.', true); return; }
+
+  btn.textContent = 'Clearing Drive…';
+  try {
+    const r = await api({ action: 'delete_photos', fileIds: d.fileIds, rows: d.rows, zipId: d.zipId });
+    if (r && r.success) {
+      flash(r.deleted + ' photo(s) permanently deleted from Drive ✓' + (r.failed ? ', ' + r.failed + ' failed' : ''), true);
+      preloadCache = null;
+      if (session.user.role === 'supervisor') startPreload();
+      loadEntered();
+    } else {
+      flash((r && r.message) || 'Could not delete the photos from Drive.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect — photos are still in Drive.', false);
+  }
 }
 
 /* ── Projection calculator ── */
