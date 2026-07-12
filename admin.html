@@ -120,7 +120,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v28 · blink-new</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v29 · photo-view</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -253,6 +253,12 @@ tr:last-child td{border-bottom:none;}
           </div>
         </div>
         <div class="hint">Daily = (Current − Prev) ÷ Reading days.<br>Projected = round(Daily × Target + Prev).<br>Date = Prev date + Target days.</div>
+
+        <!-- Meter photo for the ticked row -->
+        <div id="pj-photo-wrap" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px;">
+          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">📷 Meter photo</div>
+          <div id="pj-photo" style="font-size:12px;color:#9ca3af;">Tick a row to view its photo.</div>
+        </div>
       </div>
      </div>
     </div>
@@ -1307,7 +1313,10 @@ function onEnteredTick(cb) {
     tr.classList.toggle('ticked-row', cb.checked);
     if (cb.checked) {
       const r = enteredRows[parseInt(tr.getAttribute('data-ri'))];
-      pjLoadFromRow(r); // fill the calculator with this row's readings
+      pjLoadFromRow(r); // fill the calculator + show this row's meter photo
+    } else {
+      const box = document.getElementById('pj-photo');
+      if (box) box.innerHTML = '<span style="color:#9ca3af;">Tick a row to view its photo.</span>';
     }
   }
   updateLockBtn();
@@ -1390,6 +1399,37 @@ function pjLoadFromRow(r) {
   document.getElementById('pj-days').value = g(PJ_DAYS_COL);
   pjPrevDate = normDate_(g(PJ_PDATE_COL)); // for the projected-date calc
   pjCalc();
+  pjShowPhoto(r);
+}
+
+// Show the meter photo for the ticked row. Drive share links need converting
+// to a direct-image URL before they'll render in an <img>.
+function pjShowPhoto(r) {
+  const box = document.getElementById('pj-photo');
+  if (!box) return;
+  const url = (r && r.photo) ? String(r.photo) : '';
+  if (!url) {
+    box.innerHTML = '<span style="color:#9ca3af;">No photo for ACNO ' + esc(r ? r.acno : '') + '.</span>';
+    return;
+  }
+  const id = driveFileId_(url);
+  const src = id ? ('https://drive.google.com/thumbnail?id=' + id + '&sz=w600') : url;
+  box.innerHTML =
+    '<a href="' + esc(url) + '" target="_blank" rel="noopener" title="Open full size">' +
+      '<img src="' + esc(src) + '" alt="Meter photo" ' +
+        'style="width:100%;border-radius:8px;border:1px solid #e5e7eb;display:block;" ' +
+        'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">' +
+      '<span style="display:none;font-size:12px;color:#2563eb;">📷 Open photo in new tab</span>' +
+    '</a>' +
+    '<div class="hint" style="margin-top:4px;">ACNO ' + esc(r.acno) + ' — click to enlarge.</div>';
+}
+
+// Extract the Drive file id from a share/view URL
+function driveFileId_(url) {
+  let m = String(url).match(/\/d\/([a-zA-Z0-9_-]+)/);      // .../file/d/<id>/view
+  if (m) return m[1];
+  m = String(url).match(/[?&]id=([a-zA-Z0-9_-]+)/);        // ...?id=<id>
+  return m ? m[1] : '';
 }
 
 function pjCopyResult() {
