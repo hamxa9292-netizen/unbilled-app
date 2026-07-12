@@ -3,33 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1F4E79">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
-<title>Unbilled Readings</title>
+<title>Unbilled Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overscroll-behavior-y:none;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;}
-.app{max-width:430px;margin:0 auto;height:100%;position:relative;}
-.hdr{background:#1F4E79;color:#fff;padding:13px 16px;display:flex;align-items:center;gap:8px;position:fixed;top:0;left:0;right:0;max-width:430px;margin:0 auto;z-index:100;}
-.content{position:fixed;top:48px;bottom:60px;left:0;right:0;max-width:430px;margin:0 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#f0f2f5;}
-.hdr h1{font-size:16px;font-weight:600;flex:1;}
-.hdr-name{font-size:12px;opacity:.8;cursor:pointer;}
-.hdr-rf{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:5px 10px;font-size:14px;cursor:pointer;margin-left:4px;}
-.sbar{font-size:12px;padding:6px 16px;align-items:center;gap:6px;display:none;position:fixed;top:48px;left:0;right:0;max-width:430px;margin:0 auto;z-index:99;}
-.sbar.show{display:flex;}
-.sbar.offline{background:#92400e;color:#fef3c7;}
-.sbar.syncing{background:#1e40af;color:#dbeafe;}
-.sbar.ok{background:#14532d;color:#dcfce7;}
-.screen{display:none;}
-.screen.active{display:block;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh;color:#111;}
+.wrap{max-width:1280px;margin:0 auto;padding:0 14px 40px;}
+.hdr{background:#1F4E79;color:#fff;padding:14px 0;margin:0 -14px 18px;}
+.hdr-in{max-width:1280px;margin:0 auto;padding:0 14px;display:flex;align-items:center;gap:10px;}
+.hdr h1{font-size:17px;font-weight:700;flex:1;}
+.hdr .who{font-size:12px;opacity:.85;}
+.hdr button{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;}
 
-/* Login screen */
-.login-wrap{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:#1F4E79;z-index:200;max-width:430px;margin:0 auto;}
+/* Login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1F4E79;padding:24px;}
 .login-box{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
 .login-logo{text-align:center;margin-bottom:20px;}
 .login-logo .ico{font-size:40px;}
@@ -37,1150 +25,1790 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .login-logo p{font-size:13px;color:#6b7280;margin-top:2px;}
 .lfield{margin-bottom:14px;}
 .lfield label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;}
-.lfield input{width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;color:#111;}
-.lfield input:focus{border-color:#1F4E79;}
-.login-btn{width:100%;padding:13px;background:#1F4E79;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;}
-.login-btn:active{opacity:.85;}
-.login-err{background:#fee2e2;color:#b91c1c;padding:9px 13px;border-radius:8px;font-size:13px;margin-top:12px;display:none;text-align:center;}
+.lfield input,.lfield select{width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;color:#111;background:#fff;}
+.lfield input:focus,.lfield select:focus{border-color:#1F4E79;}
+.bigbtn{width:100%;padding:13px;background:#1F4E79;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.bigbtn:active{opacity:.85;}
+.bigbtn:disabled{opacity:.6;cursor:default;}
+.err{background:#fee2e2;color:#b91c1c;padding:9px 13px;border-radius:8px;font-size:13px;margin-top:12px;display:none;text-align:center;}
 
-/* Area selector screen */
-.area-screen{padding:20px 16px;}
-.area-title{font-size:18px;font-weight:700;color:#1F4E79;margin-bottom:6px;}
-.area-sub{font-size:14px;color:#6b7280;margin-bottom:20px;}
-.area-load{background:#1E7145;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;width:100%;cursor:pointer;font-family:inherit;}
+/* Tabs */
+.tabs{display:flex;gap:8px;margin-bottom:16px;}
+.tab{padding:9px 18px;border-radius:20px;font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:inherit;background:#fff;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.tab.active{background:#1F4E79;color:#fff;}
 
-/* Search + list */
-.topbar{background:#1F4E79;padding:0 12px 12px;position:sticky;top:46px;z-index:99;}
-.area-chip{display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-top:10px;flex-wrap:wrap;}
-.achip{background:rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;}
-.achange{background:none;border:none;color:rgba(255,255,255,.7);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline;}
-.sw{position:relative;}
-.sw input{width:100%;padding:11px 70px 11px 42px;font-size:15px;border:none;border-radius:10px;background:#fff;font-family:inherit;outline:none;color:#111;}
-.sw .ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:17px;color:#9ca3af;}
-.sw .go{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#1F4E79;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;}
-.lhdr{padding:10px 16px 6px;display:flex;justify-content:space-between;}
-.lhdr-t{font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;}
-.lhdr-c{font-size:12px;color:#9ca3af;}
-.acard{background:#fff;margin:0 12px 8px;border-radius:12px;padding:13px 14px;box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer;border-left:4px solid #f59e0b;display:flex;align-items:center;gap:10px;}
-.acard:active{opacity:.85;}
-.acard.updated{background:#f0fdf4;border-left-color:#16a34a;}
-.ainfo{flex:1;min-width:0;}
-.aacno{font-size:15px;font-weight:700;color:#1F4E79;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.utag{font-size:10px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 7px;border-radius:10px;}
-.ameter{font-size:12px;color:#374151;font-weight:500;margin-top:2px;}
-.aaddr{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
-.ardate{font-size:11px;color:#9ca3af;margin-top:2px;}
-.arr{font-size:18px;color:#d1d5db;flex-shrink:0;}
-.badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
-.bp{background:#fef3c7;color:#92400e;}
-.bd{background:#d1fae5;color:#065f46;}
-.errmsg{background:#fee2e2;color:#b91c1c;padding:9px 13px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
-.rmphoto{margin-top:6px;background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;width:100%;font-family:inherit;}
-.swrap{text-align:center;padding:48px 20px;}
-.sico{font-size:60px;margin-bottom:14px;}
-.stitle{font-size:20px;font-weight:700;color:#111;margin-bottom:6px;}
-.ssub{font-size:14px;color:#6b7280;margin-bottom:26px;}
-.btn{width:100%;padding:13px;border-radius:10px;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:8px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
-.btn:active{opacity:.82;}
-.btnp{background:#1F4E79;color:#fff;}
-.btns{background:#1E7145;color:#fff;}
-.btng{background:#f3f4f6;color:#374151;}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 14px 10px;}
-.stat{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);}
-.statn{font-size:24px;font-weight:800;color:#1F4E79;}
-.statl{font-size:11px;color:#6b7280;margin-top:2px;}
-.nav{display:flex;background:#fff;border-top:1px solid #e5e7eb;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:100;}
-.nbtn{flex:1;padding:9px 4px 11px;text-align:center;font-size:11px;font-weight:500;color:#9ca3af;cursor:pointer;border:none;background:none;font-family:inherit;position:relative;}
-.nbtn.active{color:#1F4E79;}
-.nico{font-size:21px;display:block;margin-bottom:1px;}
-.ndot{width:8px;height:8px;background:#ef4444;border-radius:50%;display:none;position:absolute;top:7px;right:calc(50% - 18px);}
-.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;display:inline-block;}
-@keyframes sp{to{transform:rotate(360deg);}}
-.loading{text-align:center;padding:40px 20px;color:#9ca3af;font-size:14px;line-height:1.8;}
-.loadmore{margin:4px 12px 14px;padding:11px;background:#fff;border:1.5px dashed #d1d5db;border-radius:10px;color:#6b7280;font-size:14px;text-align:center;cursor:pointer;font-family:inherit;width:calc(100% - 24px);}
-.empty{text-align:center;padding:48px 20px;color:#9ca3af;}
-.plist{padding:0 12px;}
+/* Cards & tables */
+.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:16px;}
+.card h3{font-size:15px;font-weight:700;color:#1F4E79;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;font-weight:700;padding:8px 10px;border-bottom:2px solid #e5e7eb;}
+td{padding:10px;border-bottom:1px solid #f3f4f6;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.role-b{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;}
+.role-admin{background:#ede9fe;color:#5b21b6;}
+.role-supervisor{background:#fef3c7;color:#92400e;}
+.role-worker{background:#e0f2fe;color:#075985;}
+.copycell:hover{background:#eff6ff !important;}
+.copycell:active{background:#dbeafe !important;}
+.locked-row td{background:#dcfce7;}
+.locked-row .copycell:hover{background:#bbf7d0 !important;}
+.ckey{padding:12px 0;font-size:16px;font-weight:600;border:none;border-radius:8px;background:#f3f4f6;color:#111;cursor:pointer;font-family:inherit;}
+.ckey:active{transform:scale(.95);}
+.ckey.cop{background:#dbeafe;color:#1d4ed8;}
+.ckey.cfn{background:#fee2e2;color:#b91c1c;font-size:14px;}
+.ckey.ceq{background:#1E7145;color:#fff;}
+@keyframes blinkpulse{0%,100%{background:#1E7145;color:#fff;box-shadow:0 0 0 0 rgba(30,113,69,.5);}50%{background:#16a34a;color:#fff;box-shadow:0 0 0 6px rgba(30,113,69,0);}}
+.blink{animation:blinkpulse 1s ease-in-out infinite;}
+.ticked-row td{background:#fef9c3;}
+.ticked-row .copycell:hover{background:#fef08a !important;}
+.area-b{font-size:12px;font-weight:700;color:#1F4E79;background:#eff6ff;padding:3px 10px;border-radius:20px;display:inline-block;}
+.act{background:#f3f4f6;border:none;border-radius:7px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:4px;}
+.act.del{background:#fee2e2;color:#b91c1c;}
+.addbtn{background:#1E7145;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.loading{text-align:center;padding:36px;color:#9ca3af;font-size:14px;}
+.msg{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:300;font-size:13px;padding:10px 18px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:none;max-width:90%;}
+.msg.ok{background:#dcfce7;color:#14532d;display:block;}
+.msg.bad{background:#fee2e2;color:#b91c1c;display:block;}
 
-/* ── DETAIL SCREEN — compact, no wasted space ── */
-#screen-detail {
-  flex-direction: column;
-  background: #111827;
-  min-height: 100vh;
+/* Overview bars */
+.bar-bg{background:#f3f4f6;border-radius:10px;height:16px;overflow:hidden;min-width:120px;}
+.bar-fill{background:#1E7145;height:100%;border-radius:10px;transition:width .4s;}
+.pct{font-size:12px;font-weight:700;color:#374151;}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:200;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:400px;box-shadow:0 12px 40px rgba(0,0,0,.3);}
+.modal h3{font-size:16px;font-weight:700;color:#1F4E79;margin-bottom:16px;}
+.modal .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal .btns{display:flex;gap:8px;margin-top:6px;}
+.modal .btns button{flex:1;}
+.cancel{background:#f3f4f6;color:#374151;}
+.hint{font-size:11px;color:#9ca3af;margin-top:3px;}
+
+@media(max-width:560px){
+  #pane-users th:nth-child(2),#pane-users td:nth-child(2){display:none;} /* hide Name column on narrow screens (Users table only) */
 }
-
-/* Compact sticky header */
-#detail-hdr {
-  background: #1F4E79;
-  padding: 8px 12px;
-  border-bottom: 2px solid #fbbf24;
-  flex-shrink: 0;
-}
-
-/* Body: only as tall as its content, no flex-grow */
-#detail-body {
-  padding: 10px 12px 8px;
-  flex-shrink: 0;
-}
-
-/* Fixed bottom action buttons — repositioned via JS to sit above keyboard */
-#detail-btns {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 430px;
-  margin: 0 auto;
-  padding: 8px 12px 12px;
-  background: #0f172a;
-  border-top: 2px solid #1e293b;
-  z-index: 999;
-}
-@keyframes needphoto{0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-4px);}40%,80%{transform:translateX(4px);}}
-.need-photo{animation:needphoto .5s ease-in-out 2;box-shadow:0 0 0 3px rgba(239,68,68,.6);}
 </style>
 </head>
 <body>
-<div class="app">
-<div class="hdr">
-  <span style="font-size:21px">⚡</span>
-  <h1>Unbilled Readings</h1>
-  <span class="hdr-name" onclick="changeName()">👤 <span id="wlabel">Field Staff</span></span>
-  <button class="hdr-rf" id="rfbtn" onclick="hardRefresh()">🔄</button>
-  <button class="hdr-rf" onclick="doLogout()" style="margin-left:0;">🚪</button>
+
+<!-- LOGIN -->
+<div id="v-login" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="ico">🛠️</div>
+      <h2>Unbilled Admin</h2>
+      <p>STELCO — user &amp; area management</p>
+    </div>
+    <div class="lfield">
+      <label>Username</label>
+      <input type="text" id="l-user" placeholder="Admin username" autocomplete="username" autocapitalize="none">
+    </div>
+    <div class="lfield">
+      <label>Password</label>
+      <input type="password" id="l-pass" placeholder="Password" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="bigbtn" id="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="err" id="login-err"></div>
+  </div>
 </div>
-<div class="sbar" id="sbar"></div>
 
-<div class="content">
-
-  <!-- LOGIN SCREEN -->
-  <div class="screen" id="screen-login">
-    <div class="login-wrap">
-      <div class="login-box">
-        <div class="login-logo">
-          <div class="ico">⚡</div>
-          <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v9 · new-api</p>
-        </div>
-        <div class="lfield">
-          <label>Username</label>
-          <input type="text" id="l-user" placeholder="Enter username" autocomplete="username" autocapitalize="none">
-        </div>
-        <div class="lfield">
-          <label>Password</label>
-          <input type="password" id="l-pass" placeholder="Enter password" autocomplete="current-password"
-            onkeydown="if(event.key==='Enter')doLogin()">
-        </div>
-        <button class="login-btn" onclick="doLogin()" id="login-btn">Sign In</button>
-        <div class="login-err" id="login-err"></div>
-      </div>
+<!-- MAIN -->
+<div id="v-main" style="display:none">
+  <div class="hdr">
+    <div class="hdr-in">
+      <span style="font-size:20px">🛠️</span>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v32 · new-api</span></h1>
+      <span class="who" id="who"></span>
+      <button onclick="doLogout()">Log out</button>
     </div>
   </div>
 
-  <!-- AREA SELECTION SCREEN -->
-  <div class="screen" id="screen-area">
-    <div class="area-screen">
-      <div class="area-title">Select Area</div>
-      <div class="area-sub">Choose an area to load its accounts</div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">Area</label>
-        <select id="area-select" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;background:#fff;color:#111;font-family:inherit;outline:none;">
-          <option value="all">All Areas</option>
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab" id="tab-dash" onclick="switchTab('dash')">📈 Dashboard</button>
+      <button class="tab active" id="tab-users" onclick="switchTab('users')">👥 Users</button>
+      <button class="tab" id="tab-overview" onclick="switchTab('overview')">📊 Area Progress</button>
+      <button class="tab" id="tab-sup" onclick="switchTab('sup')">📤 Upload Unbilled</button>
+      <button class="tab" id="tab-entered" onclick="switchTab('entered')">✅ Unbilled Taken</button>
+      <button class="tab" id="tab-new" onclick="switchTab('new')">📋 Unbilled New</button>
+      <button class="tab" id="tab-nometer" onclick="switchTab('nometer')">🚫 No-Meter</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <!-- SUPERVISOR TAB — CSV import -->
+    <div id="pane-sup" style="display:none">
+      <div class="card">
+        <h3>Upload area unbilled file</h3>
+        <div style="font-size:13px;color:#6b7280;margin-bottom:14px;line-height:1.5;">
+          Upload the exported unbilled file, the date should be same as current reading date.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:440px;">
+          <div class="lfield">
+            <label>File date</label>
+            <input type="date" id="sup-date" style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;color:#111;background:#fff;">
+          </div>
+          <div class="lfield">
+            <label>Mode</label>
+            <select id="sup-mode">
+              <option value="append" selected>Append to existing</option>
+              <option value="replace">Replace (same area + month)</option>
+            </select>
+          </div>
+        </div>
+        <div class="lfield" style="max-width:440px;">
+          <label>Detected area</label>
+          <div id="sup-area-detect" style="padding:11px 14px;border:1.5px dashed #d1d5db;border-radius:9px;font-size:14px;color:#9ca3af;background:#fafafa;">Choose a file to detect the area</div>
+        </div>
+        <div class="lfield" style="max-width:440px;">
+          <label>Data file (XLS / XLSX / CSV)</label>
+          <input type="file" id="sup-file" accept=".csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="handleCsvFile(this)"
+            style="width:100%;padding:10px;border:1.5px dashed #d1d5db;border-radius:9px;font-size:14px;font-family:inherit;background:#fafafa;">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#374151;margin-top:8px;cursor:pointer;">
+            <input type="checkbox" id="sup-header" checked onchange="reparseCsv()"> First row is a header (skip it)
+          </label>
+        </div>
+        <div id="sup-preview"></div>
+        <button class="bigbtn" id="sup-upload" onclick="doCsvUpload()" style="max-width:440px;margin-top:10px;" disabled>Upload to sheet</button>
+        <div class="err" id="sup-err"></div>
+      </div>
+    </div>
+
+    <!-- ENTERED READINGS TAB -->
+    <div id="pane-entered" style="display:none">
+     <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <div class="card" style="flex:1;min-width:320px;">
+        <h3>
+          Accounts with new readings
+          <span style="display:flex;gap:8px;">
+            <button class="addbtn" id="lock-btn" style="background:#b45309;" onclick="lockSelected()" disabled>🔒 Mark selected done → billing</button>
+          </span>
+        </h3>
+        <div style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.5;">
+          These accounts have a new reading entered by field staff. <b>Click any cell to copy it</b>
+          for pasting into the billing program. Tick a row once you've entered it into billing —
+          then press <b>Mark selected done</b> to lock it (locked rows can no longer be changed and
+          are archived at month close).
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+          <div class="lfield" style="margin:0;min-width:150px;">
+            <label>Area</label>
+            <select id="ent-area" onchange="onEntAreaChange()"><option value="">Select area…</option></select>
+          </div>
+          <div class="lfield" style="margin:0;min-width:160px;">
+            <label>R_DATE (optional)</label>
+            <input type="date" id="ent-date" onchange="onEntAreaChange()"
+              style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;outline:none;color:#111;background:#fff;">
+          </div>
+          <button class="act" id="ent-refresh-btn" style="height:40px;" onclick="refreshEntered()">🔄 Refresh</button>
+          <button class="act" style="height:40px;" onclick="clearEnteredFilters()">Clear</button>
+        </div>
+        <div id="entered-body" class="loading" style="color:#9ca3af;">Select an area and press Load.</div>
+      </div>
+
+      <!-- Projection calculator -->
+      <div class="card" style="width:260px;flex:none;position:sticky;top:16px;align-self:flex-start;">
+        <h3 style="margin-bottom:4px;">📐 Projection</h3>
+        <div class="hint" style="margin-bottom:12px;">Tick a row to load its readings.</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">Previous</div>
+            <input type="number" id="pj-prev" oninput="pjCalc()" placeholder="—"
+              style="width:100%;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">Current</div>
+            <input type="number" id="pj-cur" oninput="pjCalc()" placeholder="—"
+              style="width:100%;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">Reading days</div>
+            <input type="number" id="pj-days" oninput="pjCalc()" placeholder="—"
+              style="width:100%;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:3px;">Target days</div>
+            <input type="number" id="pj-target" value="30" oninput="pjCalc()"
+              style="width:100%;padding:8px;border:1.5px solid #2563eb;border-radius:8px;font-size:14px;font-weight:700;font-family:inherit;outline:none;">
+          </div>
+        </div>
+
+        <div style="background:#f9fafb;border-radius:9px;padding:10px 12px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span style="color:#6b7280;">Daily usage</span>
+            <span id="pj-daily" style="font-weight:700;color:#111;">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#6b7280;font-size:13px;">Projected reading</span>
+            <span id="pj-result" onclick="pjCopyResult()" title="Click to copy"
+              style="font-weight:800;font-size:18px;color:#1E7145;cursor:pointer;">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;border-top:1px solid #e5e7eb;padding-top:6px;">
+            <span style="color:#6b7280;font-size:13px;">Projected date</span>
+            <span id="pj-date" style="font-weight:700;color:#1d4ed8;">—</span>
+          </div>
+        </div>
+        <div class="hint">Daily = (Current − Prev) ÷ Reading days.<br>Projected = round(Daily × Target + Prev).<br>Date = Prev date + Target days.</div>
+
+        <!-- Meter photo for the ticked row -->
+        <div id="pj-photo-wrap" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px;">
+          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">📷 Meter photo</div>
+          <div id="pj-photo" style="font-size:12px;color:#9ca3af;">Tick a row to view its photo.</div>
+        </div>
+      </div>
+     </div>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="pane-dash" style="display:none">
+      <div class="card">
+        <h3 style="justify-content:space-between;">
+          <span>Coverage dashboard — <span id="dash-month" style="color:#6b7280;font-weight:400;">…</span></span>
+          <button class="act" onclick="loadDashboard(true)">🔄 Refresh</button>
+        </h3>
+        <div id="dash-body" class="loading" style="color:#9ca3af;">Loading…</div>
+      </div>
+    </div>
+
+    <!-- UNBILLED NEW TAB -->
+    <div id="pane-new" style="display:none">
+      <div class="card">
+        <h3>
+          Unbilled — new (not taken)
+          <span style="display:flex;gap:8px;">
+            <button class="addbtn" id="rmk-save-btn" style="background:#1E7145;" onclick="saveRemarks()" disabled>💾 Save remarks</button>
+            <button class="act" onclick="loadUnbilledNew(true)">🔄 Refresh</button>
+          </span>
+        </h3>
+        <div style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.5;">
+          Accounts with no reading taken yet (excludes no-meter accounts). Edit the <b>Remarks</b>
+          column inline, then press <b>Save remarks</b> to write all changes back to the sheet.
+        </div>
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+          <label style="font-size:13px;font-weight:600;color:#374151;">Area:</label>
+          <select id="new-area-filter" onchange="renderUnbilledNew()" style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:#111;"><option value="all">All areas</option></select>
+        </div>
+        <div id="new-body" class="loading" style="color:#9ca3af;">Loading…</div>
+      </div>
+    </div>
+
+    <!-- NO-METER TAB -->
+    <div id="pane-nometer" style="display:none">
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+        <div class="card" style="flex:1;min-width:320px;">
+          <h3>Mark an account as No-Meter</h3>
+          <div id="nm-areas-hint" style="display:none;font-size:12px;color:#075985;background:#e0f2fe;border-radius:8px;padding:8px 12px;margin-bottom:14px;"></div>
+          <div style="display:flex;gap:10px;align-items:end;margin-bottom:14px;flex-wrap:wrap;">
+            <div class="lfield" style="margin:0;min-width:180px;">
+              <label>Account number</label>
+              <input type="number" id="nm-acno" placeholder="e.g. 65567"
+                onkeydown="if(event.key==='Enter')nmLookup()"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;">
+            </div>
+            <button class="addbtn" style="height:42px;background:#1F4E79;" onclick="nmLookup()">🔍 Look up</button>
+          </div>
+          <div id="nm-result"></div>
+        </div>
+
+        <!-- Current no-meter list -->
+        <div class="card" style="width:300px;flex:none;">
+          <h3 style="display:flex;justify-content:space-between;align-items:center;">
+            No-meter list
+            <button class="act" onclick="nmLoadList()">🔄</button>
+          </h3>
+          <div id="nm-list" class="loading" style="color:#9ca3af;">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS TAB -->
+    <div id="pane-users">
+      <div class="card">
+        <h3>
+          Users
+          <button class="addbtn" onclick="openAdd()">＋ Add user</button>
+        </h3>
+        <div id="users-body" class="loading">Loading users...</div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="pane-overview" style="display:none">
+      <div class="card">
+        <h3>
+          Readings progress by area
+          <button class="addbtn" style="background:#1F4E79" onclick="loadOverview(true)">🔄 Refresh</button>
+        </h3>
+        <div id="ov-body" class="loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT USER MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="m-title">Add user</h3>
+    <div class="lfield">
+      <label>Username</label>
+      <input type="text" id="m-username" autocapitalize="none" autocomplete="off">
+    </div>
+    <div class="lfield">
+      <label>Full name</label>
+      <input type="text" id="m-name" autocomplete="off">
+    </div>
+    <div class="row2">
+      <div class="lfield">
+        <label>Area</label>
+        <select id="m-area"></select>
+      </div>
+      <div class="lfield">
+        <label>Role</label>
+        <select id="m-role" onchange="onRoleChange()">
+          <option value="worker">Field Staff</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="admin">Admin</option>
         </select>
       </div>
-      <button class="area-load" id="area-load-btn" onclick="loadSelectedArea()">Load Accounts →</button>
-      <div id="area-err" style="color:#b91c1c;font-size:13px;margin-top:10px;display:none;text-align:center;"></div>
+    </div>
+    <div class="lfield" id="m-areas-wrap" style="display:none;">
+      <label>Assigned areas <span style="font-weight:400;color:#9ca3af;">(supervisor can view only these in Unbilled Taken)</span></label>
+      <div id="m-areas" style="display:flex;flex-wrap:wrap;gap:6px;max-height:120px;overflow-y:auto;padding:8px;border:1.5px solid #e5e7eb;border-radius:9px;"></div>
+    </div>
+    <div class="lfield">
+      <label id="m-pass-label">Password</label>
+      <input type="text" id="m-password" autocomplete="off" autocapitalize="none">
+      <div class="hint" id="m-pass-hint" style="display:none">Leave blank to keep the current password.</div>
+    </div>
+    <div class="err" id="m-err"></div>
+    <div class="btns" style="display:flex;gap:8px;margin-top:10px;">
+      <button class="bigbtn cancel" onclick="closeModal()">Cancel</button>
+      <button class="bigbtn" id="m-save" onclick="saveUser()">Save</button>
     </div>
   </div>
-
-  <!-- HOME (account list) -->
-  <div class="screen" id="screen-home">
-    <div class="topbar">
-      <div class="area-chip">
-        <span class="achip" id="area-chip">Area: All</span>
-        <span class="achip" id="today-chip" style="background:rgba(255,255,255,.12);">✍ 0 today</span>
-        <button class="achange" onclick="showAreaScreen()">Change area</button>
-      </div>
-      <div class="sw">
-        <span class="ico">🔍</span>
-        <input type="number" id="sinput" placeholder="Search account / meter no..." inputmode="numeric" autocomplete="off"
-          oninput="filterList(this.value)" onkeydown="if(event.key==='Enter')quickSearch()">
-        <button class="go" onclick="quickSearch()">Go</button>
-      </div>
-    </div>
-    <div class="lhdr">
-      <span class="lhdr-t" id="ltitle">Unbilled Accounts</span>
-      <span class="lhdr-c" id="lcount"></span>
-    </div>
-    <div id="alist"></div>
-    <button class="loadmore" id="lmbtn" onclick="loadMore()" style="display:none">Load more ↓</button>
-  </div>
-
-  <!-- DETAIL SCREEN — compact layout -->
-  <div class="screen" id="screen-detail">
-
-    <!-- Compact sticky header -->
-    <div id="detail-hdr">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-        <button onclick="goBack()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✕ List</button>
-        <span class="badge" id="d-status"></span>
-      </div>
-      <div style="color:#7dd3fc;font-size:13px;font-weight:700;line-height:1.2;" id="d-addr"></div>
-      <div style="color:#fff;font-size:13px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;">
-        <span><span style="opacity:.7;font-size:11px;">AC: </span><span style="font-weight:800;font-size:15px;" id="d-acno"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;font-size:11px;">Area: </span><span style="font-weight:700;font-size:13px;" id="d-area"></span></span>
-        <span style="opacity:.4;">|</span>
-        <span><span style="opacity:.7;font-size:11px;">Meter: </span><span style="font-weight:700;font-size:15px;color:#7dd3fc;" id="d-meter"></span></span>
-      </div>
-      <div style="color:#fbbf24;font-size:12px;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="font-weight:700;" id="d-prev"></span>
-        <span style="opacity:.6;"> on </span>
-        <span id="d-pdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <span style="color:#fff;opacity:.8;">R_DATE: </span>
-        <span style="color:#fff;font-weight:700;" id="d-rdate"></span>
-        <span style="opacity:.4;margin:0 2px;">|</span>
-        <!-- Photo inline -->
-        <span id="pbw" style="display:inline-flex;align-items:center;">
-          <button id="photo-btn" onclick="document.getElementById('pinput').click()" style="background:#fbbf24;border:none;color:#1f2937;font-weight:700;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;">📷 Photo *</button>
-          <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
-        </span>
-        <span id="pp" style="display:none;align-items:center;gap:4px;">
-          <img id="pimg" src="" style="border-radius:4px;height:20px;width:28px;object-fit:cover;vertical-align:middle;">
-          <button onclick="clearPhoto()" style="background:rgba(239,68,68,.3);border:none;color:#fca5a5;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;font-family:inherit;">✕</button>
-        </span>
-      </div>
-    </div>
-
-    <!-- Reading input area — compact, no scrolling needed -->
-    <div id="detail-body">
-      <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">New Reading</div>
-      <input type="number" id="f-reading" placeholder="0" inputmode="numeric" autocomplete="off"
-        name="meter-reading" data-lpignore="true" data-1p-ignore data-form-type="other"
-        style="width:100%;background:#fff;border:3px solid #2563eb;border-radius:10px;font-size:32px;font-weight:800;padding:12px 16px;color:#111;font-family:inherit;outline:none;text-align:center;margin-bottom:10px;">
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">New Date</div>
-          <input type="date" id="f-date" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-        <div>
-          <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">Remarks</div>
-          <input type="text" id="f-remarks" placeholder="Done / Locked..." autocomplete="off" name="meter-remarks" data-lpignore="true" data-1p-ignore data-form-type="other" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
-        </div>
-      </div>
-
-      <div class="errmsg" id="serr" style="margin-top:6px;"></div>
-
-      <!-- Spacer so content doesn't hide behind fixed buttons -->
-      <div style="height:72px;"></div>
-    </div>
-
-    <!-- Fixed bottom action buttons -->
-    <div id="detail-btns">
-      <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;">
-        <button onclick="goPrev()" style="background:#374151;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">◀ Prev</button>
-        <button onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
-        <button onclick="saveReading(true)" style="background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Next ▶</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SUCCESS -->
-  <div class="screen" id="screen-success">
-    <div class="swrap">
-      <div class="sico">✅</div>
-      <div class="stitle">Reading saved!</div>
-      <div class="ssub" id="smsg"></div>
-      <button class="btn btnp" onclick="goBack()" style="margin-bottom:10px">← Back to list</button>
-      <button class="btn btng" onclick="switchNav('pending')">View pending</button>
-    </div>
-  </div>
-
-  <!-- PENDING -->
-  <div class="screen" id="screen-pending">
-    <div class="stats">
-      <div class="stat"><div class="statn" id="sp">0</div><div class="statl">Pending sync</div></div>
-      <div class="stat"><div class="statn" id="ss">0</div><div class="statl">Synced</div></div>
-    </div>
-    <div style="padding:0 14px 12px">
-      <button class="btn btnp" onclick="syncAll()" id="syncbtn">🔄 Sync all now</button>
-      <button class="btn btng" onclick="clearSynced()">🧹 Clear synced records</button>
-    </div>
-    <div class="lhdr"><span class="lhdr-t">Saved updates</span></div>
-    <div class="plist" id="plist"></div>
-    <div class="empty" id="pempty" style="display:none"><div style="font-size:44px;margin-bottom:10px">✅</div><div>All synced!</div></div>
-  </div>
-
-</div>
-
-<nav class="nav">
-  <button class="nbtn active" id="nav-home" onclick="switchNav('home')">
-    <span class="nico">🏠</span>Home
-  </button>
-  <button class="nbtn" id="nav-pending" onclick="switchNav('pending')">
-    <span class="nico">🕐</span>Pending
-    <span class="ndot" id="ndot"></span>
-  </button>
-</nav>
 </div>
 
 <script>
 const API = "https://script.google.com/macros/s/AKfycbwNJiQfKBMcJhwE8VnQvktSUUcMPbnrzCs2NlUZYeW3ZfELM9GX_F41_RnEFa0ep-jt/exec";
-const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
 
-let pending = [];
-let allAccounts = [], filtered = [], page = 1, pageSize = 40;
-let currentAcct = null, photoB64 = null;
-let hasExistingPhoto = false; // true when this account already has a photo saved in the sheet
-let selectedArea = localStorage.getItem('ub_area') || 'all';
-let updatedSet = new Set();
-let inFlight = new Set(); // update ids currently being POSTed — prevents duplicate sends
+let session = null;   // { token, user:{username,name,area,role} }
+let users = [];
+let editingUsername = null; // null = adding
 
-// ── Session token helpers ──
-let currentUser = null;
-function tok(){ return (currentUser && currentUser.token) ? currentUser.token : ''; }
-function authUrl(qs){ return API + qs + '&token=' + encodeURIComponent(tok()); }
-function isAuthError(d){ return !!(d && d.error === 'auth'); }
-function forceRelogin(){
-  // Server session expired. Unsynced readings stay safe in IndexedDB —
-  // they'll sync automatically after the worker signs in again.
-  currentUser = null;
-  localStorage.removeItem('ub_session');
-  showBar('Session expired — sign in again (your readings are safe)','offline');
-  show('login');
+function tok(){ return session ? session.token : ''; }
+
+async function api(body) {
+  const res = await fetch(API, { method:'POST', body: JSON.stringify(Object.assign({}, body, { token: tok() })) });
+  const data = await res.json();
+  if (data && data.error === 'auth') { forceRelogin(); throw new Error('auth'); }
+  return data;
 }
 
-function makeId() {
-  return Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+function forceRelogin() {
+  session = null;
+  localStorage.removeItem('ub_admin_session');
+  document.getElementById('v-main').style.display = 'none';
+  document.getElementById('v-login').style.display = 'flex';
+  showLoginErr('Session expired — please sign in again.');
 }
 
-// ── IndexedDB for persistent offline readings ──
-let db = null;
-const DB_NAME = 'UnbilledDB', DB_VER = 2, STORE = 'pending';
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VER);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      const tx = e.target.transaction;
-      if (d.objectStoreNames.contains(STORE)) {
-        // v1 → v2 migration: old store was keyed by savedAt (could collide);
-        // new store is keyed by a unique 'id'. Carry old records across.
-        const oldStore = tx.objectStore(STORE);
-        const g = oldStore.getAll();
-        g.onsuccess = () => {
-          const recs = g.result || [];
-          d.deleteObjectStore(STORE);
-          const ns = d.createObjectStore(STORE, { keyPath: 'id' });
-          recs.forEach((r, idx) => {
-            if (!r.id) r.id = Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2, 7);
-            if (!r.ts) r.ts = Date.now();
-            ns.put(r);
-          });
-        };
-      } else {
-        d.createObjectStore(STORE, { keyPath: 'id' });
-      }
-    };
-    req.onsuccess = e => { db = e.target.result; resolve(db); };
-    req.onerror = () => reject(req.error);
-  });
+function showLoginErr(m) {
+  const e = document.getElementById('login-err');
+  e.textContent = m; e.style.display = 'block';
 }
 
-async function dbGetAll() {
-  if (!db) return [];
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => resolve([]);
-  });
+function flash(m, ok) {
+  const el = document.getElementById('msg');
+  el.className = 'msg ' + (ok ? 'ok' : 'bad');
+  el.textContent = m;
+  setTimeout(()=>{ el.className='msg'; }, 4000);
 }
 
-async function dbPut(item) {
-  if (!db) return;
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(item);
-    tx.oncomplete = resolve;
-  });
-}
-
-async function dbDelete(id) {
-  if (!db) return;
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).delete(id);
-    tx.oncomplete = resolve;
-  });
-}
-
-async function dbClear() {
-  if (!db) return;
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).clear();
-    tx.oncomplete = resolve;
-  });
-}
-
-async function loadPending() {
-  pending = await dbGetAll();
-  // Auto-purge synced records older than 3 days (photos already uploaded)
-  const cutoff = Date.now() - 3*24*60*60*1000;
-  const stale = pending.filter(p => p.synced && !p.photo && (p.ts || 0) < cutoff);
-  for (const s of stale) { try { await dbDelete(s.id); } catch(e){} }
-  if (stale.length) pending = pending.filter(p => !stale.includes(p));
-  updatedSet = new Set(pending.filter(p => p.synced).map(p => String(p.acno)));
-  updateDot();
-  updateTodayChip();
-}
-
-function updateTodayChip() {
-  const el = document.getElementById('today-chip');
-  if (!el) return;
-  const today = new Date().toISOString().split('T')[0];
-  const n = new Set(pending.filter(p => p.dateKey === today).map(p => String(p.acno))).size;
-  el.textContent = '✍ ' + n + ' today';
-}
-
-function showBar(msg, type) {
-  const b = document.getElementById('sbar');
-  b.className = 'sbar show ' + type;
-  b.textContent = msg;
-  b.onclick = () => { b.className = 'sbar'; };   // tap to dismiss immediately
-  b.title = 'Tap to dismiss';
-  clearTimeout(showBar._t);
-  // Errors linger a bit longer than confirmations, but they DO go away.
-  const ms = (type === 'ok') ? 3000 : 8000;
-  showBar._t = setTimeout(() => { b.className = 'sbar'; }, ms);
-}
-
-function show(id) {
-  if (!currentUser && id !== 'login') { id = 'login'; }
-  document.querySelectorAll('.screen').forEach(s => {
-    s.classList.remove('active');
-    s.style.display = 'none';
-  });
-  const el = document.getElementById('screen-' + id);
-  el.classList.add('active');
-  el.style.display = (id === 'detail') ? 'flex' : 'block';
-
-  // Once signed in, disable the login fields. A live password input left in
-  // the DOM makes Chrome show its autofill bar (key / card / address chips)
-  // above the keyboard on every other screen.
-  const lu = document.getElementById('l-user'), lp = document.getElementById('l-pass');
-  const onLogin = (id === 'login');
-  if (lu) lu.disabled = !onLogin;
-  if (lp) lp.disabled = !onLogin;
-
-  const nav = document.querySelector('.nav');
-  if (id === 'detail') {
-    nav.style.display = 'none';
-    document.querySelector('.content').style.paddingBottom = '0';
-    setTimeout(updateBtnPosition, 50);
-  } else {
-    nav.style.display = 'flex';
-    document.querySelector('.content').style.paddingBottom = '72px';
-  }
-}
-
-function switchNav(tab) {
-  if (!currentUser) { show('login'); return; }
-  document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));
-  const nb = document.getElementById('nav-'+tab);
-  if (nb) nb.classList.add('active');
-  if (tab==='pending') { renderPending(); show('pending'); }
-  else if (tab==='home') show('home');
-}
-
-function goBack() {
-  if (!currentUser) { show('login'); return; }
-  clearPhoto(); show('home'); switchNav('home');
-}
-
-function goPrev() {
-  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
-  if (currentIdx > 0) {
-    const prev = filtered[currentIdx - 1];
-    currentAcct = prev;
-    fillDetail(prev, true);
-    const prevUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(prev.acno));
-    if (prevUpdate) {
-      document.getElementById('f-reading').value = prevUpdate.newReading || '';
-      document.getElementById('f-date').value = prevUpdate.newDate || new Date().toISOString().split('T')[0];
-      document.getElementById('f-remarks').value = prevUpdate.remarks || '';
-    }
-  } else {
-    showBar('Already at first account','offline');
-  }
-}
-
-function showAreaScreen() { show('area'); }
-
-let selectedAreaTemp = selectedArea;
-
-function loadAreas() {
-  const sel = document.getElementById('area-select');
-  sel.innerHTML = '<option value="all">All Areas</option>';
-  for (let i = 1; i <= 24; i++) {
-    const opt = document.createElement('option');
-    opt.value = i; opt.textContent = 'Area ' + i;
-    if (String(i) === String(selectedArea)) opt.selected = true;
-    sel.appendChild(opt);
-  }
-  if (selectedArea === 'all') sel.value = 'all';
-}
-
-async function loadSelectedArea() {
-  selectedArea = document.getElementById('area-select').value;
-  localStorage.setItem('ub_area', selectedArea);
-  const btn = document.getElementById('area-load-btn');
-  btn.innerHTML = '<span class="spin"></span> Loading...';
-  btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  await loadAll(true);
-  btn.innerHTML = 'Load Accounts →';
-  btn.disabled = false;
-  document.getElementById('area-chip').textContent = selectedArea==='all' ? 'Area: All' : 'Area: '+selectedArea;
-  show('home');
-  switchNav('home');
-}
-
-async function hardRefresh() {
-  const btn = document.getElementById('rfbtn');
-  btn.textContent = '⏳'; btn.disabled = true;
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  await loadAll(true);
-  btn.textContent = '🔄'; btn.disabled = false;
-  showBar('Refreshed ✓','ok');
-}
-
-async function loadAll(force) {
-  const el = document.getElementById('alist');
-  if (!force) {
-    const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
-    if (c && (Date.now()-ts)<TTL) {
-      allAccounts = JSON.parse(c).filter(a => !a.locked);
-      filtered = allAccounts; // consistent with network path — show all, pending first in count
-      renderList();
-      const pc = allAccounts.filter(a=>a.status==='pending').length;
-      document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total';
-      document.getElementById('ltitle').textContent = 'All Accounts';
-      // Always verify against sheet in background — catches cases where sheet write failed
-      bgRefresh();
-      return;
-    }
-  }
-  el.innerHTML = '<div class="loading">⏳ Loading accounts...<br><small>May take 15–20 seconds on first load</small></div>';
-  const areaParam = selectedArea!=='all' ? '&area='+encodeURIComponent(selectedArea) : '';
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(()=>ctrl.abort(), 20000);
-    const res = await fetch(authUrl('?action=all'+areaParam), {signal:ctrl.signal});
-    clearTimeout(tid);
-    const data = await res.json();
-    if (isAuthError(data)) { forceRelogin(); return; }
-    allAccounts = (data.accounts || []).filter(a => !a.locked); // locked accounts are hidden from reading entry
-    localStorage.setItem(CK, JSON.stringify(allAccounts));
-    localStorage.setItem(CT, Date.now()+'');
-    filtered = allAccounts;
-    renderList();
-    const pendingCount = allAccounts.filter(a=>a.status==='pending').length;
-    document.getElementById('lcount').textContent = pendingCount+' pending / '+allAccounts.length+' total';
-    document.getElementById('ltitle').textContent = 'All Accounts';
-  } catch(e) {
-    const c = localStorage.getItem(CK);
-    if (c) {
-      allAccounts = JSON.parse(c).filter(a => !a.locked);
-      filtered = allAccounts;
-      renderList();
-      const pc2 = allAccounts.filter(a=>a.status==='pending').length;
-      document.getElementById('lcount').textContent = pc2+' pending / '+allAccounts.length+' total (cached)';
-      showBar('Showing cached data — tap 🔄 to refresh','offline');
-    } else {
-      el.innerHTML = `<div class="empty"><div style="font-size:44px;margin-bottom:10px">📡</div>
-        <div style="margin-bottom:16px">Could not connect.<br>Check internet and try again.</div>
-        <button class="btn btnp" onclick="loadAll(true)" style="width:auto;padding:10px 24px;margin:0 auto;">Try again</button></div>`;
-    }
-  }
-}
-
-async function bgRefresh() {
-  try {
-    const areaParam = selectedArea!=='all'?'&area='+encodeURIComponent(selectedArea):'';
-    const res = await fetch(authUrl('?action=all'+areaParam));
-    const data = await res.json();
-    if (isAuthError(data)) { forceRelogin(); return; }
-    if (data.accounts) {
-      allAccounts = data.accounts.filter(a => !a.locked);
-      localStorage.setItem(CK, JSON.stringify(allAccounts));
-      localStorage.setItem(CT, Date.now()+'');
-      // Reapply the current search filter so `filtered` points at fresh data,
-      // then restore pagination so "Load more" state isn't lost.
-      const pg = page;
-      filterList((document.getElementById('sinput').value || '').trim());
-      page = pg;
-      renderList();
-    }
-  } catch(e) {}
-}
-
-function renderList() {
-  const el = document.getElementById('alist');
-  const slice = filtered.slice(0, page*pageSize);
-  if (!filtered.length) {
-    el.innerHTML='<div class="empty"><div style="font-size:44px;margin-bottom:10px">🎉</div><div>All accounts have readings!</div></div>';
-    document.getElementById('lmbtn').style.display='none';
-    return;
-  }
-  el.innerHTML = slice.map(a => {
-    // Green only if sheet confirms done OR locally synced to sheet
-    const syncedLocally = updatedSet.has(String(a.acno)); // synced:true entries only
-    const sheetDone = a.status === 'done';
-    const isGreen = syncedLocally || sheetDone;
-    // Show orange "Saving..." tag if saved locally but not yet synced to sheet
-    const hasPendingLocal = pending.some(p => String(p.acno) === String(a.acno) && !p.synced);
-    const cls = isGreen ? 'updated' : '';
-    let tag = '';
-    if (a.locked) {
-      tag = '<span class="utag" style="background:#f3f4f6;color:#6b7280;">\u{1F512} Locked</span>';
-    } else if (isGreen) {
-      tag = '<span class="utag">✓ Updated</span>';
-    } else if (hasPendingLocal) {
-      tag = '<span class="utag" style="background:#fef3c7;color:#92400e;">⏳ Saving...</span>';
-    }
-    return `<div class="acard ${cls}" onclick="openAccount('${a.acno}')">
-      <div class="ainfo">
-        <div class="aacno">ACNO ${a.acno}${tag}</div>
-        <div class="ameter">Meter: ${a.meter||'—'}</div>
-        <div class="aaddr">${a.address||'—'}</div>
-        <div class="ardate">R_DATE: ${a.rdate||'—'}</div>
-      </div>
-      <span class="arr">›</span>
-    </div>`;
-  }).join('');
-  document.getElementById('lmbtn').style.display = slice.length<filtered.length?'block':'none';
-}
-
-function loadMore() { page++; renderList(); }
-
-function filterList(val) {
-  page=1;
-  if (!val) {
-    filtered = allAccounts;
-    document.getElementById('ltitle').textContent='All Accounts';
-    const pc3 = allAccounts.filter(a=>a.status==='pending').length;
-    document.getElementById('lcount').textContent=pc3+' pending / '+allAccounts.length+' total';
-  } else {
-    filtered = allAccounts.filter(a=>
-      String(a.acno).includes(val)||
-      String(a.meter||'').includes(val)||
-      (a.address||'').toLowerCase().includes(val.toLowerCase())
-    );
-    document.getElementById('ltitle').textContent='Search Results';
-    document.getElementById('lcount').textContent=filtered.length+' found';
-  }
-  renderList();
-}
-
-function quickSearch() {
-  const val = document.getElementById('sinput').value.trim();
-  if (!val) return;
-  const a = allAccounts.find(x=>String(x.acno)===val);
-  if (a) { fillDetail(a); currentAcct=a; show('detail'); return; }
-  filterList(val);
-}
-
-async function openAccount(acno) {
-  const a = allAccounts.find(x=>String(x.acno)===String(acno));
-  if (a) { currentAcct=a; fillDetail(a); show('detail'); return; }
-  showBar('Loading...','syncing');
-  try {
-    const res = await fetch(authUrl('?action=search&acno='+encodeURIComponent(acno)));
-    const data = await res.json();
-    if (isAuthError(data)) { forceRelogin(); return; }
-    document.getElementById('sbar').className='sbar';
-    if (data.found) {
-      if (data.locked) { showBar('\u{1F512} ACNO '+acno+' is locked \u2014 previous month is closed','offline'); return; }
-      currentAcct=data; fillDetail(data); show('detail');
-    }
-  } catch(e) { showBar('Could not load account','offline'); }
-}
-
-function fillDetail(d, keepKeyboard) {
-  document.getElementById('d-acno').textContent=d.acno;
-  document.getElementById('d-area').textContent='Area '+(d.area||'—');
-  document.getElementById('d-meter').textContent=d.meter||'—';
-  document.getElementById('d-addr').textContent=d.address||'—';
-  document.getElementById('d-prev').textContent=d.prevReading||'—';
-  document.getElementById('d-pdate').textContent=d.prevDate||'—';
-  document.getElementById('d-rdate').textContent=d.rdate||'—';
-  const b=document.getElementById('d-status');
-  b.textContent=d.locked?'\u{1F512} Locked':(d.status==='done'?'Done':'Pending');
-  b.className='badge '+(d.locked?'bp':(d.status==='done'?'bd':'bp'));
-  const inp = document.getElementById('f-reading');
-  inp.value='';
-  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
-  document.getElementById('f-remarks').value=d.remarks||'';
-  document.getElementById('serr').style.display='none';
-  const sb = document.getElementById('sbar');
-  if (sb) sb.className = 'sbar'; // don't carry a stale error onto the next account
-  clearPhoto();
-
-  // If this account already has a photo saved in the sheet, treat it as taken —
-  // don't force the worker to shoot it again.
-  hasExistingPhoto = !!String(d.photoUrl || '').trim();
-  const pbtn = document.getElementById('photo-btn');
-  if (pbtn) {
-    if (hasExistingPhoto) {
-      pbtn.textContent = '📷 Photo ✓';
-      pbtn.style.background = '#16a34a';
-      pbtn.style.color = '#fff';
-      pbtn.title = 'A photo is already saved for this account. Tap to replace it.';
-    } else {
-      pbtn.textContent = '📷 Photo *';
-      pbtn.style.background = '#fbbf24';
-      pbtn.style.color = '#1f2937';
-      pbtn.title = 'A meter photo is required.';
-    }
-  }
-  if (keepKeyboard) {
-    // Moving to the next account: keep the keyboard up and the view still.
-    // preventScroll stops the page jumping/re-laying-out under the keyboard.
-    inp.focus({ preventScroll: true });
-    inp.select();
-  } else {
-    // First open — focus after a short delay to let the screen render
-    setTimeout(()=>{ inp.focus({ preventScroll: true }); inp.click(); }, 300);
-  }
-}
-
-async function saveReading(goNext) {
-  const reading=document.getElementById('f-reading').value.trim();
-  const date=document.getElementById('f-date').value;
-  const remarks=document.getElementById('f-remarks').value.trim();
-  const err=document.getElementById('serr');
-  err.style.display='none';
-
-  // If navigating without entering anything, just move to next/prev account
-  if (!reading && !remarks) {
-    if (photoB64) {
-      err.textContent='You took a photo — enter the reading first, or tap \u2715 next to the photo to discard it.';
-      err.style.display='block';
-      return;
-    }
-    if (goNext) {
-      const currentIdx = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
-      const nextAcct = filtered[currentIdx + 1];
-      if (nextAcct) { currentAcct = nextAcct; fillDetail(nextAcct, true); }
-      else showBar('Already at last account','offline');
-    } else {
-      err.textContent='Please enter a reading or remarks.';
-      err.style.display='block';
-    }
-    return;
-  }
-
-  if (currentAcct && currentAcct.locked) {
-    err.textContent='\u{1F512} ACNO '+currentAcct.acno+' is locked (previous month) — entry is not allowed.';
-    err.style.display='block';
-    return;
-  }
-
-  // ── Meter photo is MANDATORY for every reading ──
-  // ...unless this account already has one saved (don't re-shoot it).
-  if (reading !== '' && !photoB64 && !hasExistingPhoto) {
-    err.innerHTML='\u{1F4F7} A meter photo is required. Tap <b>📷 Photo</b>, then Save.';
-    err.style.display='block';
-    const pb = document.getElementById('photo-btn');
-    if (pb) { pb.classList.add('need-photo'); setTimeout(()=>pb.classList.remove('need-photo'), 2000); }
-    return;
-  }
-
-  // ── Sanity check: catch typos before they hit the sheet ──
-  if (reading !== '') {
-    const prev = parseFloat(currentAcct.prevReading);
-    const cur = parseFloat(reading);
-    if (!isNaN(prev) && !isNaN(cur)) {
-      const diff = cur - prev;
-      if (diff < 0) {
-        if (!confirm('⚠ New reading (' + cur + ') is LOWER than previous (' + prev + ').\n\nSave anyway? (OK if meter was replaced/rolled over)')) return;
-      } else if (diff > 5000) {
-        if (!confirm('⚠ Very high consumption: ' + diff + ' units since last reading.\n\nSave anyway?')) return;
-      }
-    }
-  }
-
-  // Capture photo now — it belongs to this account's update
-  const capturedPhotoB64 = photoB64;
-  photoB64 = null;
-  clearPhoto();
-
-  const update={
-    action:'update',acno:currentAcct.acno,row:currentAcct.row,
-    newReading:reading,newDate:date,remarks:remarks,
-    worker:document.getElementById('wlabel').textContent,
-    savedAt:new Date().toLocaleString(),
-    id:makeId(),                 // unique key — no more same-second collisions
-    ts:Date.now(),
-    dateKey:new Date().toISOString().split('T')[0],
-    photo:capturedPhotoB64||null, // stored offline too, uploaded on sync
-    synced:false
-  };
-
-  pending.push(update);
-  await dbPut(update);
-  // Don't add to updatedSet yet — only after confirmed sheet sync
-  updateDot();
-  updateTodayChip();
-
-  const currentIdx = filtered.findIndex(a=>String(a.acno)===String(update.acno));
-  const nextAcct = goNext ? filtered[currentIdx + 1] : null;
-
-  renderList();
-
-  if (goNext && nextAcct) {
-    currentAcct = nextAcct;
-    fillDetail(nextAcct, true);
-    const existingUpdate = pending.slice().reverse().find(p=>String(p.acno)===String(nextAcct.acno));
-    if (existingUpdate) {
-      document.getElementById('f-reading').value = existingUpdate.newReading || '';
-      document.getElementById('f-date').value = existingUpdate.newDate || new Date().toISOString().split('T')[0];
-      document.getElementById('f-remarks').value = existingUpdate.remarks || '';
-    }
-    show('detail');
-    showBar('ACNO '+update.acno+' saved ✓','ok');
-  } else {
-    show('home');
-    switchNav('home');
-    showBar('ACNO '+update.acno+' saved — syncing in background...','syncing');
-  }
-
-  if (navigator.onLine) {
-    inFlight.add(update.id);
-    fetch(API, {method:'POST', body:JSON.stringify(Object.assign({}, update, {token: tok()}))})
-      .then(r=>r.json())
-      .then(async data=>{
-        if (isAuthError(data)) { forceRelogin(); return; }
-        if (data.error === 'locked') {
-          update.synced = true; update.rejected = true; update.photo = null; // stop retrying — sheet refused it
-          dbPut(update).catch(()=>{});
-          updateDot();
-          showBar('\u{1F512} ACNO '+update.acno+' is LOCKED — reading NOT saved','offline');
-          return;
-        }
-        if (data.success) {
-          update.synced=true;
-          updatedSet.add(String(update.acno));
-          const ci=allAccounts.findIndex(a=>String(a.acno)===String(update.acno));
-          if (ci>=0){allAccounts[ci].status='done';allAccounts[ci].newDate=date;}
-          localStorage.setItem(CK,JSON.stringify(allAccounts));
-          updateDot();
-          renderList();
-          showBar('ACNO '+update.acno+' synced ✓','ok');
-          if (update.photo) {
-            const ok = await uploadPhotoToSheet(update.photo, update.acno, update.newDate, update.worker);
-            if (ok) update.photo = null; // uploaded — drop from local storage
-          }
-          dbPut(update).catch(()=>{});
-        }
-      })
-      .catch(()=>{ showBar('Saved locally — will sync when connected','offline'); })
-      .finally(()=>{ inFlight.delete(update.id); });
-  } else {
-    showBar('Offline — will sync when connected','offline');
-  }
-}
-
-async function uploadPhotoToSheet(b64, acno, date, worker) {
-  try {
-    const res = await fetch(API, {method:'POST', body:JSON.stringify({
-      action:'upload_photo', acno: acno, date: date, photo: b64, worker: worker, token: tok()
-    })});
-    const data = await res.json();
-    if (isAuthError(data)) { forceRelogin(); return false; }
-    if (data.success) { showBar('Photo saved ✓ (ACNO '+acno+')','ok'); return true; }
-    showBar('Photo failed: '+(data.error||data.message||'unknown')+' — will retry on sync','offline');
-  } catch(e) {
-    showBar('Photo upload failed — will retry on next sync','offline');
-  }
-  return false;
-}
-
-async function syncAll() {
-  const unsynced = pending.filter(p => !p.synced);
-  if (!unsynced.length) { showBar('All synced ✓', 'ok'); return; }
-  if (!navigator.onLine) { showBar('No internet', 'offline'); return; }
-  const btn = document.getElementById('syncbtn');
-  if (btn) { btn.innerHTML = '<span class="spin"></span> Syncing...'; btn.disabled = true; }
-  showBar('Syncing ' + unsynced.length + ' updates...', 'syncing');
-  let done = 0;
-  for (const u of unsynced) {
-    if (inFlight.has(u.id)) continue; // already being sent by saveReading — skip
-    inFlight.add(u.id);
-    try {
-      const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 10000); // 10s per request max
-      const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({}, u, {token: tok()})), signal: ctrl.signal });
-      clearTimeout(tid);
-      const d = await r.json();
-      if (isAuthError(d)) { inFlight.delete(u.id); forceRelogin(); break; }
-      if (d.error === 'locked') {
-        u.synced = true; u.rejected = true; u.photo = null; // sheet refused it — don't retry
-        await dbPut(u);
-        inFlight.delete(u.id);
-        continue;
-      }
-      if (d.success) {
-        u.synced = true;
-        updatedSet.add(String(u.acno));
-        const ci = allAccounts.findIndex(a => String(a.acno) === String(u.acno));
-        if (ci >= 0) { allAccounts[ci].status = 'done'; allAccounts[ci].newDate = u.newDate; }
-        if (u.photo) {
-          const ok = await uploadPhotoToSheet(u.photo, u.acno, u.newDate, u.worker);
-          if (ok) u.photo = null;
-        }
-        await dbPut(u);
-        done++;
-      }
-    } catch(e) { /* skip failed, try next */ }
-    inFlight.delete(u.id);
-  }
-  // Retry photos whose reading synced earlier but whose upload failed
-  const photoRetries = pending.filter(p => p.synced && p.photo);
-  for (const u of photoRetries) {
-    const ok = await uploadPhotoToSheet(u.photo, u.acno, u.newDate, u.worker);
-    if (ok) { u.photo = null; await dbPut(u); }
-  }
-  localStorage.setItem(CK, JSON.stringify(allAccounts));
-  updateDot(); renderPending(); renderList();
-  if (btn) { btn.innerHTML = '🔄 Sync all now'; btn.disabled = false; }
-  showBar('Synced ' + done + ' of ' + unsynced.length + ' ✓', 'ok');
-}
-
-async function clearSynced() {
-  const s = pending.filter(p => p.synced);
-  if (!s.length) { showBar('Nothing to clear', 'ok'); return; }
-  if (!confirm('Remove ' + s.length + ' synced record(s) from this device?\n\nSheet data is NOT affected.')) return;
-  for (const x of s) { try { await dbDelete(x.id); } catch(e){} }
-  pending = pending.filter(p => !p.synced);
-  renderPending(); updateDot(); updateTodayChip();
-  showBar('Cleared ✓', 'ok');
-}
-
-function renderPending() {
-  const list=document.getElementById('plist');
-  const empty=document.getElementById('pempty');
-  document.getElementById('sp').textContent=pending.filter(p=>!p.synced).length;
-  document.getElementById('ss').textContent=pending.filter(p=>p.synced).length;
-  if (!pending.length){list.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';
-  list.innerHTML=pending.slice().reverse().map(p=>`
-    <div class="acard${p.synced?' updated':''}">
-      <div class="ainfo">
-        <div class="aacno">ACNO ${p.acno}${p.synced?'<span class="utag">✓ Synced</span>':''}</div>
-        <div class="ardate">${p.newReading?'Reading: '+p.newReading+' · ':''}${p.savedAt}${p.photo?' · 📷 photo pending':''}</div>
-      </div>
-      <span class="badge ${p.rejected?'bp':(p.synced?'bd':'bp')}">${p.rejected?'\u{1F512} Rejected':(p.synced?'Synced':'Pending')}</span>
-    </div>`).join('');
-}
-
-function updateDot(){document.getElementById('ndot').style.display=pending.some(p=>!p.synced)?'block':'none';}
-
-function previewPhoto(input) {
-  const file=input.files[0];
-  if(!file) return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const img=new Image();
-    img.onload=()=>{
-      const canvas=document.createElement('canvas');
-      const maxW=1024, maxH=1024;
-      let w=img.width, h=img.height;
-      if (w>maxW){h=Math.round(h*maxW/w);w=maxW;}
-      if (h>maxH){w=Math.round(w*maxH/h);h=maxH;}
-      canvas.width=w; canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      const compressed=canvas.toDataURL('image/jpeg',0.7);
-      photoB64=compressed.split(',')[1];
-      document.getElementById('pimg').src=compressed;
-      document.getElementById('pp').style.display='inline-flex';
-      document.getElementById('pbw').style.display='none';
-
-      // Auto-download to device with ACNO + date filename
-      const acno = currentAcct ? currentAcct.acno : 'unknown';
-      const date = document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
-      const filename = 'ACNO_' + acno + '_' + date + '.jpg';
-      const a = document.createElement('a');
-      a.href = compressed;
-      a.download = filename;
-      a.click();
-      showBar('Photo saved to Downloads: ' + filename, 'ok');
-    };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);
-  input.value = ''; // allow re-picking the same file
-}
-
-function clearPhoto(){
-  photoB64=null;
-  const i=document.getElementById('pinput');if(i)i.value='';
-  const pp=document.getElementById('pp');if(pp){pp.style.display='none';}
-  const pb=document.getElementById('pbw');if(pb)pb.style.display='inline-flex';
-}
-
-function changeName(){
-  const current = document.getElementById('wlabel').textContent;
-  const n = window.prompt('Your name:', current);
-  if (n && n.trim()) {
-    localStorage.setItem('wname', n.trim());
-    document.getElementById('wlabel').textContent = n.trim();
-  }
-}
-
-// ── Keep action buttons above the keyboard on Android ──
-function updateBtnPosition() {
-  const btns = document.getElementById('detail-btns');
-  if (!btns) return;
-  if (!document.getElementById('screen-detail').classList.contains('active')) return;
-  if (window.visualViewport) {
-    // keyboardHeight = how much the keyboard has pushed up the viewport
-    const keyboardHeight = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-    btns.style.bottom = Math.max(0, keyboardHeight) + 'px';
-  } else {
-    btns.style.bottom = '0px';
-  }
-}
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', updateBtnPosition);
-  window.visualViewport.addEventListener('scroll', updateBtnPosition);
-}
-
-// Block F5, Ctrl+R, Ctrl+Shift+R
-document.addEventListener('keydown', e => {
-  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.ctrlKey && e.shiftKey && e.key === 'R')) {
-    e.preventDefault();
-  }
-});
-
-// ── LOGIN ──
-
+/* ── Login / logout ── */
 async function doLogin() {
   const username = document.getElementById('l-user').value.trim();
   const password = document.getElementById('l-pass').value.trim();
   const err = document.getElementById('login-err');
   const btn = document.getElementById('login-btn');
   err.style.display = 'none';
-  if (!username || !password) { err.textContent = 'Please enter username and password.'; err.style.display = 'block'; return; }
+  if (!username || !password) { showLoginErr('Please enter username and password.'); return; }
   btn.textContent = 'Signing in...'; btn.disabled = true;
   try {
-    // POST so credentials never appear in a URL or in server request logs
     const res = await fetch(API, { method:'POST', body: JSON.stringify({ action:'login', username, password }) });
     const data = await res.json();
     if (data.success) {
-      currentUser = data.user || {};
-      currentUser.token = data.token;
-      localStorage.setItem('ub_session', JSON.stringify(currentUser));
-      selectedArea = String(currentUser.area);
-      localStorage.setItem('ub_area', selectedArea);
-      document.getElementById('wlabel').textContent = currentUser.name || username;
-      document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
-      loadAreas();
-      await loadAll(true);
-      show('home');
-      switchNav('home');
-      if (pending.some(p=>!p.synced)) syncAll(); // readings saved before session expired
+      const role = data.user && data.user.role;
+      if (role !== 'admin' && role !== 'supervisor') {
+        showLoginErr('This account does not have admin or supervisor access.');
+      } else {
+        session = { token: data.token, user: data.user };
+        localStorage.setItem('ub_admin_session', JSON.stringify(session));
+        enterMain();
+      }
     } else {
-      err.textContent = data.message || 'Invalid username or password.';
-      err.style.display = 'block';
+      showLoginErr(data.message || 'Invalid username or password.');
     }
   } catch(e) {
-    err.textContent = 'Could not connect. Check internet.';
-    err.style.display = 'block';
+    showLoginErr('Could not connect. Check internet.');
   }
   btn.textContent = 'Sign In'; btn.disabled = false;
 }
 
 function doLogout() {
   if (!confirm('Log out?')) return;
-  const unsyncedCount = pending.filter(p=>!p.synced).length;
-  if (unsyncedCount > 0 && !confirm('⚠ You have ' + unsyncedCount + ' UNSYNCED reading(s) that will be DELETED.\n\nLog out anyway?')) return;
-  localStorage.removeItem('ub_session');
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
-  localStorage.removeItem('ub_area');
-  dbClear();
-  currentUser = null; pending = []; updatedSet = new Set(); allAccounts = []; filtered = [];
-  updateDot();
+  session = null;
+  localStorage.removeItem('ub_admin_session');
   document.getElementById('l-user').value = '';
   document.getElementById('l-pass').value = '';
-  show('login');
+  document.getElementById('v-main').style.display = 'none';
+  document.getElementById('v-login').style.display = 'flex';
 }
 
-window.addEventListener('online',()=>{showBar('Back online — syncing...','syncing');syncAll();});
-window.addEventListener('offline',()=>showBar('Offline — updates saved locally','offline'));
-if(!navigator.onLine)showBar('Offline — updates saved locally','offline');
+function enterMain() {
+  document.getElementById('v-login').style.display = 'none';
+  document.getElementById('v-main').style.display = 'block';
+  const roleTag = session.user.role === 'admin' ? 'Admin' : 'Supervisor';
+  document.getElementById('who').textContent = '👤 ' + (session.user.name || session.user.username) + ' · ' + roleTag;
+  const isAdmin = session.user.role === 'admin';
+  document.getElementById('tab-users').style.display = isAdmin ? '' : 'none';
+  document.getElementById('tab-overview').style.display = isAdmin ? '' : 'none';
+  initSupPane();
+  if (isAdmin) fillAreaSelect();
 
-// ── Service worker: makes the app installable + openable offline ──
-if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  // Show a full-screen "initializing" overlay while everything preloads,
+  // then land on the Dashboard (admins) / Upload (supervisors).
+  showInitOverlay();
+  preloadEverything().then(() => {
+    hideInitOverlay();
+    if (isAdmin) switchTab('dash');
+    else switchTab('sup');
+  });
 }
 
-// Init — show UI instantly, do everything else after
-function initApp() {
-  const savedSession = localStorage.getItem('ub_session');
-  if (!savedSession) { show('login'); return; }
+function showInitOverlay() {
+  let ov = document.getElementById('init-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'init-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:#1F4E79;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;';
+    ov.innerHTML =
+      '<div style="font-size:40px;margin-bottom:16px;">⚡</div>' +
+      '<div style="font-size:18px;font-weight:700;margin-bottom:8px;">Initializing…</div>' +
+      '<div id="init-status" style="font-size:14px;opacity:.85;margin-bottom:20px;">Please wait while the system loads your data.</div>' +
+      '<div style="width:220px;height:6px;background:rgba(255,255,255,.2);border-radius:6px;overflow:hidden;">' +
+        '<div id="init-bar" style="width:10%;height:100%;background:#fbbf24;border-radius:6px;transition:width .4s;"></div></div>';
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'flex';
+}
+function setInitStatus(msg, pct) {
+  const s = document.getElementById('init-status'), b = document.getElementById('init-bar');
+  if (s && msg) s.textContent = msg;
+  if (b && pct != null) b.style.width = pct + '%';
+}
+function hideInitOverlay() {
+  setInitStatus('Ready!', 100);
+  const ov = document.getElementById('init-overlay');
+  if (ov) setTimeout(() => { ov.style.display = 'none'; }, 250);
+}
 
-  currentUser = JSON.parse(savedSession);
-  selectedArea = String(currentUser.area || selectedArea);
-  document.getElementById('wlabel').textContent = currentUser.name || 'Field Staff';
-  document.getElementById('area-chip').textContent = 'Area: ' + selectedArea;
-  loadAreas();
+// Preload caches for each tab. Returns a promise that resolves when done.
+let newCache = null;      // Unbilled New rows
+let nmListCache = null;   // No-meter list rows
+let dashCache = null;     // Dashboard aggregates
+let usersCache = null;    // Admin: user list
+let overviewCache = null; // Admin: area progress
 
-  // Show home screen immediately with a loading message
-  document.getElementById('alist').innerHTML = '<div class="loading">⏳ Loading accounts...</div>';
-  show('home');
-  switchNav('home');
+function preloadEverything() {
+  const jobs = [];
+  const isAdmin = session.user.role === 'admin';
+  fetch(API + '?action=ping').catch(() => {}); // wake the container
 
-  // Defer ALL data work — let the browser paint first
-  setTimeout(() => {
-    // Load cache
+  setInitStatus('Loading dashboard…', 20);
+  jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
+
+  setInitStatus('Loading unbilled data…', 40);
+  // Unbilled Taken: supervisors preload their areas (wait for it); admins load per-area on demand
+  if (!isAdmin) { startPreload(); if (preloadPromise) jobs.push(preloadPromise); }
+  // Unbilled New — both roles
+  jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
+
+  setInitStatus('Loading lists…', 60);
+  jobs.push(api({ action: 'nometer_list' }).then(d => { if (d && d.success) nmListCache = d.rows || []; }).catch(() => {}));
+
+  if (isAdmin) {
+    setInitStatus('Loading users & areas…', 78);
+    // Admin-only tabs: prime their caches so they open instantly
+    jobs.push(api({ action: 'admin_list_users' }).then(d => { if (d && d.success) usersCache = d.users || []; }).catch(() => {}));
+    jobs.push(api({ action: 'admin_overview' }).then(d => { if (d && d.success) overviewCache = d.areas || []; }).catch(() => {}));
+  }
+
+  return Promise.all(jobs).then(() => setInitStatus('Almost ready…', 92));
+}
+
+/* ── Tabs ── */
+function switchTab(t) {
+  document.getElementById('tab-dash').classList.toggle('active', t==='dash');
+  document.getElementById('tab-users').classList.toggle('active', t==='users');
+  document.getElementById('tab-overview').classList.toggle('active', t==='overview');
+  document.getElementById('tab-sup').classList.toggle('active', t==='sup');
+  document.getElementById('tab-entered').classList.toggle('active', t==='entered');
+  document.getElementById('tab-new').classList.toggle('active', t==='new');
+  document.getElementById('tab-nometer').classList.toggle('active', t==='nometer');
+  document.getElementById('pane-users').style.display = t==='users' ? 'block' : 'none';
+  document.getElementById('pane-overview').style.display = t==='overview' ? 'block' : 'none';
+  document.getElementById('pane-sup').style.display = t==='sup' ? 'block' : 'none';
+  document.getElementById('pane-entered').style.display = t==='entered' ? 'block' : 'none';
+  document.getElementById('pane-new').style.display = t==='new' ? 'block' : 'none';
+  document.getElementById('pane-nometer').style.display = t==='nometer' ? 'block' : 'none';
+  document.getElementById('pane-dash').style.display = t==='dash' ? 'block' : 'none';
+  if (t !== 'entered') { entStopPolling(); entBlinkRefresh(false); }
+  if (t==='users') loadUsers();
+  if (t==='overview') loadOverview();
+  if (t==='dash') loadDashboard();
+  if (t==='entered') initEnteredTab();
+  if (t==='new') loadUnbilledNew();
+  if (t==='nometer') { nmShowAreas(); nmLoadList(); }
+}
+
+/* ── Users ── */
+async function loadUsers(force) {
+  const body = document.getElementById('users-body');
+  if (!force && usersCache) { users = usersCache; renderUsers(); return; }
+  body.className = 'loading'; body.textContent = 'Loading users...';
+  try {
+    const d = await api({ action:'admin_list_users' });
+    if (!d.success) { body.textContent = d.message || 'Could not load users.'; return; }
+    users = d.users || [];
+    usersCache = users;
+    renderUsers();
+  } catch(e) {
+    if (e.message !== 'auth') body.textContent = 'Could not connect.';
+  }
+}
+
+function renderUsers() {
+  const body = document.getElementById('users-body');
+  body.className = '';
+  if (!users.length) { body.innerHTML = '<div class="loading">No users yet — add the first one.</div>'; return; }
+  body.innerHTML = `<table>
+    <thead><tr><th>Username</th><th>Name</th><th>Area</th><th>Role</th><th></th></tr></thead>
+    <tbody>` + users.map(u => `
+      <tr>
+        <td style="font-weight:700;color:#1F4E79;">${esc(u.username)}${u.username.toLowerCase()===session.user.username.toLowerCase()?' <span style="font-size:11px;color:#9ca3af;">(you)</span>':''}</td>
+        <td>${esc(u.name)||'—'}</td>
+        <td>${u.role==='supervisor' && u.areas && u.areas.length
+          ? u.areas.map(a=>'<span class="area-b" style="margin:1px;">'+esc(a)+'</span>').join('')
+          : '<span class="area-b">'+(u.area==='all'||!u.area?'All':'Area '+esc(u.area))+'</span>'}</td>
+        <td><span class="role-b role-${u.role}">${u.role==='admin'?'Admin':u.role==='supervisor'?'Supervisor':'Field Staff'}</span></td>
+        <td style="text-align:right;white-space:nowrap;">
+          <button class="act" onclick="openEdit('${esc(u.username)}')">✏️ Edit</button>
+          <button class="act del" onclick="delUser('${esc(u.username)}')">🗑</button>
+        </td>
+      </tr>`).join('') + `</tbody></table>`;
+}
+
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+/* ── Add / edit modal ── */
+function fillAreaSelect() {
+  const sel = document.getElementById('m-area');
+  sel.innerHTML = '<option value="all">All areas</option>';
+  for (let i = 1; i <= 24; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = 'Area ' + i;
+    sel.appendChild(o);
+  }
+}
+
+// Render the assigned-area checkbox grid (areas 1..24), preselecting `sel`.
+function fillSupAreaChecks(sel) {
+  const box = document.getElementById('m-areas');
+  const chosen = {};
+  (sel || []).forEach(a => { chosen[String(a).trim()] = true; });
+  let html = '';
+  for (let i = 1; i <= 24; i++) {
+    html += '<label style="display:inline-flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">' +
+      '<input type="checkbox" class="m-area-cb" value="' + i + '"' + (chosen[String(i)] ? ' checked' : '') + '> ' + i + '</label>';
+  }
+  box.innerHTML = html;
+}
+
+function getSelectedSupAreas() {
+  return Array.from(document.querySelectorAll('.m-area-cb')).filter(x => x.checked).map(x => x.value);
+}
+
+// Show the assigned-areas field only when Role = supervisor
+function onRoleChange() {
+  const isSup = document.getElementById('m-role').value === 'supervisor';
+  document.getElementById('m-areas-wrap').style.display = isSup ? 'block' : 'none';
+}
+
+function openAdd() {
+  editingUsername = null;
+  document.getElementById('m-title').textContent = 'Add user';
+  document.getElementById('m-username').value = '';
+  document.getElementById('m-username').disabled = false;
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-area').value = 'all';
+  document.getElementById('m-role').value = 'worker';
+  fillSupAreaChecks([]);
+  onRoleChange();
+  document.getElementById('m-password').value = '';
+  document.getElementById('m-pass-label').textContent = 'Password';
+  document.getElementById('m-pass-hint').style.display = 'none';
+  document.getElementById('m-err').style.display = 'none';
+  document.getElementById('modal-bg').classList.add('show');
+  setTimeout(()=>document.getElementById('m-username').focus(), 100);
+}
+
+function openEdit(username) {
+  const u = users.find(x => x.username === username);
+  if (!u) return;
+  editingUsername = username;
+  document.getElementById('m-title').textContent = 'Edit user — ' + username;
+  document.getElementById('m-username').value = u.username;
+  document.getElementById('m-username').disabled = true;
+  document.getElementById('m-name').value = u.name || '';
+  document.getElementById('m-area').value = (u.area && u.area !== 'all') ? u.area : 'all';
+  if (document.getElementById('m-area').value !== String(u.area) && u.area && u.area !== 'all') {
+    // area outside 1–24 — add it so it isn't silently changed
+    const o = document.createElement('option');
+    o.value = u.area; o.textContent = 'Area ' + u.area;
+    document.getElementById('m-area').appendChild(o);
+    document.getElementById('m-area').value = u.area;
+  }
+  document.getElementById('m-role').value = u.role;
+  fillSupAreaChecks(u.areas || []);
+  onRoleChange();
+  document.getElementById('m-password').value = '';
+  document.getElementById('m-pass-label').textContent = 'New password (optional)';
+  document.getElementById('m-pass-hint').style.display = 'block';
+  document.getElementById('m-err').style.display = 'none';
+  document.getElementById('modal-bg').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('show');
+}
+
+async function saveUser() {
+  const errEl = document.getElementById('m-err');
+  errEl.style.display = 'none';
+  const username = document.getElementById('m-username').value.trim();
+  const name = document.getElementById('m-name').value.trim();
+  const area = document.getElementById('m-area').value;
+  const role = document.getElementById('m-role').value;
+  const password = document.getElementById('m-password').value.trim();
+  const areas = role === 'supervisor' ? getSelectedSupAreas() : [];
+
+  if (!username) { errEl.textContent = 'Username is required.'; errEl.style.display='block'; return; }
+  if (!editingUsername && !password) { errEl.textContent = 'Password is required for a new user.'; errEl.style.display='block'; return; }
+  if (role === 'supervisor' && !areas.length) { errEl.textContent = 'Assign at least one area to a supervisor.'; errEl.style.display='block'; return; }
+
+  const btn = document.getElementById('m-save');
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  try {
+    let d;
+    if (editingUsername) {
+      const payload = { action:'admin_update_user', username: editingUsername, name, area, role, areas: areas.join(',') };
+      if (password) payload.password = password;
+      d = await api(payload);
+    } else {
+      d = await api({ action:'admin_add_user', username, password, name, area, role, areas: areas.join(',') });
+    }
+    if (d.success) {
+      closeModal();
+      flash(editingUsername ? 'User updated ✓' : 'User added ✓', true);
+      usersCache = null; loadUsers(true);
+    } else {
+      errEl.textContent = d.message || 'Could not save.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    if (e.message !== 'auth') { errEl.textContent = 'Could not connect.'; errEl.style.display='block'; }
+  }
+  btn.textContent = 'Save'; btn.disabled = false;
+}
+
+async function delUser(username) {
+  if (!confirm('Delete user "' + username + '"?\n\nThey will no longer be able to sign in.')) return;
+  try {
+    const d = await api({ action:'admin_delete_user', username });
+    if (d.success) { flash('User deleted ✓', true); usersCache = null; loadUsers(true); }
+    else flash(d.message || 'Could not delete.', false);
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+}
+
+/* ── Overview ── */
+async function loadOverview(force) {
+  const body = document.getElementById('ov-body');
+  if (!force && overviewCache) { renderOverview(overviewCache); return; }
+  body.className = 'loading'; body.textContent = 'Loading...';
+  try {
+    const d = await api({ action:'admin_overview' });
+    if (!d.success) { body.textContent = d.message || 'Could not load.'; return; }
+    overviewCache = d.areas || [];
+    renderOverview(overviewCache);
+  } catch(e) {
+    if (e.message !== 'auth') body.textContent = 'Could not connect.';
+  }
+}
+
+function renderOverview(areas) {
+  const body = document.getElementById('ov-body');
+  body.className = '';
+  if (!areas.length) { body.innerHTML = '<div class="loading">No account data found.</div>'; return; }
+  let tDone = 0, tPend = 0;
+  areas.forEach(a => { tDone += a.done; tPend += a.pending; });
+  const rows = areas.map(a => {
+    const total = a.done + a.pending;
+    const pct = total ? Math.round(a.done / total * 100) : 0;
+    return `<tr>
+      <td><span class="area-b">Area ${esc(a.area)}</span></td>
+      <td style="color:#16a34a;font-weight:700;">${a.done}</td>
+      <td style="color:#92400e;font-weight:700;">${a.pending}</td>
+      <td>${total}</td>
+      <td><div style="display:flex;align-items:center;gap:8px;">
+        <div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:${pct}%;"></div></div>
+        <span class="pct">${pct}%</span>
+      </div></td>
+    </tr>`;
+  }).join('');
+  const tTotal = tDone + tPend;
+  const tPct = tTotal ? Math.round(tDone / tTotal * 100) : 0;
+  body.innerHTML = `<table>
+    <thead><tr><th>Area</th><th>Done</th><th>Pending</th><th>Total</th><th style="min-width:160px;">Progress</th></tr></thead>
+    <tbody>${rows}
+      <tr style="background:#f9fafb;">
+        <td style="font-weight:800;">All</td>
+        <td style="color:#16a34a;font-weight:800;">${tDone}</td>
+        <td style="color:#92400e;font-weight:800;">${tPend}</td>
+        <td style="font-weight:800;">${tTotal}</td>
+        <td><div style="display:flex;align-items:center;gap:8px;">
+          <div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:${tPct}%;"></div></div>
+          <span class="pct">${tPct}%</span>
+        </div></td>
+      </tr>
+    </tbody></table>`;
+}
+
+/* ── Supervisor: XLS/XLSX/CSV import ── */
+let fileRowsAll = null, csvRows = null, csvName = '', detectedAreas = [];
+const FILE_AREA_COL = 7; // column G in the file = Area (matches the unbilled sheet)
+
+function handleCsvFile(input) {
+  const errEl = document.getElementById('sup-err');
+  errEl.style.display = 'none';
+  const f = input.files[0];
+  if (!f) { fileRowsAll = null; csvRows = null; renderCsvPreview(); return; }
+  csvName = f.name;
+  const ext = f.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+
+  if (ext === 'csv') {
+    reader.onload = e => { fileRowsAll = parseCSV(e.target.result); reparseCsv(); };
+    reader.readAsText(f);
+  } else {
+    // XLS / XLSX via SheetJS — first worksheet
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+        // Normalize: Excel date cells → 'yyyy-mm-dd' strings the backend parses into real dates
+        fileRowsAll = raw.map(r => r.map(cell => {
+          if (cell instanceof Date) {
+            const y = cell.getFullYear(),
+                  m = ('0' + (cell.getMonth() + 1)).slice(-2),
+                  d = ('0' + cell.getDate()).slice(-2);
+            return y + '-' + m + '-' + d;
+          }
+          return cell;
+        }));
+        reparseCsv();
+      } catch(err) {
+        fileRowsAll = null; csvRows = null; renderCsvPreview();
+        errEl.textContent = 'Could not read the Excel file: ' + err.message;
+        errEl.style.display = 'block';
+      }
+    };
+    reader.readAsArrayBuffer(f);
+  }
+}
+
+function reparseCsv() {
+  if (!fileRowsAll) return;
+  let rows = fileRowsAll;
+  if (document.getElementById('sup-header').checked && rows.length) rows = rows.slice(1);
+  csvRows = rows;
+  renderCsvPreview();
+}
+
+function initSupPane() {
+  const d = document.getElementById('sup-date');
+  if (d && !d.value) d.value = new Date().toISOString().split('T')[0];
+}
+
+function parseCSV(text) {
+  const rows = []; let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      } else field += c;
+    }
+  }
+  row.push(field);
+  if (row.length > 1 || row[0] !== '') rows.push(row);
+  return rows;
+}
+
+function renderCsvPreview() {
+  const el = document.getElementById('sup-preview');
+  const btn = document.getElementById('sup-upload');
+  const areaEl = document.getElementById('sup-area-detect');
+  document.getElementById('sup-err').style.display = 'none';
+  if (!csvRows || !csvRows.length) {
+    el.innerHTML = '';
+    btn.disabled = true;
+    detectedAreas = [];
+    areaEl.textContent = 'Choose a file to detect the area';
+    areaEl.style.color = '#9ca3af';
+    return;
+  }
+
+  // Detect area(s) from column G
+  detectedAreas = Array.from(new Set(
+    csvRows.map(r => String(r[FILE_AREA_COL - 1] ?? '').trim()).filter(Boolean)
+  )).sort((a, b) => Number(a) - Number(b));
+
+  if (!detectedAreas.length) {
+    areaEl.textContent = '⚠ No area found in column G — check the file layout';
+    areaEl.style.color = '#b91c1c';
+    btn.disabled = true;
+  } else {
+    areaEl.innerHTML = detectedAreas.map(a => '<span class="area-b">Area ' + esc(a) + '</span>').join(' ');
+    areaEl.style.color = '#111';
+    btn.disabled = false;
+  }
+
+  const previewRows = csvRows.slice(0, 5);
+  const cols = Math.min(8, Math.max.apply(null, previewRows.map(r => r.length)));
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:#1F4E79;margin:6px 0;">
+      ${esc(csvName)} — ${csvRows.length} rows detected
+    </div>
+    <div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:9px;">
+      <table style="font-size:12px;min-width:520px;">
+        <thead><tr>${Array.from({length: cols}, (_, i) =>
+          '<th style="padding:6px 8px;">Col ' + String.fromCharCode(65 + i) + '</th>').join('')}</tr></thead>
+        <tbody>${previewRows.map(r =>
+          '<tr>' + Array.from({length: cols}, (_, i) =>
+            '<td style="padding:6px 8px;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;">' + esc(r[i] ?? '') + '</td>').join('') + '</tr>'
+        ).join('')}</tbody>
+      </table>
+    </div>
+    <div class="hint" style="margin-top:5px;">Showing first ${previewRows.length} rows. Column B should be ACNO, column G the area.</div>`;
+}
+
+async function doCsvUpload() {
+  const errEl = document.getElementById('sup-err');
+  errEl.style.display = 'none';
+  const fileDate = document.getElementById('sup-date').value;
+  const mode = document.getElementById('sup-mode').value;
+  if (!csvRows || !csvRows.length) { errEl.textContent = 'Choose a file first.'; errEl.style.display = 'block'; return; }
+  if (!fileDate) { errEl.textContent = 'Select the file date.'; errEl.style.display = 'block'; return; }
+  if (!detectedAreas.length) { errEl.textContent = 'No area detected in the file (column G).'; errEl.style.display = 'block'; return; }
+
+  const areaLabel = detectedAreas.map(a => 'Area ' + a).join(', ');
+  if (mode === 'replace' &&
+      !confirm('Replace existing rows for ' + areaLabel + ' with file date ' + fileDate + '?\n\n' +
+        'Only old rows of that same area AND MONTH without readings will be deleted.\n' +
+        'Rows already worked by field staff are kept, and an account can only exist once per month.\n' +
+        'Other months are untouched.')) return;
+
+  const btn = document.getElementById('sup-upload');
+  btn.textContent = 'Uploading ' + csvRows.length + ' rows...'; btn.disabled = true;
+  try {
+    let d = await api({ action: 'supervisor_upload_file', fileDate: fileDate, mode: mode, rows: csvRows });
+
+    // New month detected — server asks for confirmation before locking
+    if (d.needsLockConfirm) {
+      if (!confirm('⚠ NEW MONTH DETECTED\n\n' +
+          'This file (' + fileDate + ') is for a newer month than the existing data in ' + areaLabel + '.\n\n' +
+          'Uploading it will archive & lock ' + d.lockCount + ' previous-month row(s) — they move to the "unbilled_archive" sheet and field staff can no longer enter or change readings for those accounts.\n\nContinue and close the previous month?')) {
+        btn.textContent = 'Upload to sheet'; btn.disabled = false;
+        return;
+      }
+      btn.textContent = 'Uploading ' + csvRows.length + ' rows...';
+      d = await api({ action: 'supervisor_upload_file', fileDate: fileDate, mode: mode, rows: csvRows, confirmLock: true });
+    }
+
+    if (d.success) {
+      const bits = [d.added + ' rows added'];
+      if (mode === 'replace') bits.push(d.removed + ' replaced');
+      if (d.kept) bits.push(d.kept + ' kept (already have readings)');
+      if (d.duplicates) bits.push(d.duplicates + ' duplicates skipped');
+      if (d.archived) bits.push(d.archived + ' previous-month rows archived + locked 🔒');
+      if (d.noMeter) bits.push(d.noMeter + ' flagged NO METER 🚫');
+      if (d.skipped) bits.push(d.skipped + ' invalid skipped');
+      flash(areaLabel + ' · ' + d.fileDate + ': ' + bits.join(', ') +
+        (d.formulas === false ? ' · ⚠ columns O–T left empty: no formula row above to copy from' : '') +
+        (d.ms ? ' · server ' + d.ms.total + 'ms (scan ' + d.ms.scan + ', write ' + d.ms.write + ')' : '') + ' ✓', true);
+      csvRows = null; fileRowsAll = null; detectedAreas = [];
+      document.getElementById('sup-file').value = '';
+      renderCsvPreview();
+    } else {
+      errEl.textContent = d.message || 'Upload failed.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    if (e.message !== 'auth') { errEl.textContent = 'Could not connect — the file may be too large or the network dropped.'; errEl.style.display = 'block'; }
+  }
+  btn.textContent = 'Upload to sheet'; btn.disabled = !csvRows;
+}
+
+/* ── Entered Readings: list, copy-on-click, lock ── */
+let enteredHeaders = [], enteredRows = [];
+
+// The 12 columns to show, by sheet index (1-based), in display order.
+// B ACNO, C CAT, D METER_NO, E CONSADDRESS, H prev reading, I prev date,
+// M new reading, N new date, O C.USAGE, S CUTOFF DATE, T CUTOFF READING.
+const ENTERED_COLS = [
+  { i: 2,  label: 'ACNO' },
+  { i: 3,  label: 'CAT' },
+  { i: 4,  label: 'METER NO' },
+  { i: 5,  label: 'CONS ADDRESS' },
+  { i: 8,  label: 'PREV READING' },
+  { i: 9,  label: 'PREV DATE' },
+  { i: 13, label: 'NEW READING' },
+  { i: 14, label: 'NEW DATE' },
+  { i: 15, label: 'USAGE' },
+  { i: 19, label: 'CUTOFF DATE' },
+  { i: 20, label: 'CUTOFF READING' }
+];
+
+// Populate the area dropdown when the tab opens — WITHOUT blocking on data.
+// Also warm up the backend and preload all the supervisor's areas in the
+// background so pressing Load is instant.
+let enteredTabReady = false;
+let preloadCache = null;      // { rows, headers, at } — all assigned areas, any date
+let preloadPromise = null;    // in-flight preload, so Load can await it
+
+function assignedAreaList() {
+  if (session.user.role === 'supervisor') {
+    return (session.user.areas || []).slice().sort((a, b) => Number(a) - Number(b));
+  }
+  const all = [];
+  for (let i = 1; i <= 24; i++) all.push(String(i));
+  return all;
+}
+
+function initEnteredTab() {
+  const areaSel = document.getElementById('ent-area');
+  let opts = '<option value="">Select area…</option>';
+  assignedAreaList().forEach(a => { opts += '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>'; });
+  areaSel.innerHTML = opts;
+
+  if (!enteredTabReady) {
+    enteredRows = [];
+    document.getElementById('entered-body').innerHTML =
+      '<div class="loading" style="color:#9ca3af;">Select an area to view its accounts instantly.</div>';
+    document.getElementById('lock-btn').disabled = true;
+    enteredTabReady = true;
+  }
+
+  // 1) Warm the Apps Script container (kills cold-start on the real request)
+  fetch(API + '?action=ping').catch(() => {});
+
+  // 2) Preload all assigned areas in the background (admins: skip — 24 areas is too much)
+  if (session.user.role === 'supervisor') startPreload();
+}
+
+function startPreload() {
+  const areas = assignedAreaList().join(',');
+  if (!areas) return;
+  preloadPromise = api({ action: 'supervisor_entered', areas: areas })
+    .then(d => {
+      if (d && d.success) {
+        preloadCache = { rows: d.rows || [], headers: d.headers || [], at: Date.now() };
+        // If the user is waiting on the prompt with an area chosen, show it now
+        const areaSel = document.getElementById('ent-area');
+        if (areaSel.value && !enteredRows.length) renderFromCacheOrSkip();
+      }
+      return d;
+    })
+    .catch(() => {});
+}
+
+function renderFromCacheOrSkip() {
+  // Only auto-render if the user has actually picked an area
+  if (!document.getElementById('ent-area').value) return;
+  applyFromCache();
+}
+
+// Filter the preloaded cache to the chosen area (+ date) and render — instant.
+// Auto-render the selected area from the preload cache (instant, no fetch).
+// Falls back to a live load only if the preload hasn't arrived yet.
+// ── Poll for new readings in the selected area; blink Refresh if found ──
+let entPollTimer = null;
+let entKnownCount = null; // taken-count last seen for the selected area
+
+function entStartPolling() {
+  entStopPolling();
+  entPollTimer = setInterval(entPollCheck, 30000); // every 30s
+}
+function entStopPolling() {
+  if (entPollTimer) { clearInterval(entPollTimer); entPollTimer = null; }
+}
+function entBlinkRefresh(on) {
+  const b = document.getElementById('ent-refresh-btn');
+  if (!b) return;
+  b.classList.toggle('blink', !!on);
+  b.textContent = on ? '🔄 New readings!' : '🔄 Refresh';
+}
+function entCountFor(rows, area) {
+  return rows.filter(r => String(r.area ?? r.cells[ENT_AREA_COL - 1] ?? '').trim() === area).length;
+}
+async function entPollCheck() {
+  // Only poll while the tab is visible and an area is chosen
+  if (document.getElementById('pane-entered').style.display === 'none') return;
+  const area = document.getElementById('ent-area').value;
+  if (!area) return;
+  const areas = assignedAreaList().join(',');
+  if (!areas) return;
+  try {
+    const d = await api({ action: 'supervisor_entered', areas: areas });
+    if (!d || !d.success) return;
+    const fresh = d.rows || [];
+    const count = entCountFor(fresh, area);
+    if (entKnownCount != null && count > entKnownCount) {
+      entBlinkRefresh(true); // more taken readings than before → alert
+    }
+    entKnownCount = count;
+    // stash so Refresh uses this fresh data without another round-trip
+    preloadCache = { rows: fresh, headers: d.headers || (preloadCache && preloadCache.headers) || [], at: Date.now() };
+  } catch(e) {}
+}
+
+// Auto-render the selected area from the preload cache (instant, no fetch).
+function onEntAreaChange() {
+  const area = document.getElementById('ent-area').value;
+  const body = document.getElementById('entered-body');
+  entBlinkRefresh(false); // switching area clears any prior alert
+  if (!area) {
+    enteredRows = [];
+    body.className = 'loading'; body.style.color = '#9ca3af';
+    body.textContent = 'Select an area to view.';
+    document.getElementById('lock-btn').disabled = true;
+    entKnownCount = null;
+    entStopPolling();
+    return;
+  }
+  const setBaselineAndPoll = () => {
+    entKnownCount = preloadCache ? entCountFor(preloadCache.rows, area) : null;
+    entStartPolling();
+  };
+  if (preloadCache) { applyFromCache(); setBaselineAndPoll(); return; }
+  // Preload not ready yet — wait for it, then show
+  body.className = 'loading'; body.style.color = '#9ca3af';
+  body.textContent = 'Loading Area ' + area + '…';
+  if (preloadPromise) {
+    preloadPromise.then(() => { if (preloadCache) applyFromCache(); else loadEntered(); setBaselineAndPoll(); });
+  } else {
+    loadEntered(); setBaselineAndPoll();
+  }
+}
+
+function applyFromCache() {
+  const area = document.getElementById('ent-area').value;
+  const date = document.getElementById('ent-date').value; // '' = any
+  if (!preloadCache) return false;
+  enteredHeaders = preloadCache.headers;
+  enteredRows = preloadCache.rows.filter(r =>
+    String(r.area ?? r.cells[ENT_AREA_COL - 1] ?? '').trim() === area &&
+    (!date || normDate_(r.cells[ENT_RDATE_COL - 1]) === date)
+  );
+  renderEntered();
+  return true;
+}
+
+async function loadEntered() {
+  const area = document.getElementById('ent-area').value;
+  const date = document.getElementById('ent-date').value; // '' = any date
+  const body = document.getElementById('entered-body');
+  if (!area) { body.className = 'loading'; body.style.color = '#b91c1c'; body.textContent = 'Please select an area first.'; return; }
+  document.getElementById('lock-btn').disabled = true;
+
+  // Fast path: preload already finished → filter it client-side, no wait
+  if (preloadCache) { applyFromCache(); return; }
+
+  // Preload still running → wait for it rather than firing a second scan
+  body.className = 'loading'; body.style.color = '#9ca3af';
+  body.textContent = 'Loading Area ' + area + (date ? ' · ' + date : '') + '…';
+  if (preloadPromise) {
+    try { await preloadPromise; } catch(e) {}
+    if (preloadCache) { applyFromCache(); return; }
+  }
+
+  // No preload (e.g. admin, or preload failed) → direct fetch for this area
+  try {
+    const d = await api({ action: 'supervisor_entered', area: area, date: date });
+    if (!d.success) { body.style.color = '#b91c1c'; body.textContent = d.message || 'Could not load.'; return; }
+    enteredHeaders = d.headers || [];
+    enteredRows = d.rows || [];
+    renderEntered();
+  } catch(e) {
+    if (e.message !== 'auth') { body.style.color = '#b91c1c'; body.textContent = 'Could not connect.'; }
+  }
+}
+
+const ENT_AREA_COL = 7;  // G
+const ENT_RDATE_COL = 12; // L (R_DATE)
+
+// Normalize a date to yyyy-mm-dd for comparison. Handles the sheet's
+// dd/MM/yyyy or dd-MM-yyyy display and the picker's native yyyy-mm-dd.
+function normDate_(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);            // yyyy-mm-dd
+  if (m) return m[1] + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[3]).slice(-2);
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);    // dd/MM/yyyy or dd-MM-yyyy
+  if (m) {
+    let y = m[3]; if (y.length === 2) y = '20' + y;
+    return y + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[1]).slice(-2);
+  }
+  return s;
+}
+
+function refreshEntered() {
+  entBlinkRefresh(false); // clear the alert
+  preloadCache = null;
+  preloadPromise = null;
+  const area = document.getElementById('ent-area').value;
+  if (session.user.role === 'supervisor') startPreload();
+  if (area) {
+    loadEntered();
+    // reset baseline once fresh data lands
+    if (preloadPromise) preloadPromise.then(() => { entKnownCount = preloadCache ? entCountFor(preloadCache.rows, area) : null; });
+  } else {
+    const body = document.getElementById('entered-body');
+    body.className = 'loading'; body.style.color = '#9ca3af';
+    body.textContent = 'Refreshing in the background… select an area.';
+  }
+}
+
+function clearEnteredFilters() {
+  document.getElementById('ent-area').value = '';
+  document.getElementById('ent-date').value = '';
+  enteredRows = [];
+  const body = document.getElementById('entered-body');
+  body.className = 'loading'; body.style.color = '#9ca3af';
+  body.textContent = 'Select an area and press Load.';
+  document.getElementById('lock-btn').disabled = true;
+}
+
+function renderEntered() {
+  const body = document.getElementById('entered-body');
+  body.className = ''; body.style.color = '';
+
+  const shown = enteredRows.slice().sort((a, b) => (a.locked ? 1 : 0) - (b.locked ? 1 : 0)); // pending first, locked at bottom
+
+  if (!enteredRows.length) {
+    body.innerHTML = '<div class="loading">No entered readings found for this area/date.</div>';
+    document.getElementById('lock-btn').disabled = true;
+    return;
+  }
+  const head = '<th style="width:26px;text-align:center;padding:5px 3px;"><input type="checkbox" id="ent-all" onchange="toggleAllEntered(this)"></th>' +
+    '<th style="text-align:center;padding:5px 3px;">Status</th>' +
+    ENTERED_COLS.map(c => '<th style="white-space:nowrap;padding:5px 4px;">' + esc(c.label) + '</th>').join('');
+  const rows = shown.map(r => {
+    const ri = enteredRows.indexOf(r);
+    const cells = ENTERED_COLS.map(c => {
+      const v = r.cells[c.i - 1];
+      // Let the address column (E, index 5) wrap; keep everything else on one line
+      const wrap = (c.i === 5)
+        ? 'white-space:normal;word-break:break-word;min-width:120px;'
+        : 'white-space:nowrap;';
+      return '<td class="copycell" title="Click to copy" onclick="copyCell(this)" data-v="' + esc(v ?? '') + '"' +
+        ' style="padding:5px 4px;' + wrap + 'cursor:pointer;">' +
+        esc(v ?? '') + '</td>';
+    }).join('');
+    const cb = r.locked
+      ? '<input type="checkbox" disabled title="Already locked">'
+      : '<input type="checkbox" class="ent-cb" onchange="onEnteredTick(this)">';
+    const statusCell = r.locked
+      ? '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#dcfce7;color:#166534;">🔒</span></td>'
+      : '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#fef3c7;color:#92400e;">•</span></td>';
+    return '<tr class="' + (r.locked ? 'locked-row' : '') + '" data-ri="' + ri + '">' +
+      '<td style="text-align:center;padding:5px 3px;">' + cb + '</td>' + statusCell + cells + '</tr>';
+  }).join('');
+  body.innerHTML =
+    '<div style="border:1px solid #e5e7eb;border-radius:9px;overflow:hidden;">' +
+    '<table style="font-size:11.5px;width:100%;table-layout:auto;">' +
+    '<thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="hint" style="margin-top:6px;">' + shown.length +
+    ' of ' + enteredRows.length + ' account(s) shown — 🔒 locked (green), • pending. Click a cell to copy.</div>';
+  updateLockBtn();
+}
+
+function copyCell(td) {
+  const v = td.getAttribute('data-v') || '';
+  const done = () => {
+    // Inline feedback only — no top banner (it shifts the table). Briefly
+    // highlight the cell so the user sees the copy landed.
+    const old = td.style.background;
+    td.style.background = '#bbf7d0';
+    setTimeout(() => { td.style.background = old; }, 400);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(v).then(done).catch(() => fallbackCopy(v, done));
+  } else {
+    fallbackCopy(v, done);
+  }
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch(e) { flash('Copy failed — select manually', false); }
+  document.body.removeChild(ta);
+}
+
+function toggleAllEntered(cb) {
+  document.querySelectorAll('.ent-cb').forEach(x => {
+    x.checked = cb.checked;
+    const tr = x.closest('tr');
+    if (tr) tr.classList.toggle('ticked-row', cb.checked);
+  });
+  updateLockBtn();
+}
+
+function updateLockBtn() {
+  const anyChecked = Array.from(document.querySelectorAll('.ent-cb')).some(x => x.checked);
+  document.getElementById('lock-btn').disabled = !anyChecked;
+}
+
+// Highlight a row yellow while its checkbox is ticked (locked rows stay green)
+function onEnteredTick(cb) {
+  const tr = cb.closest('tr');
+  if (tr) {
+    tr.classList.toggle('ticked-row', cb.checked);
+    if (cb.checked) {
+      const r = enteredRows[parseInt(tr.getAttribute('data-ri'))];
+      pjLoadFromRow(r); // fill the calculator + show this row's meter photo
+    } else {
+      const box = document.getElementById('pj-photo');
+      if (box) box.innerHTML = '<span style="color:#9ca3af;">Tick a row to view its photo.</span>';
+    }
+  }
+  updateLockBtn();
+}
+
+async function lockSelected() {
+  const items = [];
+  document.querySelectorAll('#entered-body tbody tr').forEach(tr => {
+    const cb = tr.querySelector('.ent-cb');
+    if (cb && cb.checked) {
+      const r = enteredRows[parseInt(tr.getAttribute('data-ri'))];
+      if (r) items.push({ row: r.row, acno: r.acno });
+    }
+  });
+  if (!items.length) return;
+  if (!confirm('Mark ' + items.length + ' account(s) as done and entered into billing?\n\n' +
+    'They will be LOCKED — field staff can no longer change them, and they will be archived at month close.')) return;
+
+  const btn = document.getElementById('lock-btn');
+  btn.textContent = 'Locking...'; btn.disabled = true;
+  try {
+    const d = await api({ action: 'supervisor_lock_rows', items: items });
+    if (d.success) {
+      flash(d.locked + ' account(s) locked → billing' + (d.mismatch ? ', ' + d.mismatch + ' skipped (sheet changed — refresh)' : '') + ' ✓', true);
+      preloadCache = null;                                    // stale after locking
+      if (session.user.role === 'supervisor') startPreload(); // rebuild in background
+      loadEntered();
+    } else {
+      flash(d.message || 'Could not lock.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+  btn.innerHTML = '🔒 Mark selected done → billing';
+}
+
+/* ── Projection calculator ── */
+const PJ_PREV_COL = 8;    // H  PREV READING
+const PJ_PDATE_COL = 9;   // I  PREV DATE
+const PJ_CUR_COL  = 13;   // M  NEW READING
+const PJ_DAYS_COL = 17;   // Q  NEW DAYS (reading days)
+
+let pjPrevDate = ''; // yyyy-mm-dd of the ticked row's previous date
+
+function pjNum(id) {
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? null : v;
+}
+
+function pjCalc() {
+  const prev = pjNum('pj-prev'), cur = pjNum('pj-cur'), days = pjNum('pj-days'), target = pjNum('pj-target');
+  const dailyEl = document.getElementById('pj-daily'), resEl = document.getElementById('pj-result'), dateEl = document.getElementById('pj-date');
+  if (prev === null || cur === null || days === null || days === 0) {
+    dailyEl.textContent = '—'; resEl.textContent = '—'; resEl.dataset.v = ''; dateEl.textContent = '—';
+    return;
+  }
+  const daily = (cur - prev) / days;
+  dailyEl.textContent = (Math.round(daily * 1000) / 1000);
+  if (target === null) { resEl.textContent = '—'; resEl.dataset.v = ''; dateEl.textContent = '—'; return; }
+  const projected = Math.round(daily * target + prev); // rounded to whole number
+  resEl.textContent = projected;
+  resEl.dataset.v = String(projected);
+  // Projected date = previous date + target days
+  if (pjPrevDate) {
+    const d = new Date(pjPrevDate + 'T00:00:00');
+    if (!isNaN(d)) {
+      d.setDate(d.getDate() + Math.round(target));
+      const dd = ('0'+d.getDate()).slice(-2), mm = ('0'+(d.getMonth()+1)).slice(-2), yy = d.getFullYear();
+      dateEl.textContent = dd + '/' + mm + '/' + yy;
+    } else dateEl.textContent = '—';
+  } else dateEl.textContent = '—';
+}
+
+// Fill the calculator from a ticked row and compute
+function pjLoadFromRow(r) {
+  if (!r) return;
+  const g = (i) => String(r.cells[i - 1] ?? '').replace(/,/g, '').trim();
+  document.getElementById('pj-prev').value = g(PJ_PREV_COL);
+  document.getElementById('pj-cur').value  = g(PJ_CUR_COL);
+  document.getElementById('pj-days').value = g(PJ_DAYS_COL);
+  pjPrevDate = normDate_(g(PJ_PDATE_COL)); // for the projected-date calc
+  pjCalc();
+  pjShowPhoto(r);
+}
+
+// Show the meter photo for the ticked row. Drive share links need converting
+// to a direct-image URL before they'll render in an <img>.
+function pjShowPhoto(r) {
+  const box = document.getElementById('pj-photo');
+  if (!box) return;
+  if (!r) { box.innerHTML = '<span style="color:#9ca3af;">Tick a row to view its photo.</span>'; return; }
+
+  // If the row object has no `photo` KEY at all, the deployed Code.gs is older
+  // than the one that sends photo URLs — that's a deployment problem, not a
+  // missing photo. Dump the actual keys so we can see what the server sent.
+  if (!('photo' in r)) {
+    box.innerHTML = '<span style="color:#b45309;">⚠️ No <b>photo</b> field in the server response.</span>' +
+      '<div style="margin-top:6px;font-size:10px;color:#6b7280;word-break:break-all;background:#f9fafb;padding:6px;border-radius:6px;">' +
+      '<b>Keys received:</b><br>' + esc(Object.keys(r).join(', ')) + '</div>';
+    return;
+  }
+
+  const url = String(r.photo || '');
+  if (!url) {
+    box.innerHTML = '<span style="color:#9ca3af;">No photo saved for ACNO ' + esc(r.acno) + ' (column V is empty).</span>';
+    return;
+  }
+  const id = driveFileId_(url);
+  const src = id ? ('https://drive.google.com/thumbnail?id=' + id + '&sz=w600') : url;
+  box.innerHTML =
+    '<a href="' + esc(url) + '" target="_blank" rel="noopener" title="Open full size">' +
+      '<img src="' + esc(src) + '" alt="Meter photo" ' +
+        'style="width:100%;border-radius:8px;border:1px solid #e5e7eb;display:block;" ' +
+        'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">' +
+      '<span style="display:none;font-size:12px;color:#2563eb;">📷 Open photo in new tab (thumbnail blocked)</span>' +
+    '</a>' +
+    '<div class="hint" style="margin-top:4px;">ACNO ' + esc(r.acno) + ' — click to enlarge.</div>';
+}
+
+// Extract the Drive file id from a share/view URL
+function driveFileId_(url) {
+  let m = String(url).match(/\/d\/([a-zA-Z0-9_-]+)/);      // .../file/d/<id>/view
+  if (m) return m[1];
+  m = String(url).match(/[?&]id=([a-zA-Z0-9_-]+)/);        // ...?id=<id>
+  return m ? m[1] : '';
+}
+
+function pjCopyResult() {
+  const v = document.getElementById('pj-result').dataset.v || '';
+  if (!v) return;
+  const done = () => flash('Copied projected reading: ' + v, true);
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done).catch(()=>{});
+  else done();
+}
+
+/* ── No-Meter tab ── */
+let nmCurrent = null; // last looked-up account
+
+function nmShowAreas() {
+  const el = document.getElementById('nm-areas-hint');
+  if (!el) return;
+  if (session.user.role === 'supervisor') {
+    const areas = (session.user.areas || []);
+    el.style.display = 'block';
+    el.innerHTML = areas.length
+      ? 'You can mark accounts in your areas only: <b>' + areas.map(a => 'Area ' + esc(a)).join(', ') + '</b>.'
+      : 'No areas are assigned to you — contact an admin.';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+async function nmLookup() {
+  const acno = document.getElementById('nm-acno').value.trim();
+  const box = document.getElementById('nm-result');
+  nmCurrent = null;
+  if (!acno) { box.innerHTML = '<div class="msg bad" style="position:static;transform:none;box-shadow:none;">Enter an account number.</div>'; return; }
+  box.innerHTML = '<div class="loading" style="color:#9ca3af;">Looking up…</div>';
+  try {
+    const d = await api({ action: 'nometer_lookup', acno: acno });
+    if (!d.success) { box.innerHTML = '<div class="hint" style="color:#b91c1c;">' + esc(d.message || 'Lookup failed.') + '</div>'; return; }
+    if (!d.found) { box.innerHTML = '<div class="hint" style="color:#b91c1c;">' + esc(d.message || 'Not found.') + '</div>'; return; }
+    nmCurrent = d;
+    const dis = d.already ? ' disabled' : '';
+    box.innerHTML =
+      '<div style="background:#f9fafb;border-radius:10px;padding:14px;">' +
+        '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin-bottom:12px;">' +
+          '<span style="color:#6b7280;">ACNO</span><b>' + esc(d.acno) + '</b>' +
+          '<span style="color:#6b7280;">Area</span><span>' + esc(d.area || '—') + '</span>' +
+          '<span style="color:#6b7280;">Meter</span><span>' + esc(d.meter || '—') + '</span>' +
+          '<span style="color:#6b7280;">Address</span><span>' + esc(d.address || '—') + '</span>' +
+        '</div>' +
+        (d.already
+          ? '<div class="hint" style="color:#166534;">✓ Already in the no-meters list.</div>'
+          : '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;">' +
+              '<input type="checkbox" id="nm-flag"> This account has NO METER</label>' +
+            '<button class="bigbtn" style="max-width:200px;" onclick="nmSave()">Save to no-meter list</button>') +
+      '</div>';
+  } catch(e) {
+    if (e.message !== 'auth') box.innerHTML = '<div class="hint" style="color:#b91c1c;">Could not connect.</div>';
+  }
+}
+
+async function nmSave() {
+  if (!nmCurrent) return;
+  const flag = document.getElementById('nm-flag');
+  if (!flag || !flag.checked) { flash('Tick "This account has NO METER" first.', false); return; }
+  try {
+    const d = await api({ action: 'nometer_save', acno: nmCurrent.acno, address: nmCurrent.address, meter: nmCurrent.meter, area: nmCurrent.area });
+    if (d.success) {
+      flash('ACNO ' + nmCurrent.acno + ' marked NO METER' + (d.flagged ? ' — ' + d.flagged + ' row(s) updated in sheet' : '') + ' ✓', true);
+      document.getElementById('nm-acno').value = '';
+      document.getElementById('nm-result').innerHTML = '';
+      nmCurrent = null;
+      nmListCache = null; // refresh list after adding
+      nmLoadList(true);
+    } else {
+      flash(d.message || 'Could not save.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+}
+
+async function nmLoadList(force) {
+  const box = document.getElementById('nm-list');
+  if (!box) return;
+  const render = (rows) => {
+    box.className = '';
+    if (!rows.length) { box.innerHTML = '<div class="hint">No accounts flagged yet.</div>'; return; }
+    box.innerHTML =
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:8px;">' + rows.length + ' account(s)</div>' +
+      '<div style="max-height:420px;overflow-y:auto;">' +
+      rows.slice().reverse().map(r =>
+        '<div style="border-bottom:1px solid #f3f4f6;padding:7px 0;">' +
+          '<div style="font-weight:700;color:#1F4E79;font-size:13px;">' + esc(r.acno) +
+            '<span class="area-b" style="margin-left:6px;">Area ' + esc(r.area || '—') + '</span></div>' +
+          '<div style="font-size:12px;color:#6b7280;">' + esc(r.address || '—') + '</div>' +
+        '</div>'
+      ).join('') + '</div>';
+  };
+  // Instant from cache
+  if (!force && nmListCache) { render(nmListCache); return; }
+  box.className = 'loading'; box.style.color = '#9ca3af'; box.textContent = 'Loading…';
+  try {
+    const d = await api({ action: 'nometer_list' });
+    if (!d.success) { box.textContent = d.message || 'Could not load.'; return; }
+    nmListCache = d.rows || [];
+    render(nmListCache);
+  } catch(e) {
+    if (e.message !== 'auth') box.textContent = 'Could not connect.';
+  }
+}
+
+/* ── Unbilled New tab ── */
+const NEW_COLS = ENTERED_COLS; // same visible columns as Unbilled Taken
+const COL_REMARKS_IDX = 21;    // U — Remarks
+let newRows = [];
+
+async function loadUnbilledNew(force) {
+  const body = document.getElementById('new-body');
+  // Use preloaded cache instantly if available (unless a forced refresh)
+  if (!force && newCache) {
+    newRows = newCache;
+    renderUnbilledNew();
+    return;
+  }
+  body.className = 'loading'; body.style.color = '#9ca3af'; body.textContent = 'Loading…';
+  document.getElementById('rmk-save-btn').disabled = true;
+  try {
+    const d = await api({ action: 'unbilled_new' });
+    if (!d.success) { body.style.color = '#b91c1c'; body.textContent = d.message || 'Could not load.'; return; }
+    newRows = d.rows || [];
+    newCache = newRows;
+    renderUnbilledNew();
+  } catch(e) {
+    if (e.message !== 'auth') { body.style.color = '#b91c1c'; body.textContent = 'Could not connect.'; }
+  }
+}
+
+const NEW_AREA_COL = 7; // G
+
+function populateNewAreaFilter() {
+  const sel = document.getElementById('new-area-filter');
+  if (!sel) return;
+  const prev = sel.value;
+  const areas = Array.from(new Set(newRows.map(r => String(r.area ?? r.cells[NEW_AREA_COL - 1] ?? '').trim()).filter(Boolean)))
+    .sort((a, b) => Number(a) - Number(b));
+  sel.innerHTML = '<option value="all">All areas</option>' +
+    areas.map(a => '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>').join('');
+  if (prev && (prev === 'all' || areas.indexOf(prev) !== -1)) sel.value = prev;
+}
+
+function renderUnbilledNew() {
+  const body = document.getElementById('new-body');
+  body.className = ''; body.style.color = '';
+  populateNewAreaFilter();
+  const fArea = document.getElementById('new-area-filter').value;
+
+  if (!newRows.length) {
+    body.innerHTML = '<div class="loading" style="color:#9ca3af;">No untaken accounts. 🎉</div>';
+    document.getElementById('rmk-save-btn').disabled = true;
+    return;
+  }
+  // Keep the TRUE index into newRows in data-ri so remarks save maps correctly
+  const shown = newRows
+    .map((r, ri) => ({ r, ri }))
+    .filter(x => fArea === 'all' || String(x.r.area ?? x.r.cells[NEW_AREA_COL - 1] ?? '').trim() === fArea);
+
+  const head = NEW_COLS.map(c => '<th style="white-space:nowrap;padding:5px 4px;">' + esc(c.label) + '</th>').join('') +
+    '<th style="padding:5px 4px;min-width:160px;">REMARKS ✎</th>';
+  const rows = shown.map(({ r, ri }) => {
+    const cells = NEW_COLS.map(c => {
+      const v = r.cells[c.i - 1];
+      const wrap = (c.i === 5) ? 'white-space:normal;word-break:break-word;min-width:120px;' : 'white-space:nowrap;';
+      return '<td class="copycell" onclick="copyCell(this)" title="Click to copy" data-v="' + esc(v ?? '') + '"' +
+        ' style="padding:5px 4px;' + wrap + 'cursor:pointer;">' + esc(v ?? '') + '</td>';
+    }).join('');
+    const rmk = '<td style="padding:3px 4px;"><input type="text" class="rmk-input" data-ri="' + ri + '" ' +
+      'value="' + esc(r.remarks || '') + '" oninput="onRemarkEdit()" ' +
+      'style="width:100%;min-width:150px;padding:5px 7px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
+    return '<tr data-ri="' + ri + '">' + cells + rmk + '</tr>';
+  }).join('');
+  body.innerHTML =
+    '<div style="border:1px solid #e5e7eb;border-radius:9px;overflow:hidden;">' +
+    '<table style="font-size:11.5px;width:100%;">' +
+    '<thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="hint" style="margin-top:6px;">' + shown.length + ' of ' + newRows.length + ' untaken account(s). Edit Remarks then press Save.</div>';
+  document.getElementById('rmk-save-btn').disabled = true;
+}
+
+function onRemarkEdit() {
+  document.getElementById('rmk-save-btn').disabled = false;
+}
+
+async function saveRemarks() {
+  const inputs = document.querySelectorAll('.rmk-input');
+  const items = [];
+  inputs.forEach(inp => {
+    const ri = parseInt(inp.getAttribute('data-ri'));
+    const r = newRows[ri];
+    if (!r) return;
+    if ((inp.value || '') !== (r.remarks || '')) items.push({ row: r.row, acno: r.acno, remarks: inp.value });
+  });
+  if (!items.length) { flash('No remark changes to save.', false); return; }
+  const btn = document.getElementById('rmk-save-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    const d = await api({ action: 'save_remarks', items: items });
+    if (d.success) {
+      flash(d.saved + ' remark(s) saved' + (d.skipped ? ', ' + d.skipped + ' skipped' : '') + ' ✓', true);
+      // reflect saved values locally so further edits compare correctly
+      items.forEach(it => { const r = newRows.find(x => x.row === it.row); if (r) r.remarks = it.remarks; });
+      newCache = newRows; // keep cache in sync with saved remarks
+    } else {
+      flash(d.message || 'Could not save.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+  btn.textContent = '💾 Save remarks'; btn.disabled = true;
+}
+
+/* ── Dashboard ── */
+
+async function loadDashboard(force) {
+  const body = document.getElementById('dash-body');
+  if (!force && dashCache) { renderDashboard(dashCache); return; }
+  body.className = 'loading'; body.style.color = '#9ca3af'; body.textContent = 'Loading…';
+  try {
+    const d = await api({ action: 'dashboard' });
+    if (!d.success) { body.style.color = '#b91c1c'; body.textContent = d.message || 'Could not load.'; return; }
+    dashCache = d;
+    renderDashboard(d);
+  } catch(e) {
+    if (e.message !== 'auth') { body.style.color = '#b91c1c'; body.textContent = 'Could not connect.'; }
+  }
+}
+
+function tile(label, value, color) {
+  return '<div class="stat" style="text-align:left;padding:16px;">' +
+    '<div class="statn" style="color:' + (color || '#1F4E79') + ';">' + value + '</div>' +
+    '<div class="statl">' + label + '</div></div>';
+}
+
+let dashAreaFilter = 'all';
+
+function renderDashboard(d) {
+  const body = document.getElementById('dash-body');
+  body.className = ''; body.style.color = '';
+  document.getElementById('dash-month').textContent = d.currentMonth || '—';
+
+  // Area filter dropdown (persist selection across refreshes)
+  const areaList = d.areaList || [];
+  const opts = '<option value="all">All areas</option>' +
+    areaList.map(a => '<option value="' + esc(a) + '"' + (dashAreaFilter === a ? ' selected' : '') + '>Area ' + esc(a) + '</option>').join('');
+  const filterBar = '<div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;">' +
+    '<label style="font-size:13px;font-weight:600;color:#374151;">View:</label>' +
+    '<select id="dash-area-filter" onchange="onDashAreaChange()" style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:#111;">' +
+    opts + '</select></div>';
+
+  body.innerHTML = filterBar + '<div id="dash-inner"></div>';
+  renderDashInner(d);
+}
+
+function onDashAreaChange() {
+  dashAreaFilter = document.getElementById('dash-area-filter').value;
+  if (dashCache) renderDashInner(dashCache);
+}
+
+// Build monthly series for the selected area (or combined for 'all')
+function dashMonthsFor(d, area) {
+  if (area === 'all') return d.months || [];
+  const rows = (d.monthAreas || []).filter(ma => String(ma.area) === String(area));
+  // ensure sorted by month
+  return rows.slice().sort((x, y) => x.month < y.month ? -1 : x.month > y.month ? 1 : 0);
+}
+
+function renderDashInner(d) {
+  const inner = document.getElementById('dash-inner');
+  const area = dashAreaFilter;
+  const months = dashMonthsFor(d, area);
+  const label = area === 'all' ? 'All areas' : 'Area ' + area;
+
+  // Current-month figures for the selected area
+  let c;
+  if (area === 'all') c = d.current || {};
+  else c = months.filter(m => m.month === d.currentMonth)[0] ||
+           { total: 0, taken: 0, pending: 0, noMeter: 0, dc: 0, completion: 0, units: 0 };
+  if (c.completion == null) c.completion = c.total ? Math.round(c.taken / c.total * 100) : 0;
+
+  const tiles = '<div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));padding:0 0 14px;">' +
+    tile('Total Unbilled', c.total || 0) +
+    tile('Unbilled Taken', c.taken || 0, '#16a34a') +
+    tile('Pending', c.pending || 0, '#b45309') +
+    tile('No Meters', c.noMeter || 0, '#6b7280') +
+    tile('DC Meters', c.dc || 0, '#dc2626') +
+    tile('Completion', (c.completion || 0) + '%', '#1d4ed8') +
+    '</div>';
+
+  const graph = '<h3 style="margin:8px 0 10px;">Year snapshot — Unbilled progress (' + esc(label) + ')</h3>' +
+    (months.length ? lineGraph(months) : '<div class="hint">No data for this selection.</div>');
+
+  const monthRows = months.map(m =>
+    '<tr>' +
+      '<td style="font-weight:700;">' + esc(m.month) + '</td>' +
+      '<td>' + m.taken + ' / ' + m.total + '</td>' +
+      '<td style="color:#b45309;">' + m.pending + '</td>' +
+      '<td style="color:#6b7280;">' + (m.noMeter || 0) + '</td>' +
+      '<td style="color:#dc2626;">' + (m.dc || 0) + '</td>' +
+      '<td style="min-width:150px;"><div style="display:flex;align-items:center;gap:8px;">' +
+        '<div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:' + m.completion + '%;"></div></div>' +
+        '<span class="pct">' + m.completion + '%</span></div></td>' +
+    '</tr>').join('');
+  const monthly = '<h3 style="margin:8px 0 10px;">Monthly coverage — ' + esc(label) + ' (by R_DATE)</h3>' +
+    (months.length
+      ? '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:9px;"><table style="font-size:12.5px;width:100%;">' +
+        '<thead><tr><th>Month</th><th>Taken / Total</th><th>Pending</th><th>No Meter</th><th>DC</th><th style="min-width:150px;">Completion</th></tr></thead>' +
+        '<tbody>' + monthRows + '</tbody></table></div>'
+      : '<div class="hint">No monthly data.</div>');
+
+  inner.innerHTML = tiles + graph + monthly +
+    (d.ms ? '<div class="hint" style="margin-top:8px;">Computed in ' + d.ms + 'ms.</div>' : '');
+}
+
+// SVG line graph: completion % per month across the year
+function lineGraph(months) {
+  const W = 720, H = 220, padL = 36, padR = 16, padT = 16, padB = 34;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const n = months.length;
+  const x = i => padL + (n <= 1 ? iw / 2 : (iw * i) / (n - 1));
+  const y = v => padT + ih - (ih * Math.max(0, Math.min(100, v))) / 100;
+  // gridlines at 0/25/50/75/100
+  let grid = '';
+  [0, 25, 50, 75, 100].forEach(g => {
+    const gy = y(g);
+    grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" stroke="#eef0f3"/>' +
+      '<text x="' + (padL - 6) + '" y="' + (gy + 3) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + g + '</text>';
+  });
+  const pts = months.map((m, i) => x(i) + ',' + y(m.completion));
+  const line = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#1F4E79" stroke-width="2.5"/>';
+  const dots = months.map((m, i) =>
+    '<circle cx="' + x(i) + '" cy="' + y(m.completion) + '" r="3.5" fill="#1F4E79"><title>' +
+    m.month + ': ' + m.completion + '% (' + m.taken + '/' + m.total + ')</title></circle>' +
+    '<text x="' + x(i) + '" y="' + (H - padB + 14) + '" text-anchor="middle" font-size="8.5" fill="#6b7280">' +
+    m.month.slice(2) + '</text>' +
+    '<text x="' + x(i) + '" y="' + (y(m.completion) - 8) + '" text-anchor="middle" font-size="9" font-weight="700" fill="#1F4E79">' +
+    m.completion + '%</text>'
+  ).join('');
+  return '<div style="border:1px solid #e5e7eb;border-radius:9px;padding:8px;overflow-x:auto;">' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;min-width:520px;height:auto;">' +
+    grid + line + dots + '</svg>' +
+    '<div class="hint" style="text-align:center;">Completion % by month (taken ÷ total).</div></div>';
+}
+
+/* ── Init ── */
+(function init() {
+  const saved = localStorage.getItem('ub_admin_session');
+  if (saved) {
     try {
-      const cached = localStorage.getItem(CK);
-      if (cached) {
-        allAccounts = JSON.parse(cached).filter(a => !a.locked);
-        filtered = allAccounts;
-        page = 1;
-        renderList();
-        const pc = allAccounts.filter(a=>a.status==='pending').length;
-        document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total';
+      session = JSON.parse(saved);
+      if (session && session.token && session.user &&
+          (session.user.role === 'admin' || session.user.role === 'supervisor')) {
+        enterMain();
+        return;
       }
     } catch(e) {}
-
-    // Open IndexedDB and sync in background
-    openDB().then(() => loadPending()).then(() => {
-      updateDot();
-      renderList(); // re-render with pending/synced tags now that pending is loaded
-      if (navigator.onLine) {
-        const unsynced = pending.filter(p => !p.synced);
-        if (unsynced.length) {
-          showBar('Syncing ' + unsynced.length + ' offline readings...', 'syncing');
-          syncAll().then(() => loadAll(true)).catch(() => {});
-        } else {
-          loadAll(true).catch(() => {});
-        }
-      } else {
-        showBar('Offline — cached data shown', 'offline');
-      }
-    }).catch(() => {
-      if (navigator.onLine) loadAll(true).catch(() => {});
-    });
-  }, 200);
-}
-initApp();
+    session = null;
+    localStorage.removeItem('ub_admin_session');
+  }
+  document.getElementById('v-login').style.display = 'flex';
+})();
 </script>
 </body>
 </html>
