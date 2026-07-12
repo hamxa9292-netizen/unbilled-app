@@ -159,7 +159,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v9 · new-api</p>
+          <p>STELCO Field App · v11 · row-order</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -522,16 +522,51 @@ function showAreaScreen() { show('area'); }
 
 let selectedAreaTemp = selectedArea;
 
+// The areas this worker is allowed to load: column F (multi) if set, else
+// column D (single). The server enforces this too — this just keeps the
+// dropdown honest.
+function myAreas() {
+  const multi = (currentUser && currentUser.areas) ? currentUser.areas.filter(Boolean) : [];
+  if (multi.length) return multi.map(String).sort((a, b) => Number(a) - Number(b));
+  const single = String((currentUser && currentUser.area) || '').trim();
+  return (single && single.toLowerCase() !== 'all') ? [single] : [];
+}
+
 function loadAreas() {
   const sel = document.getElementById('area-select');
-  sel.innerHTML = '<option value="all">All Areas</option>';
-  for (let i = 1; i <= 24; i++) {
-    const opt = document.createElement('option');
-    opt.value = i; opt.textContent = 'Area ' + i;
-    if (String(i) === String(selectedArea)) opt.selected = true;
-    sel.appendChild(opt);
+  const mine = myAreas();
+
+  if (!mine.length) {
+    // No area assigned (or an admin account) — fall back to the full list
+    sel.innerHTML = '<option value="all">All Areas</option>';
+    for (let i = 1; i <= 24; i++) {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = 'Area ' + i;
+      if (String(i) === String(selectedArea)) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    if (selectedArea === 'all') sel.value = 'all';
+    return;
   }
-  if (selectedArea === 'all') sel.value = 'all';
+
+  // Only the assigned areas. "All my areas" only makes sense with 2+.
+  let html = (mine.length > 1) ? '<option value="all">All My Areas</option>' : '';
+  mine.forEach(a => {
+    html += '<option value="' + a + '">Area ' + a + '</option>';
+  });
+  sel.innerHTML = html;
+
+  // Keep a valid selection: stored area must be one of mine
+  if (mine.indexOf(String(selectedArea)) !== -1) sel.value = String(selectedArea);
+  else if (mine.length > 1 && selectedArea === 'all') sel.value = 'all';
+  else { sel.value = mine[0]; selectedArea = mine[0]; }
+  localStorage.setItem('ub_area', selectedArea);
+
+  // Chip shows what they're actually assigned
+  const chip = document.getElementById('area-chip');
+  if (chip) chip.textContent = (mine.length > 1)
+    ? 'Areas: ' + mine.join(', ')
+    : 'Area: ' + mine[0];
 }
 
 async function loadSelectedArea() {
@@ -563,7 +598,7 @@ async function loadAll(force) {
   if (!force) {
     const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
     if (c && (Date.now()-ts)<TTL) {
-      allAccounts = JSON.parse(c).filter(a => !a.locked);
+      allAccounts = JSON.parse(c).filter(a => !a.locked).sort((a,b)=>Number(a.row)-Number(b.row)); // keep sheet row order
       filtered = allAccounts; // consistent with network path — show all, pending first in count
       renderList();
       const pc = allAccounts.filter(a=>a.status==='pending').length;
@@ -583,7 +618,9 @@ async function loadAll(force) {
     clearTimeout(tid);
     const data = await res.json();
     if (isAuthError(data)) { forceRelogin(); return; }
-    allAccounts = (data.accounts || []).filter(a => !a.locked); // locked accounts are hidden from reading entry
+    allAccounts = (data.accounts || [])
+      .filter(a => !a.locked)                              // locked accounts are hidden from reading entry
+      .sort((a, b) => Number(a.row) - Number(b.row));      // keep the sheet's row order (walk order)
     localStorage.setItem(CK, JSON.stringify(allAccounts));
     localStorage.setItem(CT, Date.now()+'');
     filtered = allAccounts;
@@ -594,7 +631,7 @@ async function loadAll(force) {
   } catch(e) {
     const c = localStorage.getItem(CK);
     if (c) {
-      allAccounts = JSON.parse(c).filter(a => !a.locked);
+      allAccounts = JSON.parse(c).filter(a => !a.locked).sort((a,b)=>Number(a.row)-Number(b.row)); // keep sheet row order
       filtered = allAccounts;
       renderList();
       const pc2 = allAccounts.filter(a=>a.status==='pending').length;
