@@ -159,7 +159,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v7 · photo-manual</p>
+          <p>STELCO Field App · v9 · new-api</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -326,12 +326,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbxRqL8C6-0B8Ft3wt6LJY636Z74EWeSAby0k5tExIMyaLD3HcdkJFB_oJ6C8-KUmEM-/exec";
+const API = "https://script.google.com/macros/s/AKfycbwNJiQfKBMcJhwE8VnQvktSUUcMPbnrzCs2NlUZYeW3ZfELM9GX_F41_RnEFa0ep-jt/exec";
 const CK = 'ub_cache', CT = 'ub_ts', TTL = 30*60*1000;
 
 let pending = [];
 let allAccounts = [], filtered = [], page = 1, pageSize = 40;
 let currentAcct = null, photoB64 = null;
+let hasExistingPhoto = false; // true when this account already has a photo saved in the sheet
 let selectedArea = localStorage.getItem('ub_area') || 'all';
 let updatedSet = new Set();
 let inFlight = new Set(); // update ids currently being POSTed — prevents duplicate sends
@@ -728,6 +729,24 @@ function fillDetail(d, keepKeyboard) {
   const sb = document.getElementById('sbar');
   if (sb) sb.className = 'sbar'; // don't carry a stale error onto the next account
   clearPhoto();
+
+  // If this account already has a photo saved in the sheet, treat it as taken —
+  // don't force the worker to shoot it again.
+  hasExistingPhoto = !!String(d.photoUrl || '').trim();
+  const pbtn = document.getElementById('photo-btn');
+  if (pbtn) {
+    if (hasExistingPhoto) {
+      pbtn.textContent = '📷 Photo ✓';
+      pbtn.style.background = '#16a34a';
+      pbtn.style.color = '#fff';
+      pbtn.title = 'A photo is already saved for this account. Tap to replace it.';
+    } else {
+      pbtn.textContent = '📷 Photo *';
+      pbtn.style.background = '#fbbf24';
+      pbtn.style.color = '#1f2937';
+      pbtn.title = 'A meter photo is required.';
+    }
+  }
   if (keepKeyboard) {
     // Moving to the next account: keep the keyboard up and the view still.
     // preventScroll stops the page jumping/re-laying-out under the keyboard.
@@ -772,7 +791,8 @@ async function saveReading(goNext) {
   }
 
   // ── Meter photo is MANDATORY for every reading ──
-  if (reading !== '' && !photoB64) {
+  // ...unless this account already has one saved (don't re-shoot it).
+  if (reading !== '' && !photoB64 && !hasExistingPhoto) {
     err.innerHTML='\u{1F4F7} A meter photo is required. Tap <b>📷 Photo</b>, then Save.';
     err.style.display='block';
     const pb = document.getElementById('photo-btn');
