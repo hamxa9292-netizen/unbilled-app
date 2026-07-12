@@ -181,7 +181,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v12 · password</p>
+          <p>STELCO Field App · v13 · pw-bg</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -1207,29 +1207,44 @@ async function savePassword() {
   const fail = (m) => { err.textContent = m; err.style.display = 'block'; };
   err.style.display = 'none';
 
+  // Catch everything we can locally, before the window closes — a background
+  // failure after closing is easy to miss.
   if (!cur || !nw) return fail('Enter your current and new password.');
   if (nw.length < 4) return fail('New password must be at least 4 characters.');
   if (nw !== nw2) return fail('The two new passwords do not match.');
   if (nw === cur) return fail('The new password is the same as the current one.');
 
-  const btn = document.getElementById('pw-save');
-  btn.textContent = 'Saving…'; btn.disabled = true;
-  try {
-    const res = await fetch(API, { method:'POST', body: JSON.stringify({
-      action: 'change_password', currentPassword: cur, newPassword: nw, token: tok()
-    })});
-    const d = await res.json();
-    if (isAuthError(d)) { forceRelogin(); return; }
-    if (d.success) {
-      closePwModal();
-      showBar('Password changed ✓ — use it next time you sign in.', 'ok');
-    } else {
-      fail(d.message || 'Could not change password.');
-    }
-  } catch(e) {
-    fail('Could not connect. Check your signal and try again.');
-  }
-  btn.textContent = 'Change'; btn.disabled = false;
+  // Close now, finish the save in the background.
+  closePwModal();
+  showBar('Changing password…', 'ok');
+
+  fetch(API, { method:'POST', body: JSON.stringify({
+    action: 'change_password', currentPassword: cur, newPassword: nw, token: tok()
+  })})
+    .then(r => r.json())
+    .then(d => {
+      if (isAuthError(d)) { forceRelogin(); return; }
+      if (d && d.success) {
+        showBar('Password changed ✓ — use it next time you sign in.', 'ok');
+      } else {
+        // The password did NOT change — this must not be missed.
+        pwFailBar('⚠️ Password NOT changed: ' + ((d && d.message) || 'unknown error') +
+                  ' — keep using your old password. (Tap to dismiss)');
+      }
+    })
+    .catch(() => {
+      pwFailBar('⚠️ Password NOT changed — no connection. Keep using your old password. (Tap to dismiss)');
+    });
+}
+
+// A failure bar that does NOT auto-dismiss — the user must acknowledge it,
+// otherwise they could walk away believing their password changed.
+function pwFailBar(msg) {
+  const b = document.getElementById('sbar');
+  clearTimeout(showBar._t);
+  b.className = 'sbar show bad';
+  b.textContent = msg;
+  b.onclick = () => { b.className = 'sbar'; };
 }
 
 function initApp() {
