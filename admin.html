@@ -120,7 +120,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v29 · photo-view</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v30 · photo-diag</span></h1>
       <span class="who" id="who"></span>
       <button onclick="doLogout()">Log out</button>
     </div>
@@ -1407,9 +1407,20 @@ function pjLoadFromRow(r) {
 function pjShowPhoto(r) {
   const box = document.getElementById('pj-photo');
   if (!box) return;
-  const url = (r && r.photo) ? String(r.photo) : '';
+  if (!r) { box.innerHTML = '<span style="color:#9ca3af;">Tick a row to view its photo.</span>'; return; }
+
+  // If the row object has no `photo` KEY at all, the deployed Code.gs is older
+  // than the one that sends photo URLs — that's a deployment problem, not a
+  // missing photo. Say so plainly instead of "no photo".
+  if (!('photo' in r)) {
+    box.innerHTML = '<span style="color:#b45309;">⚠️ Backend needs redeploying — photo URLs aren\'t being sent yet. ' +
+      'In Apps Script: Deploy → Manage deployments → Edit → Version: <b>New version</b>.</span>';
+    return;
+  }
+
+  const url = String(r.photo || '');
   if (!url) {
-    box.innerHTML = '<span style="color:#9ca3af;">No photo for ACNO ' + esc(r ? r.acno : '') + '.</span>';
+    box.innerHTML = '<span style="color:#9ca3af;">No photo saved for ACNO ' + esc(r.acno) + ' (column V is empty).</span>';
     return;
   }
   const id = driveFileId_(url);
@@ -1419,7 +1430,7 @@ function pjShowPhoto(r) {
       '<img src="' + esc(src) + '" alt="Meter photo" ' +
         'style="width:100%;border-radius:8px;border:1px solid #e5e7eb;display:block;" ' +
         'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">' +
-      '<span style="display:none;font-size:12px;color:#2563eb;">📷 Open photo in new tab</span>' +
+      '<span style="display:none;font-size:12px;color:#2563eb;">📷 Open photo in new tab (thumbnail blocked)</span>' +
     '</a>' +
     '<div class="hint" style="margin-top:4px;">ACNO ' + esc(r.acno) + ' — click to enlarge.</div>';
 }
