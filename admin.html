@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v39 · dd-mm-yyyy</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v40 · date-iso</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -898,7 +898,7 @@ function handleCsvFile(input) {
   const reader = new FileReader();
 
   if (ext === 'csv') {
-    reader.onload = e => { fileRowsAll = parseCSV(e.target.result); reparseCsv(); };
+    reader.onload = e => { fileRowsAll = normalizeDateCols(parseCSV(e.target.result)); reparseCsv(); };
     reader.readAsText(f);
   } else {
     // XLS / XLSX via SheetJS — first worksheet
@@ -907,13 +907,23 @@ function handleCsvFile(input) {
         const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-        // Normalize: Excel date cells → 'yyyy-mm-dd' strings the backend parses into real dates
-        fileRowsAll = raw.map(r => r.map(cell => {
+        // Normalize dates to unambiguous ISO 'yyyy-mm-dd' BEFORE they leave the
+        // browser. If a text date like "09-06-2026" reaches Google Sheets it
+        // gets auto-parsed with the spreadsheet's locale — month-first — and
+        // silently becomes 6 September. Dates with day > 12 survive by luck,
+        // which is exactly the corruption pattern we saw.
+        const DATE_COL_IDX = [8, 11, 13]; // 0-based: I=PREV DATE, L=R_DATE, N=NEW DATE
+        fileRowsAll = raw.map(r => r.map((cell, ci) => {
           if (cell instanceof Date) {
             const y = cell.getFullYear(),
                   m = ('0' + (cell.getMonth() + 1)).slice(-2),
                   d = ('0' + cell.getDate()).slice(-2);
             return y + '-' + m + '-' + d;
+          }
+          // Text date in a date column → read DAY-FIRST and emit ISO
+          if (DATE_COL_IDX.indexOf(ci) !== -1 && typeof cell === 'string') {
+            const iso = toIsoDayFirst(cell);
+            if (iso) return iso;
           }
           return cell;
         }));
@@ -2182,6 +2192,34 @@ function showSupDateLbl() {
   if (!el || !lbl) return;
   const m = String(el.value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   lbl.textContent = m ? ('= ' + m[3] + '-' + m[2] + '-' + m[1]) : '';
+}
+
+// Rewrite every date column of a parsed CSV into ISO, day-first.
+function normalizeDateCols(rows) {
+  if (!rows) return rows;
+  const DATE_COL_IDX = [8, 11, 13]; // 0-based: I=PREV DATE, L=R_DATE, N=NEW DATE
+  return rows.map(r => r.map((cell, ci) => {
+    if (DATE_COL_IDX.indexOf(ci) === -1) return cell;
+    const iso = toIsoDayFirst(cell);
+    return iso || cell;
+  }));
+}
+
+// Convert a text date to ISO 'yyyy-mm-dd', reading it DAY-FIRST (dd-mm-yyyy /
+// dd/mm/yyyy), which is the format the source files use. Returns '' if the
+// text isn't a date at all, so non-date cells pass through untouched.
+function toIsoDayFirst(s) {
+  const t = String(s || '').trim();
+  if (!t) return '';
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);            // already ISO
+  if (m) return m[1] + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[3]).slice(-2);
+  m = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);  // dd-mm-yyyy (day first)
+  if (!m) return '';
+  const d = Number(m[1]), mo = Number(m[2]);
+  let y = Number(m[3]);
+  if (y < 100) y += 2000;
+  if (d < 1 || d > 31 || mo < 1 || mo > 12) return '';
+  return y + '-' + ('0'+mo).slice(-2) + '-' + ('0'+d).slice(-2);
 }
 
 /* ── Init ── */
