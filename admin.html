@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v50 · changeover</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v51 · role-split</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -586,11 +586,13 @@ function enterMain() {
   const roleTag = session.user.role === 'admin' ? 'Admin' : 'Supervisor';
   document.getElementById('who').textContent = '👤 ' + (session.user.name || session.user.username) + ' · ' + roleTag;
   const isAdmin = session.user.role === 'admin';
-  // Admin-only tabs. Supervisors get: Upload Unbilled, Unbilled Taken, No-Meter.
-  ['tab-dash', 'tab-users', 'tab-overview', 'tab-report'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = isAdmin ? '' : 'none';
-  });
+  // Admin sees:      Dashboard, Users, Area Progress, Unbilled New, No-Meter, Area Report
+  // Supervisor sees:  Area Progress, Upload Unbilled, Unbilled Taken, Unbilled New, No-Meter, Area Report
+  const ADMIN_TABS = ['tab-dash', 'tab-users'];              // admin only
+  const SUP_TABS   = ['tab-sup', 'tab-entered'];             // supervisor only
+  ADMIN_TABS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isAdmin ? '' : 'none'; });
+  SUP_TABS.forEach(id   => { const el = document.getElementById(id); if (el) el.style.display = isAdmin ? 'none' : ''; });
+  // tab-overview, tab-new, tab-nometer, tab-report are shared (server scopes the data)
   initSupPane();
   if (isAdmin) fillAreaSelect();
 
@@ -648,32 +650,33 @@ function preloadEverything() {
   if (isAdmin) {
     setInitStatus('Loading dashboard…', 20);
     jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
+    jobs.push(api({ action: 'admin_list_users' }).then(d => { if (d && d.success) usersCache = d.users || []; }).catch(() => {}));
+  } else {
+    // Unbilled Taken is a supervisor tab — preload their areas and wait for it
+    setInitStatus('Loading your areas…', 25);
+    startPreload();
+    if (preloadPromise) jobs.push(preloadPromise);
   }
-  // Unbilled New — both roles (supervisors tag changeovers here)
+
+  setInitStatus('Loading unbilled data…', 50);
+  // Shared tabs: Area Progress, Unbilled New, No-Meter (server scopes each to the role)
+  jobs.push(api({ action: 'admin_overview' }).then(d => { if (d && d.success) overviewCache = d.areas || []; }).catch(() => {}));
   jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
 
-  setInitStatus('Loading unbilled data…', 40);
-  // Unbilled Taken: supervisors preload their areas (wait for it); admins load per-area on demand
-  if (!isAdmin) { startPreload(); if (preloadPromise) jobs.push(preloadPromise); }
-
-  setInitStatus('Loading lists…', 60);
+  setInitStatus('Loading lists…', 75);
   jobs.push(api({ action: 'nometer_list' }).then(d => { if (d && d.success) nmListCache = d.rows || []; }).catch(() => {}));
-
-  if (isAdmin) {
-    setInitStatus('Loading users & areas…', 78);
-    // Admin-only tabs: prime their caches so they open instantly
-    jobs.push(api({ action: 'admin_list_users' }).then(d => { if (d && d.success) usersCache = d.users || []; }).catch(() => {}));
-    jobs.push(api({ action: 'admin_overview' }).then(d => { if (d && d.success) overviewCache = d.areas || []; }).catch(() => {}));
-  }
 
   return Promise.all(jobs).then(() => setInitStatus('Almost ready…', 92));
 }
 
 /* ── Tabs ── */
 function switchTab(t) {
-  // Admin-only tabs — a supervisor can't land on them even if something tries.
-  const ADMIN_ONLY = ['dash', 'users', 'overview', 'report'];
-  if (ADMIN_ONLY.indexOf(t) !== -1 && session.user.role !== 'admin') t = 'sup';
+  // Keep each role out of the other's panes, whatever tries to open them.
+  const isAdminRole = session.user.role === 'admin';
+  const ADMIN_ONLY = ['dash', 'users'];
+  const SUP_ONLY   = ['sup', 'entered'];
+  if (!isAdminRole && ADMIN_ONLY.indexOf(t) !== -1) t = 'sup';        // supervisor → Upload
+  if (isAdminRole  && SUP_ONLY.indexOf(t)   !== -1) t = 'dash';       // admin → Dashboard
   document.getElementById('tab-dash').classList.toggle('active', t==='dash');
   document.getElementById('tab-users').classList.toggle('active', t==='users');
   document.getElementById('tab-overview').classList.toggle('active', t==='overview');
