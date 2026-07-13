@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v49 · role-tabs</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v50 · changeover</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -367,6 +367,7 @@ tr:last-child td{border-bottom:none;}
         <h3>
           Unbilled — new (not taken)
           <span style="display:flex;gap:8px;">
+            <button class="addbtn" id="chg-btn" style="background:#7c3aed;" onclick="tagChangeover()" disabled>🔁 Tag as Changeover</button>
             <button class="addbtn" id="rmk-save-btn" style="background:#1E7145;" onclick="saveRemarks()" disabled>💾 Save remarks</button>
             <button class="act" onclick="loadUnbilledNew(true)">🔄 Refresh</button>
           </span>
@@ -586,7 +587,7 @@ function enterMain() {
   document.getElementById('who').textContent = '👤 ' + (session.user.name || session.user.username) + ' · ' + roleTag;
   const isAdmin = session.user.role === 'admin';
   // Admin-only tabs. Supervisors get: Upload Unbilled, Unbilled Taken, No-Meter.
-  ['tab-dash', 'tab-users', 'tab-overview', 'tab-report', 'tab-new'].forEach(id => {
+  ['tab-dash', 'tab-users', 'tab-overview', 'tab-report'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = isAdmin ? '' : 'none';
   });
@@ -647,8 +648,9 @@ function preloadEverything() {
   if (isAdmin) {
     setInitStatus('Loading dashboard…', 20);
     jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
-    jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
   }
+  // Unbilled New — both roles (supervisors tag changeovers here)
+  jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
 
   setInitStatus('Loading unbilled data…', 40);
   // Unbilled Taken: supervisors preload their areas (wait for it); admins load per-area on demand
@@ -670,7 +672,7 @@ function preloadEverything() {
 /* ── Tabs ── */
 function switchTab(t) {
   // Admin-only tabs — a supervisor can't land on them even if something tries.
-  const ADMIN_ONLY = ['dash', 'users', 'overview', 'report', 'new'];
+  const ADMIN_ONLY = ['dash', 'users', 'overview', 'report'];
   if (ADMIN_ONLY.indexOf(t) !== -1 && session.user.role !== 'admin') t = 'sup';
   document.getElementById('tab-dash').classList.toggle('active', t==='dash');
   document.getElementById('tab-users').classList.toggle('active', t==='users');
@@ -1445,7 +1447,9 @@ function renderEntered() {
       : '<input type="checkbox" class="ent-cb" onchange="onEnteredTick(this)">';
     const statusCell = r.locked
       ? '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#dcfce7;color:#166534;">🔒</span></td>'
-      : '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#fef3c7;color:#92400e;">•</span></td>';
+      : (r.changeover
+        ? '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#ede9fe;color:#5b21b6;" title="Changeover — meter swapped, no reading">🔁</span></td>'
+        : '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#fef3c7;color:#92400e;">•</span></td>');
     return '<tr class="' + (r.locked ? 'locked-row' : '') + '" data-ri="' + ri + '">' +
       '<td style="text-align:center;padding:5px 3px;">' + cb + '</td>' + statusCell + cells + '</tr>';
   }).join('');
@@ -1867,7 +1871,8 @@ function renderUnbilledNew() {
     .map((r, ri) => ({ r, ri }))
     .filter(x => fArea === 'all' || String(x.r.area ?? x.r.cells[NEW_AREA_COL - 1] ?? '').trim() === fArea);
 
-  const head = NEW_COLS.map(c => '<th style="white-space:nowrap;padding:5px 4px;">' + esc(c.label) + '</th>').join('') +
+  const head = '<th style="width:26px;text-align:center;padding:5px 3px;"><input type="checkbox" onchange="toggleAllNew(this)"></th>' +
+    NEW_COLS.map(c => '<th style="white-space:nowrap;padding:5px 4px;">' + esc(c.label) + '</th>').join('') +
     '<th style="padding:5px 4px;min-width:160px;">REMARKS ✎</th>';
   const rows = shown.map(({ r, ri }) => {
     const cells = NEW_COLS.map(c => {
@@ -1879,7 +1884,11 @@ function renderUnbilledNew() {
     const rmk = '<td style="padding:3px 4px;"><input type="text" class="rmk-input" data-ri="' + ri + '" ' +
       'value="' + esc(r.remarks || '') + '" oninput="onRemarkEdit()" ' +
       'style="width:100%;min-width:150px;padding:5px 7px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
-    return '<tr data-ri="' + ri + '">' + cells + rmk + '</tr>';
+    // An account with remarks but no reading is the changeover candidate — flag it
+    const hasRemark = String(r.remarks || '').trim() !== '';
+    const cb = '<td style="text-align:center;padding:5px 3px;">' +
+      '<input type="checkbox" class="new-cb" data-ri="' + ri + '" onchange="updateChgBtn()"></td>';
+    return '<tr data-ri="' + ri + '"' + (hasRemark ? ' style="background:#f5f3ff;"' : '') + '>' + cb + cells + rmk + '</tr>';
   }).join('');
   body.innerHTML =
     '<div style="border:1px solid #e5e7eb;border-radius:9px;overflow:hidden;">' +
@@ -2425,6 +2434,7 @@ function renderReport(d) {
     chip('Pending', d.pending, '#f3b23f') +
     chip('Completion', d.pct + '%', '#1d4ed8') +
     chip('No meters', d.noMeter, '#8a97a6') +
+    chip('Changeovers', d.changeover || 0, '#7c3aed') +
     chip('DC meters', d.dc, '#dc2626') +
     chip('DC readings taken', d.dcTaken + ' (' + d.dcPct + '%)', '#dc2626') +
     '</div>';
@@ -2476,6 +2486,50 @@ function printReport() {
   w.document.close();
   w.focus();
   setTimeout(() => w.print(), 400);
+}
+
+/* ── Changeover tagging (Unbilled New) ── */
+function toggleAllNew(cb) {
+  document.querySelectorAll('.new-cb').forEach(x => { x.checked = cb.checked; });
+  updateChgBtn();
+}
+function updateChgBtn() {
+  const any = Array.from(document.querySelectorAll('.new-cb')).some(x => x.checked);
+  const b = document.getElementById('chg-btn');
+  if (b) b.disabled = !any;
+}
+
+async function tagChangeover() {
+  const items = [];
+  document.querySelectorAll('.new-cb').forEach(cb => {
+    if (!cb.checked) return;
+    const r = newRows[parseInt(cb.getAttribute('data-ri'))];
+    if (r) items.push({ row: r.row, acno: r.acno });
+  });
+  if (!items.length) { flash('Tick the accounts to tag first.', false); return; }
+
+  if (!confirm('Tag ' + items.length + ' account(s) as CHANGEOVER?\n\n' +
+    'They have no reading (meter being swapped). Tagging moves them out of Unbilled New ' +
+    'into Unbilled Taken, and they will count as taken in the reports.')) return;
+
+  const btn = document.getElementById('chg-btn');
+  btn.textContent = 'Tagging…'; btn.disabled = true;
+  try {
+    const d = await api({ action: 'tag_changeover', items: items });
+    if (d && d.success) {
+      flash(d.tagged + ' account(s) tagged as Changeover ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
+      newCache = null;                 // it has left Unbilled New
+      preloadCache = null;             // and joined Unbilled Taken
+      dashCache = null;                // counts changed
+      loadUnbilledNew(true);
+      if (session.user.role === 'supervisor') startPreload();
+    } else {
+      flash((d && d.message) || 'Could not tag.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+  btn.textContent = '🔁 Tag as Changeover'; btn.disabled = true;
 }
 
 /* ── Init ── */
