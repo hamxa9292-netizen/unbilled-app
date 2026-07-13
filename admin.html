@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v47 · clean</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v48 · area-report</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -216,6 +216,7 @@ tr:last-child td{border-bottom:none;}
       <button class="tab" id="tab-entered" onclick="switchTab('entered')">✅ Unbilled Taken</button>
       <button class="tab" id="tab-new" onclick="switchTab('new')">📋 Unbilled New</button>
       <button class="tab" id="tab-nometer" onclick="switchTab('nometer')">🚫 No-Meter</button>
+      <button class="tab" id="tab-report" onclick="switchTab('report')">📄 Area Report</button>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -379,6 +380,30 @@ tr:last-child td{border-bottom:none;}
           <select id="new-area-filter" onchange="renderUnbilledNew()" style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:#111;"><option value="all">All areas</option></select>
         </div>
         <div id="new-body" class="loading" style="color:#9ca3af;">Loading…</div>
+      </div>
+    </div>
+
+    <!-- AREA REPORT TAB -->
+    <div id="pane-report" style="display:none">
+      <div class="card">
+        <h3>
+          Area performance report
+          <span style="display:flex;gap:8px;">
+            <button class="act" onclick="printReport()">🖨️ Print</button>
+          </span>
+        </h3>
+        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:16px;">
+          <div class="lfield" style="margin:0;min-width:150px;">
+            <label>Area</label>
+            <select id="rep-area" class="dsh-sel" style="width:100%;"><option value="">Select area…</option></select>
+          </div>
+          <div class="lfield" style="margin:0;min-width:150px;">
+            <label>Month (optional)</label>
+            <input type="month" id="rep-month" class="dsh-sel" style="width:100%;">
+          </div>
+          <button class="addbtn" style="height:40px;background:#1E7145;" onclick="loadReport()">Generate</button>
+        </div>
+        <div id="rep-body" class="loading" style="color:#9ca3af;">Select an area and press Generate.</div>
       </div>
     </div>
 
@@ -645,12 +670,14 @@ function switchTab(t) {
   document.getElementById('tab-entered').classList.toggle('active', t==='entered');
   document.getElementById('tab-new').classList.toggle('active', t==='new');
   document.getElementById('tab-nometer').classList.toggle('active', t==='nometer');
+  document.getElementById('tab-report').classList.toggle('active', t==='report');
   document.getElementById('pane-users').style.display = t==='users' ? 'block' : 'none';
   document.getElementById('pane-overview').style.display = t==='overview' ? 'block' : 'none';
   document.getElementById('pane-sup').style.display = t==='sup' ? 'block' : 'none';
   document.getElementById('pane-entered').style.display = t==='entered' ? 'block' : 'none';
   document.getElementById('pane-new').style.display = t==='new' ? 'block' : 'none';
   document.getElementById('pane-nometer').style.display = t==='nometer' ? 'block' : 'none';
+  document.getElementById('pane-report').style.display = t==='report' ? 'block' : 'none';
   document.getElementById('pane-dash').style.display = t==='dash' ? 'block' : 'none';
   if (t !== 'entered') { entStopPolling(); entBlinkRefresh(false); }
   if (t==='users') loadUsers();
@@ -659,6 +686,7 @@ function switchTab(t) {
   if (t==='entered') initEnteredTab();
   if (t==='new') loadUnbilledNew();
   if (t==='nometer') { nmShowAreas(); nmLoadList(); }
+  if (t==='report') initReportTab();
 }
 
 /* ── Users ── */
@@ -2329,6 +2357,116 @@ function toIsoDayFirst(s) {
   if (y < 100) y += 2000;
   if (d < 1 || d > 31 || mo < 1 || mo > 12) return '';
   return y + '-' + ('0'+mo).slice(-2) + '-' + ('0'+d).slice(-2);
+}
+
+/* ── Area performance report ── */
+function initReportTab() {
+  const sel = document.getElementById('rep-area');
+  let opts = '<option value="">Select area…</option>';
+  assignedAreaList().forEach(a => { opts += '<option value="' + esc(a) + '">Area ' + esc(a) + '</option>'; });
+  sel.innerHTML = opts;
+}
+
+async function loadReport() {
+  const area = document.getElementById('rep-area').value;
+  const month = document.getElementById('rep-month').value; // 'yyyy-MM' or ''
+  const body = document.getElementById('rep-body');
+  if (!area) { body.className = 'loading'; body.style.color = '#b91c1c'; body.textContent = 'Select an area first.'; return; }
+  body.className = 'loading'; body.style.color = '#9ca3af'; body.textContent = 'Building report…';
+  try {
+    const d = await api({ action: 'area_report', area: area, month: month });
+    if (!d.success) { body.style.color = '#b91c1c'; body.textContent = d.message || 'Could not build the report.'; return; }
+    renderReport(d);
+  } catch(e) {
+    if (e.message !== 'auth') { body.style.color = '#b91c1c'; body.textContent = 'Could not connect.'; }
+  }
+}
+
+function ddmm(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? (m[3] + '-' + m[2] + '-' + m[1]) : (iso || '—');
+}
+
+function renderReport(d) {
+  const body = document.getElementById('rep-body');
+  body.className = ''; body.style.color = '';
+
+  const chip = (label, value, color) =>
+    '<div class="dsh-chip" style="--c:' + (color || '#1F4E79') + ';">' +
+      '<div class="n">' + value + '</div><div class="l">' + label + '</div></div>';
+
+  // Today's line — called out, since that's the day being worked
+  const todayPct = d.todayGiven ? Math.round(d.todayTaken / d.todayGiven * 100) : 0;
+  const todayBox =
+    '<div style="background:#0d1b2c;color:#e8eef5;border-radius:12px;padding:14px 16px;margin-bottom:14px;">' +
+      '<div class="dsh-eyebrow">Today · ' + esc(ddmm(d.today)) + '</div>' +
+      '<div style="display:flex;gap:26px;margin-top:6px;flex-wrap:wrap;">' +
+        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:24px;color:#ffc53d;">' + d.todayGiven + '</div>' +
+          '<div style="font-size:11px;color:#9fb6cc;">accounts given today</div></div>' +
+        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:24px;color:#1FB2A6;">' + d.todayTaken + '</div>' +
+          '<div style="font-size:11px;color:#9fb6cc;">readings taken today</div></div>' +
+        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:24px;color:#e8eef5;">' + todayPct + '%</div>' +
+          '<div style="font-size:11px;color:#9fb6cc;">of today\'s batch</div></div>' +
+      '</div>' +
+    '</div>';
+
+  const chips = '<div class="dsh-chips">' +
+    chip('Total given', d.totalGiven) +
+    chip('Total taken', d.totalTaken, '#1FB2A6') +
+    chip('Pending', d.pending, '#f3b23f') +
+    chip('Completion', d.pct + '%', '#1d4ed8') +
+    chip('No meters', d.noMeter, '#8a97a6') +
+    chip('DC meters', d.dc, '#dc2626') +
+    chip('DC readings taken', d.dcTaken + ' (' + d.dcPct + '%)', '#dc2626') +
+    '</div>';
+
+  const rows = (d.rows || []).map(r => {
+    const isToday = r.date === d.today;
+    return '<tr' + (isToday ? ' style="background:#fef9c3;font-weight:700;"' : '') + '>' +
+      '<td style="font-family:\'JetBrains Mono\',monospace;">' + esc(ddmm(r.date)) + (isToday ? ' ←' : '') + '</td>' +
+      '<td>' + r.given + '</td>' +
+      '<td style="color:#0d9488;font-weight:700;">' + r.taken + '</td>' +
+      '<td style="min-width:150px;"><div style="display:flex;align-items:center;gap:8px;">' +
+        '<div class="bar-bg" style="flex:1;"><div class="bar-fill" style="width:' + Math.min(100, r.pct) + '%;"></div></div>' +
+        '<span class="pct">' + r.pct + '%</span></div></td>' +
+    '</tr>';
+  }).join('');
+
+  const table = (d.rows && d.rows.length)
+    ? '<div style="overflow-x:auto;border:1px solid #e6eaf0;border-radius:11px;"><table style="font-size:12.5px;width:100%;">' +
+      '<thead><tr><th>Date</th><th>Given (R_DATE)</th><th>Taken (on that date)</th><th style="min-width:150px;">Daily %</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '<tfoot><tr style="background:#f6f8fa;font-weight:800;">' +
+        '<td>Total</td><td>' + d.totalGiven + '</td><td style="color:#0d9488;">' + d.totalTaken + '</td>' +
+        '<td>' + d.pct + '%</td>' +
+      '</tr></tfoot></table></div>'
+    : '<div class="hint">No data for this area/month.</div>';
+
+  body.innerHTML =
+    '<div id="rep-print">' +
+      '<div class="dsh-h" style="margin-top:0;">Area ' + esc(d.area) + ' · ' + esc(d.month || '') + '</div>' +
+      todayBox + chips +
+      '<div class="dsh-h">Daily breakdown</div>' + table +
+      '<div class="hint" style="margin-top:8px;">Given = accounts issued that day (R_DATE). Taken = readings actually recorded on that day (NEW DATE).</div>' +
+    '</div>';
+}
+
+function printReport() {
+  const el = document.getElementById('rep-print');
+  if (!el) { flash('Generate the report first.', false); return; }
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Area report</title>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">' +
+    '<style>body{font-family:\'Space Grotesk\',sans-serif;padding:24px;color:#111;}' +
+    'table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;font-size:12px;}' +
+    'th{background:#f3f4f6;}.bar-bg{background:#eee;height:8px;border-radius:4px;}.bar-fill{background:#1FB2A6;height:8px;border-radius:4px;}' +
+    '.dsh-chips{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;}.dsh-chip{border:1px solid #ddd;border-radius:8px;padding:8px 12px;}' +
+    '.dsh-chip .n{font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:18px;}.dsh-chip .l{font-size:10px;color:#666;}' +
+    '.dsh-h{font-weight:700;margin:14px 0 8px;}</style></head><body>' +
+    el.innerHTML + '</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
 }
 
 /* ── Init ── */
