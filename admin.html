@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v41 · date-check</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v42 · no-coerce</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -917,30 +917,40 @@ function handleCsvFile(input) {
     // XLS / XLSX via SheetJS — first worksheet
     reader.onload = e => {
       try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+        // Do NOT use cellDates:true. Many billing systems export an ".xls" that
+        // is really HTML/text, and SheetJS then coerces a text date like
+        // "08-09-2025" with JavaScript's MONTH-FIRST rule → 9 August. We read
+        // the cells ourselves instead:
+        //   • real numeric date serial → decoded exactly (unambiguous)
+        //   • text date                → parsed DAY-FIRST (what the system exports)
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: false });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-        // Normalize dates to unambiguous ISO 'yyyy-mm-dd' BEFORE they leave the
-        // browser. If a text date like "09-06-2026" reaches Google Sheets it
-        // gets auto-parsed with the spreadsheet's locale — month-first — and
-        // silently becomes 6 September. Dates with day > 12 survive by luck,
-        // which is exactly the corruption pattern we saw.
         const DATE_COL_IDX = [8, 11, 13]; // 0-based: I=PREV DATE, L=R_DATE, N=NEW DATE
-        rawRowsAll = raw.map(r => r.slice());   // keep the untouched cells for diagnosis
-        fileRowsAll = raw.map(r => r.map((cell, ci) => {
-          if (cell instanceof Date) {
-            const y = cell.getFullYear(),
-                  m = ('0' + (cell.getMonth() + 1)).slice(-2),
-                  d = ('0' + cell.getDate()).slice(-2);
-            return y + '-' + m + '-' + d;
+        const ref = XLSX.utils.decode_range(ws['!ref']);
+        const raw = [];
+        for (let R = ref.s.r; R <= ref.e.r; R++) {
+          const row = [];
+          for (let C = ref.s.c; C <= ref.e.c; C++) {
+            const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+            if (!cell) { row.push(''); continue; }
+            if (DATE_COL_IDX.indexOf(C) !== -1) {
+              if (cell.t === 'n') {
+                // Genuine Excel date serial — decode it, no guessing involved
+                const dc = XLSX.SSF.parse_date_code(cell.v);
+                row.push(dc ? (dc.y + '-' + ('0'+dc.m).slice(-2) + '-' + ('0'+dc.d).slice(-2)) : cell.v);
+              } else {
+                // Text date — read DAY-FIRST
+                const iso = toIsoDayFirst(cell.w != null ? cell.w : cell.v);
+                row.push(iso || (cell.w != null ? cell.w : cell.v));
+              }
+            } else {
+              row.push(cell.v != null ? cell.v : '');
+            }
           }
-          // Text date in a date column → read DAY-FIRST and emit ISO
-          if (DATE_COL_IDX.indexOf(ci) !== -1 && typeof cell === 'string') {
-            const iso = toIsoDayFirst(cell);
-            if (iso) return iso;
-          }
-          return cell;
-        }));
+          raw.push(row);
+        }
+        rawRowsAll = raw.map(r => r.slice());   // already normalised; kept for the date check
+        fileRowsAll = raw;
         reparseCsv();
       } catch(err) {
         fileRowsAll = null; csvRows = null; renderCsvPreview();
@@ -2265,13 +2275,9 @@ function checkDate() {
   const row = fileRowsAll.find(r => String(r[COL_ACNO_IDX] ?? '').trim() === acno);
   if (!row) { out.innerHTML = '<b>ACNO ' + esc(acno) + ' is not in this file.</b>'; return; }
 
-  const iso = String(row[8] ?? '');           // column I — PREV/READ DATE, as it will be sent
-  const rawCell = rawRowsAll ? (rawRowsAll.find(r => String(r[COL_ACNO_IDX] ?? '').trim() === acno) || [])[8] : undefined;
-  const rawType = (rawCell instanceof Date) ? 'Excel date cell'
-                : (typeof rawCell === 'number') ? 'number (Excel serial)'
-                : (typeof rawCell === 'string') ? 'text'
-                : String(rawCell === undefined ? 'missing' : typeof rawCell);
-  const rawShow = (rawCell instanceof Date) ? rawCell.toString() : String(rawCell);
+  const iso = String(row[8] ?? '');           // column I — as it will be sent
+  const rawShow = iso;
+  const rawType = 'read directly from the cell (no coercion)';
 
   // Spell the month out — no locale can misread that
   let spelled = '—';
