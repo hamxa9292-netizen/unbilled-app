@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v48 · area-report</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v49 · role-tabs</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -585,8 +585,11 @@ function enterMain() {
   const roleTag = session.user.role === 'admin' ? 'Admin' : 'Supervisor';
   document.getElementById('who').textContent = '👤 ' + (session.user.name || session.user.username) + ' · ' + roleTag;
   const isAdmin = session.user.role === 'admin';
-  document.getElementById('tab-users').style.display = isAdmin ? '' : 'none';
-  document.getElementById('tab-overview').style.display = isAdmin ? '' : 'none';
+  // Admin-only tabs. Supervisors get: Upload Unbilled, Unbilled Taken, No-Meter.
+  ['tab-dash', 'tab-users', 'tab-overview', 'tab-report', 'tab-new'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isAdmin ? '' : 'none';
+  });
   initSupPane();
   if (isAdmin) fillAreaSelect();
 
@@ -639,14 +642,17 @@ function preloadEverything() {
   const isAdmin = session.user.role === 'admin';
   fetch(API + '?action=ping').catch(() => {}); // wake the container
 
-  setInitStatus('Loading dashboard…', 20);
-  jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
+  // Dashboard and Unbilled New are admin-only tabs — don't make a supervisor
+  // wait on data they can't open.
+  if (isAdmin) {
+    setInitStatus('Loading dashboard…', 20);
+    jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
+    jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
+  }
 
   setInitStatus('Loading unbilled data…', 40);
   // Unbilled Taken: supervisors preload their areas (wait for it); admins load per-area on demand
   if (!isAdmin) { startPreload(); if (preloadPromise) jobs.push(preloadPromise); }
-  // Unbilled New — both roles
-  jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
 
   setInitStatus('Loading lists…', 60);
   jobs.push(api({ action: 'nometer_list' }).then(d => { if (d && d.success) nmListCache = d.rows || []; }).catch(() => {}));
@@ -663,6 +669,9 @@ function preloadEverything() {
 
 /* ── Tabs ── */
 function switchTab(t) {
+  // Admin-only tabs — a supervisor can't land on them even if something tries.
+  const ADMIN_ONLY = ['dash', 'users', 'overview', 'report', 'new'];
+  if (ADMIN_ONLY.indexOf(t) !== -1 && session.user.role !== 'admin') t = 'sup';
   document.getElementById('tab-dash').classList.toggle('active', t==='dash');
   document.getElementById('tab-users').classList.toggle('active', t==='users');
   document.getElementById('tab-overview').classList.toggle('active', t==='overview');
