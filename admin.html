@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v40 · date-iso</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v41 · date-check</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -241,6 +241,16 @@ tr:last-child td{border-bottom:none;}
             </select>
           </div>
         </div>
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:10px 12px;margin:0 0 14px;max-width:560px;">
+          <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px;">🔍 Date check — verify BEFORE uploading</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="number" id="dchk-acno" placeholder="ACNO e.g. 13522"
+              onkeydown="if(event.key==='Enter')checkDate()"
+              style="padding:7px 10px;border:1.5px solid #fcd34d;border-radius:7px;font-size:13px;font-family:inherit;outline:none;width:160px;">
+            <button class="act" onclick="checkDate()">Check</button>
+          </div>
+          <div id="dchk-out" style="font-size:12px;margin-top:8px;color:#78350f;line-height:1.6;"></div>
+        </div>
         <div class="lfield" style="max-width:440px;">
           <label>Detected area</label>
           <div id="sup-area-detect" style="padding:11px 14px;border:1.5px dashed #d1d5db;border-radius:9px;font-size:14px;color:#9ca3af;background:#fafafa;">Choose a file to detect the area</div>
@@ -253,6 +263,7 @@ tr:last-child td{border-bottom:none;}
             <input type="checkbox" id="sup-header" checked onchange="reparseCsv()"> First row is a header (skip it)
           </label>
         </div>
+        <div id="sup-datechk" style="display:none;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:9px 11px;margin-bottom:10px;"></div>
         <div id="sup-preview"></div>
         <button class="bigbtn" id="sup-upload" onclick="doCsvUpload()" style="max-width:440px;margin-top:10px;" disabled>Upload to sheet</button>
         <div class="err" id="sup-err"></div>
@@ -886,6 +897,8 @@ function renderOverview(areas) {
 
 /* ── Supervisor: XLS/XLSX/CSV import ── */
 let fileRowsAll = null, csvRows = null, csvName = '', detectedAreas = [];
+let rawRowsAll = null;              // pre-normalisation rows, for the date check
+const COL_ACNO_IDX = 1;             // 0-based column B = ACNO
 const FILE_AREA_COL = 7; // column G in the file = Area (matches the unbilled sheet)
 
 function handleCsvFile(input) {
@@ -898,7 +911,7 @@ function handleCsvFile(input) {
   const reader = new FileReader();
 
   if (ext === 'csv') {
-    reader.onload = e => { fileRowsAll = normalizeDateCols(parseCSV(e.target.result)); reparseCsv(); };
+    reader.onload = e => { const p = parseCSV(e.target.result); rawRowsAll = p.map(r => r.slice()); fileRowsAll = normalizeDateCols(p); reparseCsv(); };
     reader.readAsText(f);
   } else {
     // XLS / XLSX via SheetJS — first worksheet
@@ -913,6 +926,7 @@ function handleCsvFile(input) {
         // silently becomes 6 September. Dates with day > 12 survive by luck,
         // which is exactly the corruption pattern we saw.
         const DATE_COL_IDX = [8, 11, 13]; // 0-based: I=PREV DATE, L=R_DATE, N=NEW DATE
+        rawRowsAll = raw.map(r => r.slice());   // keep the untouched cells for diagnosis
         fileRowsAll = raw.map(r => r.map((cell, ci) => {
           if (cell instanceof Date) {
             const y = cell.getFullYear(),
@@ -993,6 +1007,22 @@ function renderCsvPreview() {
   detectedAreas = Array.from(new Set(
     csvRows.map(r => String(r[FILE_AREA_COL - 1] ?? '').trim()).filter(Boolean)
   )).sort((a, b) => Number(a) - Number(b));
+
+  // DATE CHECK — show the exact PREV DATE value that will be sent to the sheet.
+  // Anything not in yyyy-mm-dd form is a string Google Sheets could re-parse
+  // month-first, which is how 08-09-2025 silently becomes 9 August.
+  const dchk = document.getElementById('sup-datechk');
+  if (dchk && csvRows.length) {
+    const sample = csvRows.slice(0, 3).map(r => {
+      const v = r[8]; // 0-based index 8 = column I = PREV DATE
+      const t = (v instanceof Date) ? 'Date' : typeof v;
+      const iso = /^\d{4}-\d{2}-\d{2}$/.test(String(v));
+      return '<span style="color:' + (iso ? '#16a34a' : '#b91c1c') + ';">' +
+        esc(String(v)) + ' <small>(' + t + (iso ? ', ISO ✓' : ', NOT ISO ✗') + ')</small></span>';
+    }).join(' &nbsp;|&nbsp; ');
+    dchk.innerHTML = '<b>Date being uploaded (col I):</b> ' + sample;
+    dchk.style.display = 'block';
+  }
 
   if (!detectedAreas.length) {
     areaEl.textContent = '⚠ No area found in column G — check the file layout';
@@ -2220,6 +2250,43 @@ function toIsoDayFirst(s) {
   if (y < 100) y += 2000;
   if (d < 1 || d > 31 || mo < 1 || mo > 12) return '';
   return y + '-' + ('0'+mo).slice(-2) + '-' + ('0'+d).slice(-2);
+}
+
+// Diagnostic: show exactly what the browser will SEND for an account's dates,
+// and what the raw cell looked like. This isolates client-side conversion from
+// anything the backend or Google Sheets does afterwards.
+function checkDate() {
+  const out = document.getElementById('dchk-out');
+  const acno = String(document.getElementById('dchk-acno').value || '').trim();
+  if (!fileRowsAll) { out.innerHTML = '<b>Choose a file first.</b>'; return; }
+  if (!acno) { out.innerHTML = '<b>Enter an ACNO.</b>'; return; }
+
+  // fileRowsAll is post-normalisation (what will actually be sent)
+  const row = fileRowsAll.find(r => String(r[COL_ACNO_IDX] ?? '').trim() === acno);
+  if (!row) { out.innerHTML = '<b>ACNO ' + esc(acno) + ' is not in this file.</b>'; return; }
+
+  const iso = String(row[8] ?? '');           // column I — PREV/READ DATE, as it will be sent
+  const rawCell = rawRowsAll ? (rawRowsAll.find(r => String(r[COL_ACNO_IDX] ?? '').trim() === acno) || [])[8] : undefined;
+  const rawType = (rawCell instanceof Date) ? 'Excel date cell'
+                : (typeof rawCell === 'number') ? 'number (Excel serial)'
+                : (typeof rawCell === 'string') ? 'text'
+                : String(rawCell === undefined ? 'missing' : typeof rawCell);
+  const rawShow = (rawCell instanceof Date) ? rawCell.toString() : String(rawCell);
+
+  // Spell the month out — no locale can misread that
+  let spelled = '—';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    spelled = Number(m[3]) + ' ' + names[Number(m[2]) - 1] + ' ' + m[1];
+  }
+
+  out.innerHTML =
+    '<b>ACNO ' + esc(acno) + '</b><br>' +
+    'Raw cell type: <b>' + esc(rawType) + '</b><br>' +
+    'Raw value: <code>' + esc(rawShow) + '</code><br>' +
+    'Will be SENT as: <code>' + esc(iso) + '</code><br>' +
+    'Which means: <b style="color:#065f46;">' + esc(spelled) + '</b>';
 }
 
 /* ── Init ── */
