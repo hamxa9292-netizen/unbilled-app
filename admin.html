@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v42 · no-coerce</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v44 · cell-truth</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -898,6 +898,8 @@ function renderOverview(areas) {
 /* ── Supervisor: XLS/XLSX/CSV import ── */
 let fileRowsAll = null, csvRows = null, csvName = '', detectedAreas = [];
 let rawRowsAll = null;              // pre-normalisation rows, for the date check
+let dbgCells = {};                  // ACNO -> the TRUE cell {t,v,w,z} from the date column
+let parseRoute = '';                // which parser handled the file (shown in the date check)
 const COL_ACNO_IDX = 1;             // 0-based column B = ACNO
 const FILE_AREA_COL = 7; // column G in the file = Area (matches the unbilled sheet)
 
@@ -917,39 +919,56 @@ function handleCsvFile(input) {
     // XLS / XLSX via SheetJS — first worksheet
     reader.onload = e => {
       try {
-        // Do NOT use cellDates:true. Many billing systems export an ".xls" that
-        // is really HTML/text, and SheetJS then coerces a text date like
-        // "08-09-2025" with JavaScript's MONTH-FIRST rule → 9 August. We read
-        // the cells ourselves instead:
-        //   • real numeric date serial → decoded exactly (unambiguous)
-        //   • text date                → parsed DAY-FIRST (what the system exports)
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: false });
-        const ws = wb.Sheets[wb.SheetNames[0]];
+        const buf = new Uint8Array(e.target.result);
         const DATE_COL_IDX = [8, 11, 13]; // 0-based: I=PREV DATE, L=R_DATE, N=NEW DATE
-        const ref = XLSX.utils.decode_range(ws['!ref']);
-        const raw = [];
-        for (let R = ref.s.r; R <= ref.e.r; R++) {
-          const row = [];
-          for (let C = ref.s.c; C <= ref.e.c; C++) {
-            const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
-            if (!cell) { row.push(''); continue; }
-            if (DATE_COL_IDX.indexOf(C) !== -1) {
-              if (cell.t === 'n') {
-                // Genuine Excel date serial — decode it, no guessing involved
-                const dc = XLSX.SSF.parse_date_code(cell.v);
-                row.push(dc ? (dc.y + '-' + ('0'+dc.m).slice(-2) + '-' + ('0'+dc.d).slice(-2)) : cell.v);
+
+        // Many billing systems export an ".xls" that is really HTML or delimited
+        // TEXT. SheetJS coerces date-looking strings inside XLSX.read() using
+        // JavaScript's MONTH-FIRST rule ("08-09-2025" → 9 August), and no option
+        // prevents it. So sniff the real format and parse text ourselves.
+        const head = String.fromCharCode.apply(null, buf.slice(0, 512)).toLowerCase();
+        const isZip  = buf[0] === 0x50 && buf[1] === 0x4B;                       // xlsx  (PK)
+        const isBiff = buf[0] === 0xD0 && buf[1] === 0xCF;                       // real xls
+        const isHtml = head.indexOf('<table') !== -1 || head.indexOf('<html') !== -1 || head.indexOf('<?xml') !== -1;
+
+        let raw;
+        if (!isZip && !isBiff) {
+          // Text-based export (HTML table, or CSV/TSV named .xls)
+          const text = new TextDecoder('utf-8').decode(buf);
+          parseRoute = isHtml ? 'HTML table (.xls that is really HTML) — text read verbatim, dates parsed DAY-FIRST'
+                             : 'delimited text (.xls that is really CSV/TSV) — dates parsed DAY-FIRST';
+          raw = isHtml ? parseHtmlTable(text) : parseCSV(text);
+          raw = normalizeDateCols(raw);           // text dates → ISO, DAY-FIRST
+        } else {
+          // Genuine binary spreadsheet: date serials are unambiguous, decode exactly.
+          parseRoute = 'genuine binary spreadsheet — date serials decoded exactly';
+          const wb = XLSX.read(buf, { type: 'array', cellDates: false });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const ref = XLSX.utils.decode_range(ws['!ref']);
+          raw = [];
+          for (let R = ref.s.r; R <= ref.e.r; R++) {
+            const row = [];
+            for (let C = ref.s.c; C <= ref.e.c; C++) {
+              const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+              if (!cell) { row.push(''); continue; }
+              if (DATE_COL_IDX.indexOf(C) !== -1) {
+                // Record what the cell REALLY is — the date check must not guess
+                if (C === 8) dbgCells[String(row[1] ?? '')] = { t: cell.t, v: cell.v, w: cell.w, z: cell.z };
+                if (cell.t === 'n') {
+                  const dc = XLSX.SSF.parse_date_code(cell.v);   // true serial → exact
+                  row.push(dc ? (dc.y + '-' + ('0'+dc.m).slice(-2) + '-' + ('0'+dc.d).slice(-2)) : cell.v);
+                } else {
+                  const iso = toIsoDayFirst(cell.w != null ? cell.w : cell.v);
+                  row.push(iso || (cell.w != null ? cell.w : cell.v));
+                }
               } else {
-                // Text date — read DAY-FIRST
-                const iso = toIsoDayFirst(cell.w != null ? cell.w : cell.v);
-                row.push(iso || (cell.w != null ? cell.w : cell.v));
+                row.push(cell.v != null ? cell.v : '');
               }
-            } else {
-              row.push(cell.v != null ? cell.v : '');
             }
+            raw.push(row);
           }
-          raw.push(row);
         }
-        rawRowsAll = raw.map(r => r.slice());   // already normalised; kept for the date check
+        rawRowsAll = raw.map(r => r.slice());
         fileRowsAll = raw;
         reparseCsv();
       } catch(err) {
@@ -2234,6 +2253,24 @@ function showSupDateLbl() {
   lbl.textContent = m ? ('= ' + m[3] + '-' + m[2] + '-' + m[1]) : '';
 }
 
+// Parse an HTML-table export (an ".xls" that is really HTML) into rows of raw
+// TEXT. Crucially the cell text is taken verbatim — nothing is interpreted as a
+// date here, so no month-first coercion can occur.
+function parseHtmlTable(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const table = doc.querySelector('table');
+  if (!table) return [];
+  const out = [];
+  table.querySelectorAll('tr').forEach(tr => {
+    const row = [];
+    tr.querySelectorAll('td,th').forEach(td => {
+      row.push(String(td.textContent || '').replace(/\u00a0/g, ' ').trim());
+    });
+    if (row.length) out.push(row);
+  });
+  return out;
+}
+
 // Rewrite every date column of a parsed CSV into ISO, day-first.
 function normalizeDateCols(rows) {
   if (!rows) return rows;
@@ -2276,8 +2313,13 @@ function checkDate() {
   if (!row) { out.innerHTML = '<b>ACNO ' + esc(acno) + ' is not in this file.</b>'; return; }
 
   const iso = String(row[8] ?? '');           // column I — as it will be sent
-  const rawShow = iso;
-  const rawType = 'read directly from the cell (no coercion)';
+  const dbg = dbgCells[acno];
+  const rawType = dbg
+    ? ({ n: 'NUMBER — a real Excel date serial', s: 'TEXT string', d: 'date object', b: 'boolean' }[dbg.t] || String(dbg.t))
+    : '(not captured)';
+  const rawShow = dbg
+    ? ('value = ' + JSON.stringify(dbg.v) + '<br>displayed as = ' + JSON.stringify(dbg.w) + '<br>cell format = ' + JSON.stringify(dbg.z))
+    : '(not captured)';
 
   // Spell the month out — no locale can misread that
   let spelled = '—';
@@ -2290,7 +2332,7 @@ function checkDate() {
   out.innerHTML =
     '<b>ACNO ' + esc(acno) + '</b><br>' +
     'Raw cell type: <b>' + esc(rawType) + '</b><br>' +
-    'Raw value: <code>' + esc(rawShow) + '</code><br>' +
+    'Raw cell: ' + rawShow + '<br>' +
     'Will be SENT as: <code>' + esc(iso) + '</code><br>' +
     'Which means: <b style="color:#065f46;">' + esc(spelled) + '</b>';
 }
