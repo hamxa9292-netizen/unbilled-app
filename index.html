@@ -183,7 +183,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v14 · layout-fix</p>
+          <p>STELCO Field App · v16 · locked-readonly</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -304,7 +304,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div id="detail-btns">
       <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;">
         <button onclick="goPrev()" style="background:#374151;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">◀ Prev</button>
-        <button onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
+        <button id="save-btn" onclick="saveReading(false)" style="background:#1E7145;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>
         <button onclick="saveReading(true)" style="background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:16px 0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Next ▶</button>
       </div>
     </div>
@@ -357,6 +357,7 @@ let pending = [];
 let allAccounts = [], filtered = [], page = 1, pageSize = 40;
 let currentAcct = null, photoB64 = null;
 let hasExistingPhoto = false; // true when this account already has a photo saved in the sheet
+let photoNotRequired = false; // photo on file OR the reading was already saved → don't demand a new one
 let selectedArea = localStorage.getItem('ub_area') || 'all';
 let updatedSet = new Set();
 let inFlight = new Set(); // update ids currently being POSTed — prevents duplicate sends
@@ -622,7 +623,7 @@ async function loadAll(force) {
   if (!force) {
     const c = localStorage.getItem(CK), ts = parseInt(localStorage.getItem(CT)||'0');
     if (c && (Date.now()-ts)<TTL) {
-      allAccounts = JSON.parse(c).filter(a => !a.locked).sort((a,b)=>Number(a.row)-Number(b.row)); // keep sheet row order
+      allAccounts = JSON.parse(c).sort((a,b)=>Number(a.row)-Number(b.row)); // keep sheet row order; locked shown read-only
       filtered = allAccounts; // consistent with network path — show all, pending first in count
       renderList();
       const pc = allAccounts.filter(a=>a.status==='pending').length;
@@ -643,8 +644,7 @@ async function loadAll(force) {
     const data = await res.json();
     if (isAuthError(data)) { forceRelogin(); return; }
     allAccounts = (data.accounts || [])
-      .filter(a => !a.locked)                              // locked accounts are hidden from reading entry
-      .sort((a, b) => Number(a.row) - Number(b.row));      // keep the sheet's row order (walk order)
+      .sort((a, b) => Number(a.row) - Number(b.row));      // sheet row order; locked accounts are shown READ-ONLY
     localStorage.setItem(CK, JSON.stringify(allAccounts));
     localStorage.setItem(CT, Date.now()+'');
     filtered = allAccounts;
@@ -655,7 +655,7 @@ async function loadAll(force) {
   } catch(e) {
     const c = localStorage.getItem(CK);
     if (c) {
-      allAccounts = JSON.parse(c).filter(a => !a.locked).sort((a,b)=>Number(a.row)-Number(b.row)); // keep sheet row order
+      allAccounts = JSON.parse(c).sort((a,b)=>Number(a.row)-Number(b.row)); // keep sheet row order; locked shown read-only
       filtered = allAccounts;
       renderList();
       const pc2 = allAccounts.filter(a=>a.status==='pending').length;
@@ -676,7 +676,7 @@ async function bgRefresh() {
     const data = await res.json();
     if (isAuthError(data)) { forceRelogin(); return; }
     if (data.accounts) {
-      allAccounts = data.accounts.filter(a => !a.locked);
+      allAccounts = data.accounts.sort((a,b)=>Number(a.row)-Number(b.row)); // locked shown read-only
       localStorage.setItem(CK, JSON.stringify(allAccounts));
       localStorage.setItem(CT, Date.now()+'');
       // Reapply the current search filter so `filtered` points at fresh data,
@@ -791,21 +791,54 @@ function fillDetail(d, keepKeyboard) {
   if (sb) sb.className = 'sbar'; // don't carry a stale error onto the next account
   clearPhoto();
 
-  // If this account already has a photo saved in the sheet, treat it as taken —
-  // don't force the worker to shoot it again.
+  // A photo is only demanded for a FRESH reading. If this account already has
+  // a photo on file, OR its reading was already saved (synced to the sheet, or
+  // still queued locally), don't make the worker shoot it again.
   hasExistingPhoto = !!String(d.photoUrl || '').trim();
+  const readingSaved =
+    d.status === 'done' ||
+    String(d.newReading ?? '').trim() !== '' ||
+    updatedSet.has(String(d.acno)) ||
+    pending.some(p => String(p.acno) === String(d.acno));
+  photoNotRequired = hasExistingPhoto || readingSaved;
+
+  // A locked account is finished and gone to billing. Show what was entered,
+  // read-only — never ask for a photo (it may well have been purged from Drive
+  // after export) and never allow a change.
+  const isLocked = !!d.locked;
+  photoNotRequired = isLocked || hasExistingPhoto || readingSaved;
+
+  const inpR = document.getElementById('f-reading');
+  const inpD = document.getElementById('f-date');
+  const inpM = document.getElementById('f-remarks');
+  [inpR, inpD, inpM].forEach(el => { if (el) { el.disabled = isLocked; el.style.opacity = isLocked ? '.75' : '1'; } });
+
+  const saveBtn = document.querySelector('#detail-btns .btn-save') || document.getElementById('save-btn');
+  if (saveBtn) {
+    saveBtn.disabled = isLocked;
+    saveBtn.style.opacity = isLocked ? '.4' : '1';
+    saveBtn.textContent = isLocked ? '🔒 Locked' : 'Save';
+  }
+
   const pbtn = document.getElementById('photo-btn');
   if (pbtn) {
-    if (hasExistingPhoto) {
-      pbtn.textContent = '📷 Photo ✓';
-      pbtn.style.background = '#16a34a';
-      pbtn.style.color = '#fff';
-      pbtn.title = 'A photo is already saved for this account. Tap to replace it.';
+    if (isLocked) {
+      pbtn.style.display = 'none'; // nothing to add — the account is closed
     } else {
-      pbtn.textContent = '📷 Photo *';
-      pbtn.style.background = '#fbbf24';
-      pbtn.style.color = '#1f2937';
-      pbtn.title = 'A meter photo is required.';
+      pbtn.style.display = '';
+      if (photoNotRequired) {
+        pbtn.textContent = '📷 Photo ✓';
+        pbtn.style.background = '#16a34a';
+        pbtn.style.color = '#fff';
+        pbtn.title = hasExistingPhoto
+          ? 'A photo is already saved for this account. Tap to replace it.'
+          : 'This reading is already saved — no new photo needed. Tap to add one anyway.';
+      } else {
+        pbtn.textContent = '📷 Photo *';
+        pbtn.style.background = '#fbbf24';
+        pbtn.style.color = '#1f2937';
+        pbtn.title = 'A meter photo is required.';
+      }
     }
   }
   if (keepKeyboard) {
@@ -853,7 +886,7 @@ async function saveReading(goNext) {
 
   // ── Meter photo is MANDATORY for every reading ──
   // ...unless this account already has one saved (don't re-shoot it).
-  if (reading !== '' && !photoB64 && !hasExistingPhoto) {
+  if (reading !== '' && !photoB64 && !photoNotRequired) {
     err.innerHTML='\u{1F4F7} A meter photo is required. Tap <b>📷 Photo</b>, then Save.';
     err.style.display='block';
     const pb = document.getElementById('photo-btn');
@@ -1270,7 +1303,7 @@ function initApp() {
     try {
       const cached = localStorage.getItem(CK);
       if (cached) {
-        allAccounts = JSON.parse(cached).filter(a => !a.locked);
+        allAccounts = JSON.parse(cached).sort((a,b)=>Number(a.row)-Number(b.row)); // locked shown read-only
         filtered = allAccounts;
         page = 1;
         renderList();
