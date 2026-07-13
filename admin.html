@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v44 · cell-truth</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v45 · delimiter</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -933,12 +933,20 @@ function handleCsvFile(input) {
 
         let raw;
         if (!isZip && !isBiff) {
-          // Text-based export (HTML table, or CSV/TSV named .xls)
+          // Text-based export (HTML table, or delimited text named .xls)
           const text = new TextDecoder('utf-8').decode(buf);
-          parseRoute = isHtml ? 'HTML table (.xls that is really HTML) — text read verbatim, dates parsed DAY-FIRST'
-                             : 'delimited text (.xls that is really CSV/TSV) — dates parsed DAY-FIRST';
-          raw = isHtml ? parseHtmlTable(text) : parseCSV(text);
-          raw = normalizeDateCols(raw);           // text dates → ISO, DAY-FIRST
+          if (isHtml) {
+            parseRoute = 'HTML table (.xls that is really HTML) — dates parsed DAY-FIRST';
+            raw = parseHtmlTable(text);
+          } else {
+            const delim = sniffDelimiter(text);
+            parseRoute = 'delimited text (.xls that is really ' +
+              (delim === '\t' ? 'TAB' : delim === ';' ? 'semicolon' : 'comma') +
+              '-separated) — dates parsed DAY-FIRST';
+            raw = parseDelimited(text, delim);
+          }
+          rawRowsAll = raw.map(r => r.slice());  // BEFORE normalisation — the original text
+          raw = normalizeDateCols(raw);          // text dates → ISO, DAY-FIRST
         } else {
           // Genuine binary spreadsheet: date serials are unambiguous, decode exactly.
           parseRoute = 'genuine binary spreadsheet — date serials decoded exactly';
@@ -2282,6 +2290,40 @@ function normalizeDateCols(rows) {
   }));
 }
 
+// Work out how a text export separates its columns. A billing system may emit
+// TAB, comma or semicolon — assuming comma dumps every row into one column.
+function sniffDelimiter(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 10);
+  if (!lines.length) return ',';
+  const score = d => {
+    const counts = lines.map(l => l.split(d).length - 1);
+    const max = Math.max.apply(null, counts);
+    if (max === 0) return 0;
+    // reward a consistent, high column count
+    const consistent = counts.filter(c => c === max).length;
+    return max * consistent;
+  };
+  const cands = ['\t', ',', ';', '|'];
+  let best = ',', bestScore = 0;
+  cands.forEach(d => { const s = score(d); if (s > bestScore) { bestScore = s; best = d; } });
+  return best;
+}
+
+// Split delimited text into rows/cells, honouring quoted fields.
+function parseDelimited(text, delim) {
+  if (delim === ',') return parseCSV(text);   // existing quote-aware CSV reader
+  const rows = [];
+  text.split(/\r?\n/).forEach(line => {
+    if (!line.trim()) return;
+    rows.push(line.split(delim).map(c => {
+      let v = c.trim();
+      if (v.length > 1 && v[0] === '"' && v[v.length - 1] === '"') v = v.slice(1, -1);
+      return v;
+    }));
+  });
+  return rows;
+}
+
 // Convert a text date to ISO 'yyyy-mm-dd', reading it DAY-FIRST (dd-mm-yyyy /
 // dd/mm/yyyy), which is the format the source files use. Returns '' if the
 // text isn't a date at all, so non-date cells pass through untouched.
@@ -2314,12 +2356,10 @@ function checkDate() {
 
   const iso = String(row[8] ?? '');           // column I — as it will be sent
   const dbg = dbgCells[acno];
-  const rawType = dbg
-    ? ({ n: 'NUMBER — a real Excel date serial', s: 'TEXT string', d: 'date object', b: 'boolean' }[dbg.t] || String(dbg.t))
-    : '(not captured)';
+  const rawType = parseRoute || 'unknown';
   const rawShow = dbg
-    ? ('value = ' + JSON.stringify(dbg.v) + '<br>displayed as = ' + JSON.stringify(dbg.w) + '<br>cell format = ' + JSON.stringify(dbg.z))
-    : '(not captured)';
+    ? ('cell type = ' + JSON.stringify(dbg.t) + ' | value = ' + JSON.stringify(dbg.v) + ' | shown as = ' + JSON.stringify(dbg.w))
+    : ('as read from the file: ' + JSON.stringify(String((rawRowsAll.find(r => String(r[COL_ACNO_IDX] ?? '').trim() === acno) || [])[8] ?? '')));
 
   // Spell the month out — no locale can misread that
   let spelled = '—';
