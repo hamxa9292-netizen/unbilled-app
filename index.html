@@ -183,7 +183,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v16 · locked-readonly</p>
+          <p>STELCO Field App · v18 · dd-mm-yyyy</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -286,7 +286,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
         <div>
           <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">New Date</div>
-          <input type="date" id="f-date" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
+          <input type="date" id="f-date" onchange="showDateLbl()" style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:8px;font-size:13px;background:#1f2937;color:#fff;font-family:inherit;outline:none;">
+          <div id="f-date-lbl" style="font-size:11px;color:#fbbf24;margin-top:3px;font-weight:700;letter-spacing:.02em;"></div>
         </div>
         <div>
           <div style="color:#6b7280;font-size:11px;margin-bottom:3px;">Remarks</div>
@@ -771,6 +772,32 @@ async function openAccount(acno) {
   } catch(e) { showBar('Could not load account','offline'); }
 }
 
+// <input type="date"> renders in the BROWSER's locale (a US phone shows
+// 07/12/2026 for 12 July), which a day-first reader will misread. Show the
+// date explicitly in dd-mm-yyyy so there is no ambiguity.
+function showDateLbl() {
+  const el = document.getElementById('f-date');
+  const lbl = document.getElementById('f-date-lbl');
+  if (!el || !lbl) return;
+  const v = String(el.value || '');           // always ISO yyyy-mm-dd
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  lbl.textContent = m ? (m[3] + '-' + m[2] + '-' + m[1]) : '';
+}
+
+// The sheet sends dd/MM/yyyy; <input type="date"> needs yyyy-MM-dd.
+function normDateInput_(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);           // already ISO
+  if (m) return m[1] + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[3]).slice(-2);
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);   // dd/MM/yyyy
+  if (m) {
+    let y = m[3]; if (y.length === 2) y = '20' + y;
+    return y + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[1]).slice(-2);
+  }
+  return '';
+}
+
 function fillDetail(d, keepKeyboard) {
   document.getElementById('d-acno').textContent=d.acno;
   document.getElementById('d-area').textContent='Area '+(d.area||'—');
@@ -783,9 +810,14 @@ function fillDetail(d, keepKeyboard) {
   b.textContent=d.locked?'\u{1F512} Locked':(d.status==='done'?'Done':'Pending');
   b.className='badge '+(d.locked?'bp':(d.status==='done'?'bd':'bp'));
   const inp = document.getElementById('f-reading');
-  inp.value='';
-  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+  // Show the reading that was already entered (locked or simply saved) instead
+  // of a blank box; only a genuinely untaken account starts empty.
+  inp.value = String(d.newReading ?? '').trim();
+  document.getElementById('f-date').value = d.newDate
+    ? normDateInput_(d.newDate)
+    : new Date().toISOString().split('T')[0];
   document.getElementById('f-remarks').value=d.remarks||'';
+  showDateLbl();
   document.getElementById('serr').style.display='none';
   const sb = document.getElementById('sbar');
   if (sb) sb.className = 'sbar'; // don't carry a stale error onto the next account
@@ -879,7 +911,16 @@ async function saveReading(goNext) {
   }
 
   if (currentAcct && currentAcct.locked) {
-    err.textContent='\u{1F512} ACNO '+currentAcct.acno+' is locked (previous month) — entry is not allowed.';
+    // Nothing to save on a locked account — but the worker should still be able
+    // to page through the list, so Next just moves on.
+    if (goNext) {
+      const ci = filtered.findIndex(a=>String(a.acno)===String(currentAcct.acno));
+      const nx = filtered[ci + 1];
+      if (nx) { currentAcct = nx; fillDetail(nx, true); }
+      else showBar('Already at last account','offline');
+      return;
+    }
+    err.textContent='\u{1F512} ACNO '+currentAcct.acno+' is locked (sent to billing) — it can no longer be changed.';
     err.style.display='block';
     return;
   }
