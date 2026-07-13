@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v38 · photo-export</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v39 · dd-mm-yyyy</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -230,7 +230,8 @@ tr:last-child td{border-bottom:none;}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:440px;">
           <div class="lfield">
             <label>File date</label>
-            <input type="date" id="sup-date" style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;color:#111;background:#fff;">
+            <input type="date" id="sup-date" onchange="showSupDateLbl()" style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:15px;font-family:inherit;outline:none;color:#111;background:#fff;">
+            <div id="sup-date-lbl" style="font-size:11px;color:#1E7145;margin-top:3px;font-weight:700;"></div>
           </div>
           <div class="lfield">
             <label>Mode</label>
@@ -938,6 +939,7 @@ function reparseCsv() {
 function initSupPane() {
   const d = document.getElementById('sup-date');
   if (d && !d.value) d.value = new Date().toISOString().split('T')[0];
+  showSupDateLbl();
 }
 
 function parseCSV(text) {
@@ -2170,6 +2172,16 @@ async function savePassword() {
         flash('⚠️ Password NOT changed — could not connect. Keep using your old password.', false);
       }
     });
+}
+
+// The native date input renders in the browser's locale, which can read
+// month-first. Show the chosen batch date unambiguously as dd-mm-yyyy.
+function showSupDateLbl() {
+  const el = document.getElementById('sup-date');
+  const lbl = document.getElementById('sup-date-lbl');
+  if (!el || !lbl) return;
+  const m = String(el.value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  lbl.textContent = m ? ('= ' + m[3] + '-' + m[2] + '-' + m[1]) : '';
 }
 
 /* ── Init ── */
