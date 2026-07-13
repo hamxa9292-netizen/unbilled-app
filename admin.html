@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v46 · no-replace</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v47 · clean</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -240,16 +240,6 @@ tr:last-child td{border-bottom:none;}
             </select>
             <div class="hint" style="margin-top:3px;">Existing accounts for the same month are skipped as duplicates.</div>
           </div>
-        </div>
-        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:10px 12px;margin:0 0 14px;max-width:560px;">
-          <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px;">🔍 Date check — verify BEFORE uploading</div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input type="number" id="dchk-acno" placeholder="ACNO e.g. 13522"
-              onkeydown="if(event.key==='Enter')checkDate()"
-              style="padding:7px 10px;border:1.5px solid #fcd34d;border-radius:7px;font-size:13px;font-family:inherit;outline:none;width:160px;">
-            <button class="act" onclick="checkDate()">Check</button>
-          </div>
-          <div id="dchk-out" style="font-size:12px;margin-top:8px;color:#78350f;line-height:1.6;"></div>
         </div>
         <div class="lfield" style="max-width:440px;">
           <label>Detected area</label>
@@ -2339,42 +2329,6 @@ function toIsoDayFirst(s) {
   if (y < 100) y += 2000;
   if (d < 1 || d > 31 || mo < 1 || mo > 12) return '';
   return y + '-' + ('0'+mo).slice(-2) + '-' + ('0'+d).slice(-2);
-}
-
-// Diagnostic: show exactly what the browser will SEND for an account's dates,
-// and what the raw cell looked like. This isolates client-side conversion from
-// anything the backend or Google Sheets does afterwards.
-function checkDate() {
-  const out = document.getElementById('dchk-out');
-  const acno = String(document.getElementById('dchk-acno').value || '').trim();
-  if (!fileRowsAll) { out.innerHTML = '<b>Choose a file first.</b>'; return; }
-  if (!acno) { out.innerHTML = '<b>Enter an ACNO.</b>'; return; }
-
-  // fileRowsAll is post-normalisation (what will actually be sent)
-  const row = fileRowsAll.find(r => String(r[COL_ACNO_IDX] ?? '').trim() === acno);
-  if (!row) { out.innerHTML = '<b>ACNO ' + esc(acno) + ' is not in this file.</b>'; return; }
-
-  const iso = String(row[8] ?? '');           // column I — as it will be sent
-  const dbg = dbgCells[acno];
-  const rawType = parseRoute || 'unknown';
-  const rawShow = dbg
-    ? ('cell type = ' + JSON.stringify(dbg.t) + ' | value = ' + JSON.stringify(dbg.v) + ' | shown as = ' + JSON.stringify(dbg.w))
-    : ('as read from the file: ' + JSON.stringify(String((rawRowsAll.find(r => String(r[COL_ACNO_IDX] ?? '').trim() === acno) || [])[8] ?? '')));
-
-  // Spell the month out — no locale can misread that
-  let spelled = '—';
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) {
-    const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    spelled = Number(m[3]) + ' ' + names[Number(m[2]) - 1] + ' ' + m[1];
-  }
-
-  out.innerHTML =
-    '<b>ACNO ' + esc(acno) + '</b><br>' +
-    'Raw cell type: <b>' + esc(rawType) + '</b><br>' +
-    'Raw cell: ' + rawShow + '<br>' +
-    'Will be SENT as: <code>' + esc(iso) + '</code><br>' +
-    'Which means: <b style="color:#065f46;">' + esc(spelled) + '</b>';
 }
 
 /* ── Init ── */
