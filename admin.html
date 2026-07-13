@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v51 · role-split</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v52 · new-readonly</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -380,6 +380,7 @@ tr:last-child td{border-bottom:none;}
           <label style="font-size:13px;font-weight:600;color:#374151;">Area:</label>
           <select id="new-area-filter" onchange="renderUnbilledNew()" style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:#111;"><option value="all">All areas</option></select>
         </div>
+        <div id="new-note" style="display:none;font-size:12px;color:#075985;background:#e0f2fe;border-radius:8px;padding:8px 12px;margin-bottom:10px;"></div>
         <div id="new-body" class="loading" style="color:#9ca3af;">Loading…</div>
       </div>
     </div>
@@ -1861,6 +1862,17 @@ function populateNewAreaFilter() {
 function renderUnbilledNew() {
   const body = document.getElementById('new-body');
   body.className = ''; body.style.color = '';
+  // Admins can look but not touch: hide the edit/tag controls entirely.
+  const isAdminView = (session.user.role === 'admin');
+  ['chg-btn', 'rmk-save-btn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.style.display = isAdminView ? 'none' : '';
+  });
+  const note = document.getElementById('new-note');
+  if (note) {
+    note.style.display = isAdminView ? 'block' : 'none';
+    note.innerHTML = '👁️ View only — remarks and changeover tagging are done by the area supervisor.';
+  }
   populateNewAreaFilter();
   const fArea = document.getElementById('new-area-filter').value;
 
@@ -1874,9 +1886,10 @@ function renderUnbilledNew() {
     .map((r, ri) => ({ r, ri }))
     .filter(x => fArea === 'all' || String(x.r.area ?? x.r.cells[NEW_AREA_COL - 1] ?? '').trim() === fArea);
 
-  const head = '<th style="width:26px;text-align:center;padding:5px 3px;"><input type="checkbox" onchange="toggleAllNew(this)"></th>' +
+  const readOnlyNew = (session.user.role === 'admin');   // admins view only
+  const head = (readOnlyNew ? '' : '<th style="width:26px;text-align:center;padding:5px 3px;"><input type="checkbox" onchange="toggleAllNew(this)"></th>') +
     NEW_COLS.map(c => '<th style="white-space:nowrap;padding:5px 4px;">' + esc(c.label) + '</th>').join('') +
-    '<th style="padding:5px 4px;min-width:160px;">REMARKS ✎</th>';
+    '<th style="padding:5px 4px;min-width:160px;">REMARKS' + (readOnlyNew ? '' : ' ✎') + '</th>';
   const rows = shown.map(({ r, ri }) => {
     const cells = NEW_COLS.map(c => {
       const v = r.cells[c.i - 1];
@@ -1884,12 +1897,16 @@ function renderUnbilledNew() {
       return '<td class="copycell" onclick="copyCell(this)" title="Click to copy" data-v="' + esc(v ?? '') + '"' +
         ' style="padding:5px 4px;' + wrap + 'cursor:pointer;">' + esc(v ?? '') + '</td>';
     }).join('');
-    const rmk = '<td style="padding:3px 4px;"><input type="text" class="rmk-input" data-ri="' + ri + '" ' +
-      'value="' + esc(r.remarks || '') + '" oninput="onRemarkEdit()" ' +
-      'style="width:100%;min-width:150px;padding:5px 7px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
+    // Admins have READ-ONLY access here — supervisors do the editing/tagging.
+    const rmk = readOnlyNew
+      ? '<td style="padding:5px 4px;color:#374151;">' + esc(r.remarks || '') + '</td>'
+      : '<td style="padding:3px 4px;"><input type="text" class="rmk-input" data-ri="' + ri + '" ' +
+        'value="' + esc(r.remarks || '') + '" oninput="onRemarkEdit()" ' +
+        'style="width:100%;min-width:150px;padding:5px 7px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
     // An account with remarks but no reading is the changeover candidate — flag it
     const hasRemark = String(r.remarks || '').trim() !== '';
-    const cb = '<td style="text-align:center;padding:5px 3px;">' +
+    const cb = readOnlyNew ? '' :
+      '<td style="text-align:center;padding:5px 3px;">' +
       '<input type="checkbox" class="new-cb" data-ri="' + ri + '" onchange="updateChgBtn()"></td>';
     return '<tr data-ri="' + ri + '"' + (hasRemark ? ' style="background:#f5f3ff;"' : '') + '>' + cb + cells + rmk + '</tr>';
   }).join('');
