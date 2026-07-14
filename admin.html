@@ -55,6 +55,24 @@ html[data-theme="dark"] input,
 html[data-theme="dark"] select,
 html[data-theme="dark"] textarea{background:var(--surface-2) !important;color:var(--text) !important;border-color:var(--border) !important;}
 html[data-theme="dark"] tbody tr:hover{background:var(--row-hover);}
+/* Row states carry their own backgrounds, so they need dark variants —
+   otherwise light text lands on a pale yellow/green fill and vanishes. */
+html[data-theme="dark"] .ticked-row td{background:#3b3410 !important;color:#fde68a !important;}
+html[data-theme="dark"] .ticked-row .copycell:hover{background:#4d4415 !important;}
+html[data-theme="dark"] .locked-row td{background:#11321f !important;color:#a7f3d0 !important;}
+html[data-theme="dark"] .locked-row .copycell:hover{background:#17422a !important;}
+
+/* The pale accent panels (remarks, hints, changeover rows, badges) are set
+   inline. Remap each tint to a dark equivalent that keeps the same meaning. */
+html[data-theme="dark"] [style*="background:#fef2f2"]{background:#3a1a1a !important;}   /* red   — remarks   */
+html[data-theme="dark"] [style*="background:#fef2f2"] *{color:#fca5a5 !important;}
+html[data-theme="dark"] [style*="background:#e0f2fe"]{background:#0e2a3a !important;color:#7dd3fc !important;}  /* blue  — notices  */
+html[data-theme="dark"] [style*="background:#fffbeb"]{background:#3a3216 !important;color:#fde68a !important;}  /* amber — warnings */
+html[data-theme="dark"] [style*="background:#f5f3ff"]{background:#241c3d !important;}   /* violet— changeover row */
+html[data-theme="dark"] [style*="background:#dcfce7"]{background:#11321f !important;color:#a7f3d0 !important;}  /* green — locked   */
+html[data-theme="dark"] [style*="background:#ede9fe"]{background:#241c3d !important;color:#c4b5fd !important;}  /* violet— badge    */
+html[data-theme="dark"] [style*="background:#fef3c7"]{background:#3b3410 !important;color:#fde68a !important;}  /* amber — pending  */
+
 /* Keep the deliberately-dark panels (instrument band, viewer) as they are. */
 html[data-theme="dark"] .dsh-panel,
 html[data-theme="dark"] #pv{filter:none;}
@@ -247,7 +265,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v57 · dark-mode</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v58 · dark-fix</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
