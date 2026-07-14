@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v55 · pending-remarks</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v56 · month-header</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -2436,26 +2436,28 @@ function renderReport(d) {
     '<div class="dsh-chip" style="--c:' + (color || '#1F4E79') + ';">' +
       '<div class="n">' + value + '</div><div class="l">' + label + '</div></div>';
 
-  // Today's line — called out, since that's the day being worked
-  const todayPct = d.todayGiven ? Math.round(d.todayTaken / d.todayGiven * 100) : 0;
-  const todayBox =
-    '<div style="background:#0d1b2c;color:#e8eef5;border-radius:12px;padding:14px 16px;margin-bottom:14px;">' +
-      '<div class="dsh-eyebrow">Today · ' + esc(ddmm(d.today)) + '</div>' +
-      '<div style="display:flex;gap:26px;margin-top:6px;flex-wrap:wrap;">' +
-        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:24px;color:#ffc53d;">' + d.todayGiven + '</div>' +
-          '<div style="font-size:11px;color:#9fb6cc;">accounts given today</div></div>' +
-        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:24px;color:#1FB2A6;">' + d.todayTaken + '</div>' +
-          '<div style="font-size:11px;color:#9fb6cc;">readings taken today</div></div>' +
-        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:24px;color:#e8eef5;">' + todayPct + '%</div>' +
-          '<div style="font-size:11px;color:#9fb6cc;">of today\'s batch</div></div>' +
+  // The month's headline for this area: given, taken, and how complete it is.
+  const monthBox =
+    '<div style="background:#0d1b2c;color:#e8eef5;border-radius:12px;padding:16px 18px;margin-bottom:14px;">' +
+      '<div class="dsh-eyebrow">Area ' + esc(d.area) + ' · ' + esc(monthName(d.month)) + '</div>' +
+      '<div style="display:flex;gap:34px;margin-top:8px;flex-wrap:wrap;align-items:flex-end;">' +
+        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:30px;color:#ffc53d;">' + d.totalGiven + '</div>' +
+          '<div style="font-size:11px;color:#9fb6cc;">accounts given</div></div>' +
+        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:30px;color:#1FB2A6;">' + d.totalTaken + '</div>' +
+          '<div style="font-size:11px;color:#9fb6cc;">readings taken</div></div>' +
+        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:30px;color:#e8eef5;">' + d.pct + '%</div>' +
+          '<div style="font-size:11px;color:#9fb6cc;">complete</div></div>' +
+        '<div style="flex:1;min-width:160px;padding-bottom:6px;">' +
+          '<div style="height:10px;background:#22374d;border-radius:5px;overflow:hidden;">' +
+            '<div style="height:100%;width:' + Math.min(100, d.pct) + '%;background:linear-gradient(90deg,#f3b23f,#1FB2A6);border-radius:5px;"></div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
     '</div>';
 
+  // Totals now live in the panel above — chips carry only what isn't there.
   const chips = '<div class="dsh-chips">' +
-    chip('Total given', d.totalGiven) +
-    chip('Total taken', d.totalTaken, '#1FB2A6') +
     chip('Pending', d.pending, '#f3b23f') +
-    chip('Completion', d.pct + '%', '#1d4ed8') +
     chip('No meters', d.noMeter, '#8a97a6') +
     chip('Changeovers', d.changeover || 0, '#7c3aed') +
     chip('DC meters', d.dc, '#dc2626') +
@@ -2526,7 +2528,7 @@ function renderReport(d) {
   body.innerHTML =
     '<div id="rep-print">' +
       '<div class="dsh-h" style="margin-top:0;">Area ' + esc(d.area) + ' · ' + esc(d.month || '') + '</div>' +
-      todayBox + chips +
+      monthBox + chips +
       '<div class="dsh-h">Daily breakdown</div>' + table +
       '<div class="hint" style="margin-top:8px;">Given = accounts issued that day (R_DATE). Taken = readings actually recorded on that day (NEW DATE).</div>' +
       details +
