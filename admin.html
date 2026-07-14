@@ -265,7 +265,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v58 · dark-fix</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v59 · fast-login</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -708,32 +708,35 @@ let usersCache = null;    // Admin: user list
 let overviewCache = null; // Admin: area progress
 
 function preloadEverything() {
-  const jobs = [];
   const isAdmin = session.user.role === 'admin';
   fetch(API + '?action=ping').catch(() => {}); // wake the container
 
-  // Dashboard and Unbilled New are admin-only tabs — don't make a supervisor
-  // wait on data they can't open.
+  // Block ONLY on the landing tab's data. Waiting for every endpoint meant one
+  // slow call held the whole login hostage — which is what makes this feel slow
+  // "on and off": a cold container makes ALL of them slow at once.
+  let landing;
   if (isAdmin) {
-    setInitStatus('Loading dashboard…', 20);
-    jobs.push(api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {}));
-    jobs.push(api({ action: 'admin_list_users' }).then(d => { if (d && d.success) usersCache = d.users || []; }).catch(() => {}));
+    setInitStatus('Loading dashboard…', 45);
+    landing = api({ action: 'dashboard' }).then(d => { if (d && d.success) dashCache = d; }).catch(() => {});
   } else {
-    // Unbilled Taken is a supervisor tab — preload their areas and wait for it
-    setInitStatus('Loading your areas…', 25);
+    setInitStatus('Loading your areas…', 45);
     startPreload();
-    if (preloadPromise) jobs.push(preloadPromise);
+    landing = preloadPromise || Promise.resolve();
   }
 
-  setInitStatus('Loading unbilled data…', 50);
-  // Shared tabs: Area Progress, Unbilled New, No-Meter (server scopes each to the role)
-  jobs.push(api({ action: 'admin_overview' }).then(d => { if (d && d.success) overviewCache = d.areas || []; }).catch(() => {}));
-  jobs.push(api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {}));
+  // The other tabs fill in behind the scenes. Each has a cache-aware loader, so
+  // if the user opens one before it arrives it just fetches then — no error.
+  setTimeout(() => {
+    if (isAdmin) api({ action: 'admin_list_users' }).then(d => { if (d && d.success) usersCache = d.users || []; }).catch(() => {});
+    api({ action: 'admin_overview' }).then(d => { if (d && d.success) overviewCache = d.areas || []; }).catch(() => {});
+    api({ action: 'unbilled_new' }).then(d => { if (d && d.success) newCache = d.rows || []; }).catch(() => {});
+    api({ action: 'nometer_list' }).then(d => { if (d && d.success) nmListCache = d.rows || []; }).catch(() => {});
+  }, 0);
 
-  setInitStatus('Loading lists…', 75);
-  jobs.push(api({ action: 'nometer_list' }).then(d => { if (d && d.success) nmListCache = d.rows || []; }).catch(() => {}));
-
-  return Promise.all(jobs).then(() => setInitStatus('Almost ready…', 92));
+  // Never let the overlay hang. On a cold start, show the app after 6s anyway —
+  // the landing tab finishes loading on its own.
+  const cap = new Promise(res => setTimeout(res, 6000));
+  return Promise.race([landing, cap]).then(() => setInitStatus('Almost ready…', 92));
 }
 
 /* ── Tabs ── */
