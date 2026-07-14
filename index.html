@@ -183,7 +183,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v19 · no-reload</p>
+          <p>STELCO Field App · v20 · security</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -372,11 +372,26 @@ let currentUser = null;
 function tok(){ return (currentUser && currentUser.token) ? currentUser.token : ''; }
 function authUrl(qs){ return API + qs + '&token=' + encodeURIComponent(tok()); }
 function isAuthError(d){ return !!(d && d.error === 'auth'); }
+
+// The cached account list is customer PII — names, addresses, account and meter
+// numbers — sitting unencrypted on a phone that can be lost, shared or sold. It
+// must not outlive the session that was authorised to see it.
+// Unsynced readings in IndexedDB are deliberately NOT touched: they are the
+// worker's own unsaved work, and they sync once he signs back in.
+function wipeCachedData(){
+  try {
+    localStorage.removeItem(CK);            // the account list
+    localStorage.removeItem(CT);            // its timestamp
+    localStorage.removeItem('ub_session');
+    localStorage.removeItem('ub_session_at');
+  } catch(e) {}
+  allAccounts = []; filtered = []; currentUser = null;
+}
+
 function forceRelogin(){
   // Server session expired. Unsynced readings stay safe in IndexedDB —
   // they'll sync automatically after the worker signs in again.
-  currentUser = null;
-  localStorage.removeItem('ub_session');
+  wipeCachedData();
   showBar('Session expired — sign in again (your readings are safe)','offline');
   show('login');
 }
@@ -1228,6 +1243,7 @@ async function doLogin() {
       currentUser = data.user || {};
       currentUser.token = data.token;
       localStorage.setItem('ub_session', JSON.stringify(currentUser));
+      localStorage.setItem('ub_session_at', String(Date.now()));
       selectedArea = String(currentUser.area);
       localStorage.setItem('ub_area', selectedArea);
       document.getElementById('wlabel').textContent = currentUser.name || username;
@@ -1252,8 +1268,7 @@ function doLogout() {
   if (!confirm('Log out?')) return;
   const unsyncedCount = pending.filter(p=>!p.synced).length;
   if (unsyncedCount > 0 && !confirm('⚠ You have ' + unsyncedCount + ' UNSYNCED reading(s) that will be DELETED.\n\nLog out anyway?')) return;
-  localStorage.removeItem('ub_session');
-  localStorage.removeItem(CK); localStorage.removeItem(CT);
+  wipeCachedData();
   localStorage.removeItem('ub_area');
   dbClear();
   currentUser = null; pending = []; updatedSet = new Set(); allAccounts = []; filtered = [];
@@ -1294,7 +1309,7 @@ async function savePassword() {
   // Catch everything we can locally, before the window closes — a background
   // failure after closing is easy to miss.
   if (!cur || !nw) return fail('Enter your current and new password.');
-  if (nw.length < 4) return fail('New password must be at least 4 characters.');
+  if (nw.length < 8) return fail('New password must be at least 8 characters.');
   if (nw !== nw2) return fail('The two new passwords do not match.');
   if (nw === cur) return fail('The new password is the same as the current one.');
 
@@ -1345,6 +1360,17 @@ function initApp() {
   document.getElementById('alist').innerHTML = '<div class="loading">⏳ Loading accounts...</div>';
   show('home');
   switchNav('home');
+
+  // A session older than the token's 12-hour life is already dead server-side.
+  // Clear the customer data it left behind rather than displaying a stale list.
+  try {
+    const started = Number(localStorage.getItem('ub_session_at') || 0);
+    if (started && (Date.now() - started) > 12 * 60 * 60 * 1000) {
+      wipeCachedData();
+      show('login');
+      return;
+    }
+  } catch(e) {}
 
   // Defer ALL data work — let the browser paint first
   setTimeout(() => {
