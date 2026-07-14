@@ -356,7 +356,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v61 · login-grid</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v62 · attended</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -427,6 +427,7 @@ tr:last-child td{border-bottom:none;}
         <h3>
           Accounts with new readings
           <span style="display:flex;gap:8px;">
+            <button class="addbtn" id="rd-save-btn" style="background:#0f766e;" onclick="saveReadings()" disabled>💾 Save readings</button>
             <button class="addbtn" id="lock-btn" style="background:#b45309;" onclick="lockSelected()" disabled>🔒 Mark selected done → billing</button>
           </span>
         </h3>
@@ -526,7 +527,8 @@ tr:last-child td{border-bottom:none;}
         <h3>
           Unbilled — new (not taken)
           <span style="display:flex;gap:8px;">
-            <button class="addbtn" id="chg-btn" style="background:#7c3aed;" onclick="tagChangeover()" disabled>🔁 Tag as Changeover</button>
+            <button class="addbtn" id="att-btn" style="background:#0f766e;" onclick="tagAs('ATTENDED')" disabled>✔️ Mark Attended</button>
+            <button class="addbtn" id="chg-btn" style="background:#7c3aed;" onclick="tagAs('CHANGEOVER')" disabled>🔁 Tag as Changeover</button>
             <button class="addbtn" id="rmk-save-btn" style="background:#1E7145;" onclick="saveRemarks()" disabled>💾 Save remarks</button>
             <button class="act" onclick="loadUnbilledNew(true)">🔄 Refresh</button>
           </span>
@@ -1585,6 +1587,9 @@ function clearEnteredFilters() {
 function renderEntered() {
   const body = document.getElementById('entered-body');
   body.className = ''; body.style.color = '';
+  const canEditReading = true;   // supervisors complete ATTENDED accounts here
+  const rsb = document.getElementById('rd-save-btn');
+  if (rsb) rsb.disabled = true;
 
   const shown = enteredRows.slice().sort((a, b) => (a.locked ? 1 : 0) - (b.locked ? 1 : 0)); // pending first, locked at bottom
 
@@ -1600,6 +1605,15 @@ function renderEntered() {
     const ri = enteredRows.indexOf(r);
     const cells = ENTERED_COLS.map(c => {
       const v = r.cells[c.i - 1];
+      // NEW READING (M) is typed in, not copied — an ATTENDED account arrives
+      // here with no reading, and the supervisor completes it.
+      if (c.i === PJ_CUR_COL && canEditReading && !r.locked) {
+        return '<td style="padding:3px 4px;">' +
+          '<input type="number" class="rd-input" data-ri="' + ri + '" value="' + esc(v ?? '') + '" ' +
+          'oninput="onReadingEdit()" placeholder="enter…" ' +
+          'style="width:88px;padding:4px 6px;border:1.5px solid ' + (String(v ?? '').trim() ? '#e5e7eb' : '#0f766e') + ';' +
+          'border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
+      }
       // Let the address column (E, index 5) wrap; keep everything else on one line
       const wrap = (c.i === 5)
         ? 'white-space:normal;word-break:break-word;min-width:120px;'
@@ -1615,7 +1629,9 @@ function renderEntered() {
       ? '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#dcfce7;color:#166534;">🔒</span></td>'
       : (r.changeover
         ? '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#ede9fe;color:#5b21b6;" title="Changeover — meter swapped, no reading">🔁</span></td>'
-        : '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#fef3c7;color:#92400e;">•</span></td>');
+        : (r.attended
+          ? '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#ccfbf1;color:#0f766e;" title="Attended — enter the reading to complete it">✔️</span></td>'
+          : '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#fef3c7;color:#92400e;">•</span></td>'));
     return '<tr class="' + (r.locked ? 'locked-row' : '') + '" data-ri="' + ri + '">' +
       '<td style="text-align:center;padding:5px 3px;">' + cb + '</td>' + statusCell + cells + '</tr>';
   }).join('');
@@ -2026,7 +2042,7 @@ function renderUnbilledNew() {
   body.className = ''; body.style.color = '';
   // Admins can look but not touch: hide the edit/tag controls entirely.
   const isAdminView = (session.user.role === 'admin');
-  ['chg-btn', 'rmk-save-btn'].forEach(id => {
+  ['chg-btn', 'att-btn', 'rmk-save-btn'].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.style.display = isAdminView ? 'none' : '';
   });
@@ -2726,29 +2742,36 @@ function toggleAllNew(cb) {
 }
 function updateChgBtn() {
   const any = Array.from(document.querySelectorAll('.new-cb')).some(x => x.checked);
-  const b = document.getElementById('chg-btn');
-  if (b) b.disabled = !any;
+  ['chg-btn', 'att-btn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.disabled = !any;
+  });
 }
 
-async function tagChangeover() {
+async function tagAs(tag) {
   const items = [];
   document.querySelectorAll('.new-cb').forEach(cb => {
     if (!cb.checked) return;
     const r = newRows[parseInt(cb.getAttribute('data-ri'))];
     if (r) items.push({ row: r.row, acno: r.acno });
   });
-  if (!items.length) { flash('Tick the accounts to tag first.', false); return; }
+  if (!items.length) { flash('Tick the accounts to move first.', false); return; }
 
-  if (!confirm('Tag ' + items.length + ' account(s) as CHANGEOVER?\n\n' +
-    'They have no reading (meter being swapped). Tagging moves them out of Unbilled New ' +
-    'into Unbilled Taken, and they will count as taken in the reports.')) return;
+  const isChg = (tag === 'CHANGEOVER');
+  const msg = isChg
+    ? 'Tag ' + items.length + ' account(s) as CHANGEOVER?\n\nThe meter is being swapped, so there is no reading. ' +
+      'They move to Unbilled Taken and count as taken in the reports.'
+    : 'Mark ' + items.length + ' account(s) as ATTENDED?\n\nThey move to Unbilled Taken, where you can type ' +
+      'the reading in to complete them. They count as taken in the reports.';
+  if (!confirm(msg)) return;
 
-  const btn = document.getElementById('chg-btn');
-  btn.textContent = 'Tagging…'; btn.disabled = true;
+  const btn = document.getElementById(isChg ? 'chg-btn' : 'att-btn');
+  const label = btn.textContent;
+  btn.textContent = 'Working…'; btn.disabled = true;
   try {
-    const d = await api({ action: 'tag_changeover', items: items });
+    const d = await api({ action: isChg ? 'tag_changeover' : 'tag_attended', tag: tag, items: items });
     if (d && d.success) {
-      flash(d.tagged + ' account(s) tagged as Changeover ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
+      flash(d.tagged + ' account(s) moved to Unbilled Taken ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
       newCache = null;                 // it has left Unbilled New
       preloadCache = null;             // and joined Unbilled Taken
       dashCache = null;                // counts changed
@@ -2760,7 +2783,7 @@ async function tagChangeover() {
   } catch(e) {
     if (e.message !== 'auth') flash('Could not connect.', false);
   }
-  btn.textContent = '🔁 Tag as Changeover'; btn.disabled = true;
+  btn.textContent = label; btn.disabled = true;
 }
 
 /* ── Light / dark theme ── */
@@ -2827,6 +2850,43 @@ function toggleTheme() {
   let rt;
   window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(build, 200); });
 })();
+
+function onReadingEdit() {
+  const b = document.getElementById('rd-save-btn');
+  if (b) b.disabled = false;
+}
+
+// Save readings typed into Unbilled Taken. Used to complete ATTENDED accounts
+// (visited, reading came later) and to correct a reading before it's locked.
+async function saveReadings() {
+  const items = [];
+  document.querySelectorAll('.rd-input').forEach(inp => {
+    const ri = parseInt(inp.getAttribute('data-ri'));
+    const r = enteredRows[ri];
+    if (!r) return;
+    const val = String(inp.value || '').trim();
+    const was = String(r.cells[PJ_CUR_COL - 1] ?? '').trim();
+    if (val !== '' && val !== was) items.push({ row: r.row, acno: r.acno, reading: val });
+  });
+  if (!items.length) { flash('No reading changes to save.', false); return; }
+
+  const btn = document.getElementById('rd-save-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    const d = await api({ action: 'sup_update_reading', items: items });
+    if (d && d.success) {
+      flash(d.saved + ' reading(s) saved ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
+      preloadCache = null; dashCache = null;   // counts and rows changed
+      if (session.user.role === 'supervisor') startPreload();
+      refreshEntered();
+    } else {
+      flash((d && d.message) || 'Could not save.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+  btn.textContent = '💾 Save readings'; btn.disabled = true;
+}
 
 /* ── Init ── */
 (function init() {
