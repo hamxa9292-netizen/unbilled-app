@@ -200,7 +200,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v52 · new-readonly</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v53 · cache</span></h1>
       <span class="who" id="who"></span>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
       <button onclick="doLogout()">Log out</button>
@@ -2072,7 +2072,10 @@ function renderDashInner(d) {
         : '<div class="hint">No months recorded.</div>') +
     '</div>';
 
-  inner.innerHTML = panel + trend + monthly;
+  inner.innerHTML = panel + trend + monthly +
+    (d.ms != null ? '<div class="hint" style="margin-top:8px;">' +
+      (d.cached ? '⚡ served from cache' : '🔄 read from the sheet in ' + d.ms + 'ms') +
+      '</div>' : '');
 }
 
 // Month key "2026-07" → "July 2026"
