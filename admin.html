@@ -101,9 +101,48 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .err{background:#fee2e2;color:#b91c1c;padding:9px 13px;border-radius:8px;font-size:13px;margin-top:12px;display:none;text-align:center;}
 
 /* Tabs */
-.tabs{display:flex;gap:8px;margin-bottom:16px;}
-.tab{padding:9px 18px;border-radius:20px;font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:inherit;background:#fff;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.06);}
-.tab.active{background:#1F4E79;color:#fff;}
+/* ── Navigation: one floating pill rail ──────────────────────────
+   A single raised bar that follows you down the page, rather than a
+   row of separate buttons. The active tab is the only lit surface. */
+.tabs{
+  position:sticky; top:10px; z-index:90;
+  display:inline-flex; gap:4px; margin:0 auto 18px;
+  padding:5px;
+  background:var(--rail); border:1px solid var(--rail-line);
+  border-radius:999px;
+  box-shadow:0 6px 22px -8px var(--rail-shadow), 0 1px 2px rgba(0,0,0,.05);
+  backdrop-filter:saturate(180%) blur(12px);
+  -webkit-backdrop-filter:saturate(180%) blur(12px);
+  max-width:100%; overflow-x:auto; scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none;}
+.tabs-wrap{display:flex;justify-content:center;}
+.tab{
+  position:relative; white-space:nowrap;
+  padding:9px 17px; border:none; border-radius:999px;
+  font-size:13.5px; font-weight:600; font-family:inherit;
+  cursor:pointer; background:transparent; color:var(--text-2);
+  transition:color .18s ease, background .18s ease, transform .18s ease;
+}
+.tab:hover{color:var(--text); background:var(--rail-hover);}
+.tab:active{transform:scale(.97);}
+.tab.active{
+  color:#fff;
+  background:linear-gradient(180deg,#2a6698,#1F4E79);
+  box-shadow:0 3px 10px -2px rgba(31,78,121,.55), inset 0 1px 0 rgba(255,255,255,.16);
+}
+:root{
+  --rail:rgba(255,255,255,.82); --rail-line:#e6eaf0;
+  --rail-shadow:rgba(15,35,60,.30); --rail-hover:#eef1f5;
+}
+html[data-theme="dark"]{
+  --rail:rgba(20,29,39,.78); --rail-line:#26333f;
+  --rail-shadow:rgba(0,0,0,.65); --rail-hover:#1f2a36;
+}
+html[data-theme="dark"] .tab.active{
+  background:linear-gradient(180deg,#2f6d9f,#1b4568);
+  box-shadow:0 3px 12px -2px rgba(47,109,159,.5), inset 0 1px 0 rgba(255,255,255,.14);
+}
 
 /* Cards & tables */
 .card{background:var(--surface);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:16px;}
@@ -265,7 +304,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v59 · fast-login</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v60 · nav-rail</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -274,6 +313,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="wrap">
+    <div class="tabs-wrap">
     <div class="tabs">
       <button class="tab" id="tab-dash" onclick="switchTab('dash')">📈 Dashboard</button>
       <button class="tab active" id="tab-users" onclick="switchTab('users')">👥 Users</button>
@@ -283,6 +323,7 @@ tr:last-child td{border-bottom:none;}
       <button class="tab" id="tab-new" onclick="switchTab('new')">📋 Unbilled New</button>
       <button class="tab" id="tab-nometer" onclick="switchTab('nometer')">🚫 No-Meter</button>
       <button class="tab" id="tab-report" onclick="switchTab('report')">📄 Area Report</button>
+    </div>
     </div>
 
     <div class="msg" id="msg"></div>
