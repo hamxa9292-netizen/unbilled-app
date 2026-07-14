@@ -360,7 +360,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v64 · dark-report</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v65 · reading-date</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -543,7 +543,12 @@ tr:last-child td{border-bottom:none;}
         </div>
         <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;">
           <label style="font-size:13px;font-weight:600;color:#374151;">Area:</label>
-          <select id="new-area-filter" onchange="renderUnbilledNew()" style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:#111;"><option value="all">All areas</option></select>
+          <select id="new-area-filter" onchange="renderUnbilledNew()" class="dsh-sel"><option value="all">All areas</option></select>
+          <span id="rd-date-wrap" style="display:inline-flex;align-items:center;gap:6px;margin-left:14px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text-2);">Reading date:</label>
+            <input type="date" id="rd-date" onchange="showRdDateLbl()" class="dsh-sel" style="padding:7px 10px;">
+            <span id="rd-date-lbl" style="font-size:11px;color:#0f766e;font-weight:700;"></span>
+          </span>
         </div>
         <div id="new-note" style="display:none;font-size:12px;color:#075985;background:#e0f2fe;border-radius:8px;padding:8px 12px;margin-bottom:10px;"></div>
         <div id="new-body" class="loading" style="color:#9ca3af;">Loading…</div>
@@ -2041,6 +2046,11 @@ function renderUnbilledNew() {
   });
   const rsb = document.getElementById('rd-save-btn');
   if (rsb) rsb.disabled = true;   // nothing typed yet on a fresh render
+  const rdw = document.getElementById('rd-date-wrap');
+  if (rdw) rdw.style.display = isAdminView ? 'none' : 'inline-flex';
+  const rdd = document.getElementById('rd-date');
+  if (rdd && !rdd.value) rdd.value = new Date().toISOString().split('T')[0];
+  showRdDateLbl();
   const note = document.getElementById('new-note');
   if (note) {
     note.style.display = isAdminView ? 'block' : 'none';
@@ -2738,6 +2748,16 @@ function printReport() {
   setTimeout(() => w.print(), 400);
 }
 
+// The native date input renders in the browser's locale, which can read
+// month-first. Echo the choice as dd-mm-yyyy so it can't be misread.
+function showRdDateLbl() {
+  const el = document.getElementById('rd-date');
+  const lbl = document.getElementById('rd-date-lbl');
+  if (!el || !lbl) return;
+  const m = String(el.value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  lbl.textContent = m ? ('= ' + m[3] + '-' + m[2] + '-' + m[1]) : '';
+}
+
 /* ── Changeover tagging (Unbilled New) ── */
 function toggleAllNew(cb) {
   document.querySelectorAll('.new-cb').forEach(x => { x.checked = cb.checked; });
@@ -2871,12 +2891,15 @@ async function saveReadings() {
   });
   if (!items.length) { flash('Type a reading first.', false); return; }
 
+  const rdDate = String((document.getElementById('rd-date') || {}).value || '');
+  if (!rdDate) { flash('Choose the reading date first.', false); return; }
+
   const btn = document.getElementById('rd-save-btn');
   btn.textContent = 'Saving…'; btn.disabled = true;
   try {
-    const d = await api({ action: 'sup_update_reading', items: items });
+    const d = await api({ action: 'sup_update_reading', items: items, date: rdDate });
     if (d && d.success) {
-      flash(d.saved + ' reading(s) saved ✓ — moved to Unbilled Taken' +
+      flash(d.saved + ' reading(s) saved on ' + ddmm(rdDate) + ' ✓ — moved to Unbilled Taken' +
         (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
       newCache = null; preloadCache = null; dashCache = null;
       loadUnbilledNew(true);                                   // they leave this list
