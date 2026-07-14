@@ -183,7 +183,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="login-logo">
           <div class="ico">⚡</div>
           <h2>Unbilled Readings</h2>
-          <p>STELCO Field App · v18 · dd-mm-yyyy</p>
+          <p>STELCO Field App · v19 · no-reload</p>
         </div>
         <div class="lfield">
           <label>Username</label>
@@ -265,9 +265,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <span style="color:#fff;font-weight:700;" id="d-rdate"></span>
         <span style="opacity:.4;margin:0 2px;">|</span>
         <!-- Photo inline -->
-        <span id="pbw" style="display:inline-flex;align-items:center;">
-          <button id="photo-btn" onclick="document.getElementById('pinput').click()" style="background:#fbbf24;border:none;color:#1f2937;font-weight:700;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;">📷 Photo *</button>
+        <span id="pbw" style="display:inline-flex;align-items:center;gap:4px;">
+          <button id="photo-btn" onclick="document.getElementById('pinput').click()" title="Take a photo with the camera" style="background:#fbbf24;border:none;color:#1f2937;font-weight:700;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;">📷 Photo *</button>
+          <button id="gallery-btn" onclick="document.getElementById('ginput').click()" title="Choose an existing photo" style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-family:inherit;">🖼️</button>
+          <!-- capture=environment opens the camera straight away; the second input has no
+               capture attribute, so it opens the gallery/file picker instead. -->
           <input type="file" id="pinput" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
+          <input type="file" id="ginput" accept="image/*" style="display:none" onchange="previewPhoto(this)">
         </span>
         <span id="pp" style="display:none;align-items:center;gap:4px;">
           <img id="pimg" src="" style="border-radius:4px;height:20px;width:28px;object-fit:cover;vertical-align:middle;">
@@ -852,6 +856,8 @@ function fillDetail(d, keepKeyboard) {
     saveBtn.textContent = isLocked ? '🔒 Locked' : 'Save';
   }
 
+  const gbtn = document.getElementById('gallery-btn');
+  if (gbtn) gbtn.style.display = isLocked ? 'none' : '';   // no photo work on a locked account
   const pbtn = document.getElementById('photo-btn');
   if (pbtn) {
     if (isLocked) {
@@ -1163,7 +1169,9 @@ function previewPhoto(input) {
 
 function clearPhoto(){
   photoB64=null;
-  const i=document.getElementById('pinput');if(i)i.value='';
+  // Reset BOTH inputs — a file input won't fire change if you pick the same
+  // file twice without clearing it first.
+  ['pinput','ginput'].forEach(id => { const i=document.getElementById(id); if(i) i.value=''; });
   const pp=document.getElementById('pp');if(pp){pp.style.display='none';}
   const pb=document.getElementById('pbw');if(pb)pb.style.display='inline-flex';
 }
@@ -1341,6 +1349,7 @@ function initApp() {
   // Defer ALL data work — let the browser paint first
   setTimeout(() => {
     // Load cache
+    let hadCache = false;
     try {
       const cached = localStorage.getItem(CK);
       if (cached) {
@@ -1350,6 +1359,7 @@ function initApp() {
         renderList();
         const pc = allAccounts.filter(a=>a.status==='pending').length;
         document.getElementById('lcount').textContent = pc+' pending / '+allAccounts.length+' total';
+        hadCache = allAccounts.length > 0;
       }
     } catch(e) {}
 
@@ -1357,16 +1367,25 @@ function initApp() {
     openDB().then(() => loadPending()).then(() => {
       updateDot();
       renderList(); // re-render with pending/synced tags now that pending is loaded
-      if (navigator.onLine) {
-        const unsynced = pending.filter(p => !p.synced);
-        if (unsynced.length) {
-          showBar('Syncing ' + unsynced.length + ' offline readings...', 'syncing');
-          syncAll().then(() => loadAll(true)).catch(() => {});
-        } else {
-          loadAll(true).catch(() => {});
-        }
+
+      if (!navigator.onLine) { showBar('Offline — cached data shown', 'offline'); return; }
+
+      const unsynced = pending.filter(p => !p.synced);
+      if (unsynced.length) {
+        // We have readings to push — sync, then pull fresh state
+        showBar('Syncing ' + unsynced.length + ' offline readings...', 'syncing');
+        syncAll().then(() => loadAll(true)).catch(() => {});
+        return;
+      }
+
+      // Reopening the app should NOT refetch. The accounts don't change while
+      // the worker is out in the field — a reload just costs them a wait on a
+      // slow connection. Fetch only on first login; otherwise trust the cache
+      // and let them pull fresh with 🔄 when they want it.
+      if (!hadCache) {
+        loadAll(true).catch(() => {});
       } else {
-        showBar('Offline — cached data shown', 'offline');
+        showBar('Showing saved list — tap 🔄 to refresh', 'ok');
       }
     }).catch(() => {
       if (navigator.onLine) loadAll(true).catch(() => {});
