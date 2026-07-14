@@ -360,7 +360,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v69 · proj-cap</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v70 · security</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -1885,36 +1885,35 @@ function pjShowRemarks(r) {
 
 // Show the meter photo for the ticked row. Drive share links need converting
 // to a direct-image URL before they'll render in an <img>.
-function pjShowPhoto(r) {
+async function pjShowPhoto(r) {
   const box = document.getElementById('pj-photo');
   if (!box) return;
   if (!r) { box.innerHTML = '<span style="color:#9ca3af;">Tick a row to view its photo.</span>'; return; }
-
-  // If the row object has no `photo` KEY at all, the deployed Code.gs is older
-  // than the one that sends photo URLs — that's a deployment problem, not a
-  // missing photo. Dump the actual keys so we can see what the server sent.
-  if (!('photo' in r)) {
-    box.innerHTML = '<span style="color:#b45309;">⚠️ No <b>photo</b> field in the server response.</span>' +
-      '<div style="margin-top:6px;font-size:10px;color:#6b7280;word-break:break-all;background:#f9fafb;padding:6px;border-radius:6px;">' +
-      '<b>Keys received:</b><br>' + esc(Object.keys(r).join(', ')) + '</div>';
+  if (!('photo' in r) || !String(r.photo || '')) {
+    box.innerHTML = '<span style="color:#9ca3af;">No photo saved for ACNO ' + esc(r.acno) + '.</span>';
     return;
   }
 
-  const url = String(r.photo || '');
-  if (!url) {
-    box.innerHTML = '<span style="color:#9ca3af;">No photo saved for ACNO ' + esc(r.acno) + ' (column V is empty).</span>';
-    return;
+  // Photos are PRIVATE in Drive. They are fetched through the authenticated API,
+  // which checks this user is allowed to see this account — a public link would
+  // let anyone with the URL view a customer's premises without logging in.
+  box.innerHTML = '<span style="color:#9ca3af;">Loading photo…</span>';
+  try {
+    const d = await api({ action: 'get_photo', row: r.row, acno: r.acno });
+    if (!d || !d.success) {
+      box.innerHTML = '<span style="color:#b45309;">' + esc((d && d.message) || 'Photo unavailable.') + '</span>';
+      return;
+    }
+    const src = 'data:' + (d.mime || 'image/jpeg') + ';base64,' + d.data;
+    box.innerHTML =
+      '<img src="' + src + '" alt="Meter photo" title="Click to zoom / adjust" ' +
+        'style="width:100%;border-radius:8px;border:1px solid var(--border);display:block;cursor:zoom-in;">' +
+      '<div class="hint" style="margin-top:4px;">ACNO ' + esc(r.acno) + ' — click to zoom / adjust.</div>';
+    const img = box.querySelector('img');
+    if (img) img.onclick = () => pvOpen(src, r.acno);
+  } catch (e) {
+    if (e.message !== 'auth') box.innerHTML = '<span style="color:#b45309;">Could not load the photo.</span>';
   }
-  const id = driveFileId_(url);
-  const thumb = id ? ('https://drive.google.com/thumbnail?id=' + id + '&sz=w600') : url;
-  const big   = id ? ('https://drive.google.com/thumbnail?id=' + id + '&sz=w2000') : url; // higher res for zooming
-  box.innerHTML =
-    '<img src="' + esc(thumb) + '" alt="Meter photo" title="Click to open viewer (zoom, negative, brightness)" ' +
-      'onclick="pvOpen(\'' + esc(big) + '\',\'' + esc(r.acno) + '\')" ' +
-      'style="width:100%;border-radius:8px;border:1px solid #e5e7eb;display:block;cursor:zoom-in;" ' +
-      'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">' +
-    '<a href="' + esc(url) + '" target="_blank" rel="noopener" style="display:none;font-size:12px;color:#2563eb;">📷 Open photo in new tab</a>' +
-    '<div class="hint" style="margin-top:4px;">ACNO ' + esc(r.acno) + ' — click to zoom / adjust.</div>';
 }
 
 // Extract the Drive file id from a share/view URL
@@ -2512,7 +2511,7 @@ async function savePassword() {
   // Validate locally FIRST — anything we can catch here avoids a silent
   // background failure after the window has closed.
   if (!cur || !nw) return fail('Enter your current and new password.');
-  if (nw.length < 4) return fail('New password must be at least 4 characters.');
+  if (nw.length < 8) return fail('New password must be at least 8 characters.');
   if (nw !== nw2) return fail('The two new passwords do not match.');
   if (nw === cur) return fail('The new password is the same as the current one.');
 
