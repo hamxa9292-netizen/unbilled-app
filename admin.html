@@ -360,7 +360,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v65 · reading-date</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v66 · date-below</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -544,11 +544,12 @@ tr:last-child td{border-bottom:none;}
         <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;">
           <label style="font-size:13px;font-weight:600;color:#374151;">Area:</label>
           <select id="new-area-filter" onchange="renderUnbilledNew()" class="dsh-sel"><option value="all">All areas</option></select>
-          <span id="rd-date-wrap" style="display:inline-flex;align-items:center;gap:6px;margin-left:14px;">
-            <label style="font-size:13px;font-weight:600;color:var(--text-2);">Reading date:</label>
-            <input type="date" id="rd-date" onchange="showRdDateLbl()" class="dsh-sel" style="padding:7px 10px;">
-            <span id="rd-date-lbl" style="font-size:11px;color:#0f766e;font-weight:700;"></span>
-          </span>
+        </div>
+        <div id="rd-date-wrap" style="display:none;align-items:center;gap:8px;margin:0 0 12px;padding:9px 12px;border:1px solid #99f6e4;background:#f0fdfa;border-radius:9px;width:fit-content;">
+          <span style="font-size:12px;font-weight:700;color:#0f766e;">📅 Reading date</span>
+          <input type="date" id="rd-date" onchange="showRdDateLbl()" style="padding:6px 9px;border:1.5px solid #5eead4;border-radius:7px;font-size:13px;font-family:inherit;outline:none;">
+          <span id="rd-date-lbl" style="font-size:11px;color:#0f766e;font-weight:700;"></span>
+          <span style="font-size:11px;color:#0f766e;opacity:.75;">— applies to the readings you save</span>
         </div>
         <div id="new-note" style="display:none;font-size:12px;color:#075985;background:#e0f2fe;border-radius:8px;padding:8px 12px;margin-bottom:10px;"></div>
         <div id="new-body" class="loading" style="color:#9ca3af;">Loading…</div>
@@ -2047,7 +2048,7 @@ function renderUnbilledNew() {
   const rsb = document.getElementById('rd-save-btn');
   if (rsb) rsb.disabled = true;   // nothing typed yet on a fresh render
   const rdw = document.getElementById('rd-date-wrap');
-  if (rdw) rdw.style.display = isAdminView ? 'none' : 'inline-flex';
+  if (rdw) rdw.style.display = isAdminView ? 'none' : 'flex';
   const rdd = document.getElementById('rd-date');
   if (rdd && !rdd.value) rdd.value = new Date().toISOString().split('T')[0];
   showRdDateLbl();
