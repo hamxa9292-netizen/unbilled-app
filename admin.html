@@ -72,6 +72,10 @@ html[data-theme="dark"] [style*="background:#f5f3ff"]{background:#241c3d !import
 html[data-theme="dark"] [style*="background:#dcfce7"]{background:#11321f !important;color:#a7f3d0 !important;}  /* green — locked   */
 html[data-theme="dark"] [style*="background:#ede9fe"]{background:#241c3d !important;color:#c4b5fd !important;}  /* violet— badge    */
 html[data-theme="dark"] [style*="background:#fef3c7"]{background:#3b3410 !important;color:#fde68a !important;}  /* amber — pending  */
+html[data-theme="dark"] [style*="background:#fef9c3"]{background:#3b3410 !important;color:#fde68a !important;}  /* amber — today row */
+html[data-theme="dark"] [style*="background:#fef9c3"] *{color:#fde68a !important;}
+html[data-theme="dark"] [style*="background:#f6f8fa"]{background:var(--surface-2) !important;color:var(--text) !important;}
+html[data-theme="dark"] summary{color:inherit;}
 
 /* Keep the deliberately-dark panels (instrument band, viewer) as they are. */
 html[data-theme="dark"] .dsh-panel,
@@ -289,17 +293,17 @@ tr:last-child td{border-bottom:none;}
 }
 .dsh-chip .n{
   font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;
-  font-size:21px;color:#0d1b2c;line-height:1.2;
+  font-size:21px;color:var(--text);line-height:1.2;
 }
 .dsh-chip .l{
-  font-family:'Space Grotesk',sans-serif;font-size:11px;color:#6b7b8c;
+  font-family:'Space Grotesk',sans-serif;font-size:11px;color:var(--text-2);
   letter-spacing:.03em;margin-top:1px;
 }
 .dsh-h{
-  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:#0d1b2c;
+  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--text);
   display:flex;align-items:center;gap:8px;margin:20px 0 10px;
 }
-.dsh-h::after{content:"";flex:1;height:1px;background:#e6eaf0;}
+.dsh-h::after{content:"";flex:1;height:1px;background:var(--border);}
 .dsh-card{background:var(--surface);border:1px solid var(--border-2);border-radius:13px;padding:14px;}
 
 /* month bars */
@@ -307,13 +311,13 @@ tr:last-child td{border-bottom:none;}
 .dsh-mrow:last-child{border-bottom:none;}
 .dsh-mlab{
   font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
-  color:#48566a;width:58px;flex:none;
+  color:var(--text-2);width:58px;flex:none;
 }
-.dsh-track{flex:1;height:16px;background:#eef2f6;border-radius:4px;overflow:hidden;display:flex;}
+.dsh-track{flex:1;height:16px;background:var(--surface-2);border-radius:4px;overflow:hidden;display:flex;}
 .dsh-seg{height:100%;}
 .dsh-mpct{
   font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;
-  font-size:12px;color:#0d1b2c;width:38px;text-align:right;flex:none;
+  font-size:12px;color:var(--text);width:38px;text-align:right;flex:none;
 }
 .dsh-mcount{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;color:#8a97a6;width:78px;text-align:right;flex:none;}
 .dsh-legend{display:flex;gap:14px;font-size:11px;color:#6b7b8c;margin-top:10px;font-family:'Space Grotesk',sans-serif;}
@@ -356,7 +360,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v62 · attended</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v64 · dark-report</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -427,7 +431,6 @@ tr:last-child td{border-bottom:none;}
         <h3>
           Accounts with new readings
           <span style="display:flex;gap:8px;">
-            <button class="addbtn" id="rd-save-btn" style="background:#0f766e;" onclick="saveReadings()" disabled>💾 Save readings</button>
             <button class="addbtn" id="lock-btn" style="background:#b45309;" onclick="lockSelected()" disabled>🔒 Mark selected done → billing</button>
           </span>
         </h3>
@@ -527,7 +530,8 @@ tr:last-child td{border-bottom:none;}
         <h3>
           Unbilled — new (not taken)
           <span style="display:flex;gap:8px;">
-            <button class="addbtn" id="att-btn" style="background:#0f766e;" onclick="tagAs('ATTENDED')" disabled>✔️ Mark Attended</button>
+            <button class="addbtn" id="rd-save-btn" style="background:#0f766e;" onclick="saveReadings()" disabled>💾 Save readings</button>
+            <button class="addbtn" id="att-btn" style="background:#0d9488;" onclick="tagAs('ATTENDED')" disabled>✔️ Mark Attended</button>
             <button class="addbtn" id="chg-btn" style="background:#7c3aed;" onclick="tagAs('CHANGEOVER')" disabled>🔁 Tag as Changeover</button>
             <button class="addbtn" id="rmk-save-btn" style="background:#1E7145;" onclick="saveRemarks()" disabled>💾 Save remarks</button>
             <button class="act" onclick="loadUnbilledNew(true)">🔄 Refresh</button>
@@ -1587,9 +1591,7 @@ function clearEnteredFilters() {
 function renderEntered() {
   const body = document.getElementById('entered-body');
   body.className = ''; body.style.color = '';
-  const canEditReading = true;   // supervisors complete ATTENDED accounts here
-  const rsb = document.getElementById('rd-save-btn');
-  if (rsb) rsb.disabled = true;
+
 
   const shown = enteredRows.slice().sort((a, b) => (a.locked ? 1 : 0) - (b.locked ? 1 : 0)); // pending first, locked at bottom
 
@@ -1605,15 +1607,6 @@ function renderEntered() {
     const ri = enteredRows.indexOf(r);
     const cells = ENTERED_COLS.map(c => {
       const v = r.cells[c.i - 1];
-      // NEW READING (M) is typed in, not copied — an ATTENDED account arrives
-      // here with no reading, and the supervisor completes it.
-      if (c.i === PJ_CUR_COL && canEditReading && !r.locked) {
-        return '<td style="padding:3px 4px;">' +
-          '<input type="number" class="rd-input" data-ri="' + ri + '" value="' + esc(v ?? '') + '" ' +
-          'oninput="onReadingEdit()" placeholder="enter…" ' +
-          'style="width:88px;padding:4px 6px;border:1.5px solid ' + (String(v ?? '').trim() ? '#e5e7eb' : '#0f766e') + ';' +
-          'border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
-      }
       // Let the address column (E, index 5) wrap; keep everything else on one line
       const wrap = (c.i === 5)
         ? 'white-space:normal;word-break:break-word;min-width:120px;'
@@ -2042,10 +2035,12 @@ function renderUnbilledNew() {
   body.className = ''; body.style.color = '';
   // Admins can look but not touch: hide the edit/tag controls entirely.
   const isAdminView = (session.user.role === 'admin');
-  ['chg-btn', 'att-btn', 'rmk-save-btn'].forEach(id => {
+  ['chg-btn', 'att-btn', 'rmk-save-btn', 'rd-save-btn'].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.style.display = isAdminView ? 'none' : '';
   });
+  const rsb = document.getElementById('rd-save-btn');
+  if (rsb) rsb.disabled = true;   // nothing typed yet on a fresh render
   const note = document.getElementById('new-note');
   if (note) {
     note.style.display = isAdminView ? 'block' : 'none';
@@ -2067,6 +2062,7 @@ function renderUnbilledNew() {
   const readOnlyNew = (session.user.role === 'admin');   // admins view only
   const head = (readOnlyNew ? '' : '<th style="width:26px;text-align:center;padding:5px 3px;"><input type="checkbox" onchange="toggleAllNew(this)"></th>') +
     NEW_COLS.map(c => '<th style="white-space:nowrap;padding:5px 4px;">' + esc(c.label) + '</th>').join('') +
+    (readOnlyNew ? '' : '<th style="padding:5px 4px;white-space:nowrap;">NEW READING ✎</th>') +
     '<th style="padding:5px 4px;min-width:160px;">REMARKS' + (readOnlyNew ? '' : ' ✎') + '</th>';
   const rows = shown.map(({ r, ri }) => {
     const cells = NEW_COLS.map(c => {
@@ -2086,7 +2082,14 @@ function renderUnbilledNew() {
     const cb = readOnlyNew ? '' :
       '<td style="text-align:center;padding:5px 3px;">' +
       '<input type="checkbox" class="new-cb" data-ri="' + ri + '" onchange="updateChgBtn()"></td>';
-    return '<tr data-ri="' + ri + '"' + (hasRemark ? ' style="background:#f5f3ff;"' : '') + '>' + cb + cells + rmk + '</tr>';
+    // Type the reading here and the account becomes "taken" — it moves straight
+    // into Unbilled Taken on the next refresh.
+    const rd = readOnlyNew ? '' :
+      '<td style="padding:3px 4px;">' +
+      '<input type="number" class="rd-input" data-ri="' + ri + '" placeholder="reading…" ' +
+      'oninput="onReadingEdit()" ' +
+      'style="width:96px;padding:5px 7px;border:1.5px solid #0f766e;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
+    return '<tr data-ri="' + ri + '"' + (hasRemark ? ' style="background:#f5f3ff;"' : '') + '>' + cb + cells + rd + rmk + '</tr>';
   }).join('');
   body.innerHTML =
     '<div style="border:1px solid #e5e7eb;border-radius:9px;overflow:hidden;">' +
@@ -2856,29 +2859,28 @@ function onReadingEdit() {
   if (b) b.disabled = false;
 }
 
-// Save readings typed into Unbilled Taken. Used to complete ATTENDED accounts
-// (visited, reading came later) and to correct a reading before it's locked.
+// Save readings typed into Unbilled New. Entering a reading makes the account
+// "taken" — it leaves this tab and appears in Unbilled Taken.
 async function saveReadings() {
   const items = [];
   document.querySelectorAll('.rd-input').forEach(inp => {
-    const ri = parseInt(inp.getAttribute('data-ri'));
-    const r = enteredRows[ri];
+    const r = newRows[parseInt(inp.getAttribute('data-ri'))];
     if (!r) return;
     const val = String(inp.value || '').trim();
-    const was = String(r.cells[PJ_CUR_COL - 1] ?? '').trim();
-    if (val !== '' && val !== was) items.push({ row: r.row, acno: r.acno, reading: val });
+    if (val !== '') items.push({ row: r.row, acno: r.acno, reading: val });
   });
-  if (!items.length) { flash('No reading changes to save.', false); return; }
+  if (!items.length) { flash('Type a reading first.', false); return; }
 
   const btn = document.getElementById('rd-save-btn');
   btn.textContent = 'Saving…'; btn.disabled = true;
   try {
     const d = await api({ action: 'sup_update_reading', items: items });
     if (d && d.success) {
-      flash(d.saved + ' reading(s) saved ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
-      preloadCache = null; dashCache = null;   // counts and rows changed
-      if (session.user.role === 'supervisor') startPreload();
-      refreshEntered();
+      flash(d.saved + ' reading(s) saved ✓ — moved to Unbilled Taken' +
+        (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
+      newCache = null; preloadCache = null; dashCache = null;
+      loadUnbilledNew(true);                                   // they leave this list
+      if (session.user.role === 'supervisor') startPreload();  // and join that one
     } else {
       flash((d && d.message) || 'Could not save.', false);
     }
