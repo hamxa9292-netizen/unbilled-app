@@ -360,7 +360,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v68 · date-inline</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v69 · proj-cap</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -498,6 +498,7 @@ tr:last-child td{border-bottom:none;}
             <span style="color:#6b7280;font-size:13px;">Projected date</span>
             <span id="pj-date" style="font-weight:700;color:#1d4ed8;">—</span>
           </div>
+          <div id="pj-note" style="display:none;font-size:11px;color:#b45309;background:#fffbeb;border-radius:6px;padding:6px 8px;margin-top:6px;line-height:1.4;"></div>
         </div>
         <div id="pj-remarks-wrap" style="margin-top:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 10px;">
           <div style="font-size:11px;font-weight:700;color:#b91c1c;margin-bottom:3px;">📝 Remarks</div>
@@ -1789,9 +1790,11 @@ const PJ_PREV_COL = 8;    // H  PREV READING
 const PJ_PDATE_COL = 9;   // I  PREV DATE
 const PJ_CUR_COL  = 13;   // M  NEW READING
 const PJ_DAYS_COL = 17;   // Q  NEW DAYS (reading days)
+const PJ_NDATE_COL = 14;  // N  NEW DATE — the day the meter was actually read
 const PJ_REMARKS_COL = 21; // U  REMARKS
 
 let pjPrevDate = ''; // yyyy-mm-dd of the ticked row's previous date
+let pjNewDate  = ''; // yyyy-mm-dd of the ticked row's new date (the ceiling)
 
 function pjNum(id) {
   const v = parseFloat(document.getElementById(id).value);
@@ -1799,27 +1802,59 @@ function pjNum(id) {
 }
 
 function pjCalc() {
-  const prev = pjNum('pj-prev'), cur = pjNum('pj-cur'), days = pjNum('pj-days'), target = pjNum('pj-target');
-  const dailyEl = document.getElementById('pj-daily'), resEl = document.getElementById('pj-result'), dateEl = document.getElementById('pj-date');
+  const prev = pjNum('pj-prev'), cur = pjNum('pj-cur'), days = pjNum('pj-days');
+  let target = pjNum('pj-target');
+  const dailyEl = document.getElementById('pj-daily'), resEl = document.getElementById('pj-result'),
+        dateEl = document.getElementById('pj-date'), noteEl = document.getElementById('pj-note');
+  const clearNote = () => { if (noteEl) { noteEl.style.display = 'none'; noteEl.textContent = ''; } };
+
   if (prev === null || cur === null || days === null || days === 0) {
     dailyEl.textContent = '—'; resEl.textContent = '—'; resEl.dataset.v = ''; dateEl.textContent = '—';
+    clearNote();
     return;
   }
   const daily = (cur - prev) / days;
   dailyEl.textContent = (Math.round(daily * 1000) / 1000);
-  if (target === null) { resEl.textContent = '—'; resEl.dataset.v = ''; dateEl.textContent = '—'; return; }
-  const projected = Math.round(daily * target + prev); // rounded to whole number
+  if (target === null) { resEl.textContent = '—'; resEl.dataset.v = ''; dateEl.textContent = '—'; clearNote(); return; }
+
+  // The projection cannot run past NEW DATE. Beyond that day the meter was
+  // actually read, so there is nothing left to project — extrapolating further
+  // would invent consumption that the real reading already accounts for.
+  let capped = false;
+  if (pjPrevDate && pjNewDate) {
+    const p = new Date(pjPrevDate + 'T00:00:00'), n = new Date(pjNewDate + 'T00:00:00');
+    if (!isNaN(p) && !isNaN(n)) {
+      const maxDays = Math.round((n - p) / 86400000);
+      if (maxDays >= 0 && target > maxDays) {
+        target = maxDays;
+        capped = true;
+        const ti = document.getElementById('pj-target');
+        if (ti) ti.value = String(maxDays);   // show the user what was actually used
+      }
+    }
+  }
+
+  const projected = Math.round(daily * target + prev);
   resEl.textContent = projected;
   resEl.dataset.v = String(projected);
-  // Projected date = previous date + target days
+
+  // Projected date = previous date + target days (now guaranteed ≤ new date)
   if (pjPrevDate) {
     const d = new Date(pjPrevDate + 'T00:00:00');
     if (!isNaN(d)) {
       d.setDate(d.getDate() + Math.round(target));
       const dd = ('0'+d.getDate()).slice(-2), mm = ('0'+(d.getMonth()+1)).slice(-2), yy = d.getFullYear();
-      dateEl.textContent = dd + '/' + mm + '/' + yy;
+      dateEl.textContent = dd + '-' + mm + '-' + yy;
     } else dateEl.textContent = '—';
   } else dateEl.textContent = '—';
+
+  if (noteEl) {
+    if (capped) {
+      noteEl.style.display = 'block';
+      noteEl.textContent = '⚠ Capped at ' + target + ' days — the meter was read on ' + ddmm(pjNewDate) +
+        ', so the projection cannot go past that date.';
+    } else clearNote();
+  }
 }
 
 // Fill the calculator from a ticked row and compute
@@ -1830,6 +1865,7 @@ function pjLoadFromRow(r) {
   document.getElementById('pj-cur').value  = g(PJ_CUR_COL);
   document.getElementById('pj-days').value = g(PJ_DAYS_COL);
   pjPrevDate = normDate_(g(PJ_PDATE_COL)); // for the projected-date calc
+  pjNewDate  = normDate_(g(PJ_NDATE_COL)); // projection can never go past this
   pjCalc();
   pjShowPhoto(r);
   pjShowRemarks(r);
