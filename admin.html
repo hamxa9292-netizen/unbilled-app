@@ -360,7 +360,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr">
     <div class="hdr-in">
       <span style="font-size:20px">🛠️</span>
-      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v72 · security</span></h1>
+      <h1>Unbilled Admin <span style="font-size:11px;font-weight:400;opacity:.6;">v73 · security</span></h1>
       <span class="who" id="who"></span>
       <button onclick="toggleTheme()" id="theme-btn" title="Switch light / dark" style="margin-right:6px;">🌙</button>
       <button onclick="openPwModal()" style="margin-right:6px;">🔑 Password</button>
@@ -1364,6 +1364,7 @@ let enteredHeaders = [], enteredRows = [];
 let entEditMode = false;   // when true, NEW READING cells become editable inputs
 
 const ENT_NEWREAD_COL = 13; // M — NEW READING
+const ENT_NEWDATE_COL = 14; // N — NEW DATE
 
 // Toggle inline editing of NEW READING. Re-renders so the cells swap between
 // plain text (copy-on-click) and number inputs. Locked rows stay read-only.
@@ -1384,27 +1385,50 @@ function onEntReadingEdit() {
   if (save) save.disabled = false;
 }
 
-// Save NEW READING edits back to the sheet (col M). Only rows whose value
-// actually changed are sent.
+// Save NEW READING (col M) and/or NEW DATE (col N) edits back to the sheet.
+// Only rows whose reading OR date actually changed are sent. The date is
+// passed per-row (dd-mm-yyyy) so the backend writes each row's own date and
+// nothing is blanked.
 async function saveEnteredReadings() {
+  const dateByRi = {};
+  document.querySelectorAll('.ent-nd-input').forEach(inp => {
+    dateByRi[inp.getAttribute('data-ri')] = String(inp.value ?? '').trim(); // yyyy-mm-dd or ''
+  });
+
   const items = [];
   document.querySelectorAll('.ent-rd-input').forEach(inp => {
-    const r = enteredRows[parseInt(inp.getAttribute('data-ri'))];
+    const ri = inp.getAttribute('data-ri');
+    const r = enteredRows[parseInt(ri)];
     if (!r) return;
+
     const val = String(inp.value ?? '').trim();
-    const cur = String(r.cells[ENT_NEWREAD_COL - 1] ?? '').trim();
-    if (val !== cur) items.push({ row: r.row, acno: r.acno, reading: val });
+    const curVal = String(r.cells[ENT_NEWREAD_COL - 1] ?? '').trim();
+
+    const newIso = dateByRi[ri] || '';                              // yyyy-mm-dd
+    const curIso = normDate_(r.cells[ENT_NEWDATE_COL - 1] ?? '');   // normalise sheet date
+    const dateChanged = newIso !== '' && newIso !== curIso;
+
+    if (val !== curVal || dateChanged) {
+      const it = { row: r.row, acno: r.acno, reading: val };
+      if (dateChanged) it.date = ddmm(newIso); // send dd-mm-yyyy per the app's date convention
+      items.push(it);
+    }
   });
-  if (!items.length) { flash('No reading changes to save.', false); return; }
+  if (!items.length) { flash('No reading or date changes to save.', false); return; }
 
   const btn = document.getElementById('ent-save-btn');
   btn.textContent = 'Saving…'; btn.disabled = true;
   try {
     const d = await api({ action: 'sup_update_reading', items: items });
     if (d && d.success) {
-      flash(d.saved + ' reading(s) updated ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
-      // reflect saved values locally so the projection/photo panels stay correct
-      items.forEach(it => { const r = enteredRows.find(x => x.row === it.row); if (r) r.cells[ENT_NEWREAD_COL - 1] = it.reading; });
+      flash(d.saved + ' row(s) updated ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
+      // reflect saved values locally
+      items.forEach(it => {
+        const r = enteredRows.find(x => x.row === it.row);
+        if (!r) return;
+        r.cells[ENT_NEWREAD_COL - 1] = it.reading;
+        if (it.date) r.cells[ENT_NEWDATE_COL - 1] = it.date;
+      });
       preloadCache = null; dashCache = null;
       if (session.user.role === 'supervisor') startPreload();
       renderEntered();
@@ -1416,7 +1440,6 @@ async function saveEnteredReadings() {
   }
   btn.textContent = '💾 Save'; btn.disabled = true;
 }
-
 // The 12 columns to show, by sheet index (1-based), in display order.
 // B ACNO, C CAT, D METER_NO, E CONSADDRESS, H prev reading, I prev date,
 // M new reading, N new date, O C.USAGE, S CUTOFF DATE, T CUTOFF READING.
@@ -1675,15 +1698,21 @@ function renderEntered() {
     const ri = enteredRows.indexOf(r);
     const cells = ENTERED_COLS.map(c => {
       const v = r.cells[c.i - 1];
-      // NEW READING (col M, index 13) becomes an input while edit-mode is on —
-      // but never for locked rows (those are final).
-      if (c.i === 13 && entEditMode && !r.locked) {
+      // In edit-mode, NEW READING (col M / i=13) becomes a number input and
+      // NEW DATE (col N / i=14) becomes a date picker. Never for locked rows.
+      if (entEditMode && !r.locked && (c.i === 13 || c.i === 14)) {
+        if (c.i === 13) {
+          return '<td style="padding:3px 4px;white-space:nowrap;">' +
+            '<input type="number" class="ent-rd-input" data-ri="' + ri + '" ' +
+            'value="' + esc(v ?? '') + '" oninput="onEntReadingEdit()" ' +
+            'style="width:96px;padding:5px 7px;border:1.5px solid #2563eb;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
+        }
+        // NEW DATE — value must be yyyy-mm-dd for the native picker
         return '<td style="padding:3px 4px;white-space:nowrap;">' +
-          '<input type="number" class="ent-rd-input" data-ri="' + ri + '" ' +
-          'value="' + esc(v ?? '') + '" oninput="onEntReadingEdit()" ' +
-          'style="width:96px;padding:5px 7px;border:1.5px solid #2563eb;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
+          '<input type="date" class="ent-nd-input" data-ri="' + ri + '" ' +
+          'value="' + esc(normDate_(v)) + '" oninput="onEntReadingEdit()" ' +
+          'style="padding:5px 7px;border:1.5px solid #2563eb;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
       }
-      // Let the address column (E, index 5) wrap; keep everything else on one line
       const wrap = (c.i === 5)
         ? 'white-space:normal;word-break:break-word;min-width:120px;'
         : 'white-space:nowrap;';
