@@ -1746,7 +1746,10 @@ function renderEntered() {
         : (r.attended
           ? '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#ccfbf1;color:#0f766e;" title="Attended — enter the reading to complete it">✔️</span></td>'
           : '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#fef3c7;color:#92400e;">•</span></td>'));
-    return '<tr class="' + (r.locked ? 'locked-row' : '') + '" data-ri="' + ri + '">' +
+    // ATTENDED rows are tinted purple so a supervisor can spot at a glance which
+    // accounts were visited but still need a reading typed in. Locked wins.
+    const rowStyle = (!r.locked && r.attended) ? ' style="background:#f5f3ff;"' : '';
+    return '<tr class="' + (r.locked ? 'locked-row' : '') + '" data-ri="' + ri + '"' + rowStyle + '>' +
       '<td style="text-align:center;padding:5px 3px;">' + cb + '</td>' + statusCell + cells + '</tr>';
   }).join('');
   body.innerHTML =
