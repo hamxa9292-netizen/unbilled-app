@@ -545,6 +545,8 @@ tr:last-child td{border-bottom:none;}
         <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <label style="font-size:13px;font-weight:600;color:#374151;">Area:</label>
           <select id="new-area-filter" onchange="renderUnbilledNew()" class="dsh-sel"><option value="all">All areas</option></select>
+          <label style="font-size:13px;font-weight:600;color:#374151;">R_DATE:</label>
+          <select id="new-rdate-filter" onchange="renderUnbilledNew()" class="dsh-sel"><option value="all">All dates</option></select>
           <span id="rd-date-wrap" style="display:none;align-items:center;gap:8px;margin-left:auto;padding:7px 11px;border:1px solid #99f6e4;background:#f0fdfa;border-radius:9px;">
             <span style="font-size:12px;font-weight:700;color:#0f766e;white-space:nowrap;">📅 Reading date</span>
             <input type="date" id="rd-date" onchange="showRdDateLbl()" style="padding:5px 8px;border:1.5px solid #5eead4;border-radius:7px;font-size:13px;font-family:inherit;outline:none;">
@@ -2058,6 +2060,22 @@ async function loadUnbilledNew(force) {
 }
 
 const NEW_AREA_COL = 7; // G
+const NEW_RDATE_COL = 12; // L (R_DATE)
+
+// Fill the R_DATE dropdown from the distinct R_DATE (col L) values present in
+// the untaken rows. Option values are yyyy-mm-dd (for comparison); labels are
+// shown dd-MM-yyyy so the browser locale can't misread them.
+function populateNewRdateFilter() {
+  const sel = document.getElementById('new-rdate-filter');
+  if (!sel) return;
+  const prev = sel.value;
+  const dates = Array.from(new Set(
+    newRows.map(r => normDate_(r.cells[NEW_RDATE_COL - 1])).filter(Boolean)
+  )).sort().reverse(); // newest first
+  sel.innerHTML = '<option value="all">All dates</option>' +
+    dates.map(d => '<option value="' + esc(d) + '">' + esc(ddmm(d)) + '</option>').join('');
+  if (prev && (prev === 'all' || dates.indexOf(prev) !== -1)) sel.value = prev;
+}
 
 function populateNewAreaFilter() {
   const sel = document.getElementById('new-area-filter');
@@ -2092,7 +2110,9 @@ function renderUnbilledNew() {
     note.innerHTML = '👁️ View only — remarks and changeover tagging are done by the area supervisor.';
   }
   populateNewAreaFilter();
+  populateNewRdateFilter();
   const fArea = document.getElementById('new-area-filter').value;
+  const fRdate = document.getElementById('new-rdate-filter').value;
 
   if (!newRows.length) {
     body.innerHTML = '<div class="loading" style="color:#9ca3af;">No untaken accounts. 🎉</div>';
@@ -2100,9 +2120,10 @@ function renderUnbilledNew() {
     return;
   }
   // Keep the TRUE index into newRows in data-ri so remarks save maps correctly
-  const shown = newRows
+const shown = newRows
     .map((r, ri) => ({ r, ri }))
-    .filter(x => fArea === 'all' || String(x.r.area ?? x.r.cells[NEW_AREA_COL - 1] ?? '').trim() === fArea);
+    .filter(x => (fArea === 'all' || String(x.r.area ?? x.r.cells[NEW_AREA_COL - 1] ?? '').trim() === fArea)
+              && (fRdate === 'all' || normDate_(x.r.cells[NEW_RDATE_COL - 1]) === fRdate));
 
   const readOnlyNew = (session.user.role === 'admin');   // admins view only
   const head = (readOnlyNew ? '' : '<th style="width:26px;text-align:center;padding:5px 3px;"><input type="checkbox" onchange="toggleAllNew(this)"></th>') +
