@@ -431,6 +431,8 @@ tr:last-child td{border-bottom:none;}
         <h3>
           Accounts with new readings
           <span style="display:flex;gap:8px;">
+            <button class="addbtn" id="ent-edit-btn" style="background:#2563eb;" onclick="toggleEntEdit()">✏️ Edit reading</button>
+            <button class="addbtn" id="ent-save-btn" style="background:#0f766e;" onclick="saveEnteredReadings()" disabled>💾 Save</button>
             <button class="addbtn" id="lock-btn" style="background:#b45309;" onclick="lockSelected()" disabled>🔒 Mark selected done → billing</button>
           </span>
         </h3>
@@ -1357,7 +1359,63 @@ async function doCsvUpload() {
 }
 
 /* ── Entered Readings: list, copy-on-click, lock ── */
+/* ── Entered Readings: list, copy-on-click, lock ── */
 let enteredHeaders = [], enteredRows = [];
+let entEditMode = false;   // when true, NEW READING cells become editable inputs
+
+const ENT_NEWREAD_COL = 13; // M — NEW READING
+
+// Toggle inline editing of NEW READING. Re-renders so the cells swap between
+// plain text (copy-on-click) and number inputs. Locked rows stay read-only.
+function toggleEntEdit() {
+  entEditMode = !entEditMode;
+  const btn = document.getElementById('ent-edit-btn');
+  if (btn) {
+    btn.textContent = entEditMode ? '✅ Done editing' : '✏️ Edit reading';
+    btn.style.background = entEditMode ? '#166534' : '#2563eb';
+  }
+  const save = document.getElementById('ent-save-btn');
+  if (save) save.disabled = true; // nothing changed yet
+  if (enteredRows.length) renderEntered();
+}
+
+function onEntReadingEdit() {
+  const save = document.getElementById('ent-save-btn');
+  if (save) save.disabled = false;
+}
+
+// Save NEW READING edits back to the sheet (col M). Only rows whose value
+// actually changed are sent.
+async function saveEnteredReadings() {
+  const items = [];
+  document.querySelectorAll('.ent-rd-input').forEach(inp => {
+    const r = enteredRows[parseInt(inp.getAttribute('data-ri'))];
+    if (!r) return;
+    const val = String(inp.value ?? '').trim();
+    const cur = String(r.cells[ENT_NEWREAD_COL - 1] ?? '').trim();
+    if (val !== cur) items.push({ row: r.row, acno: r.acno, reading: val });
+  });
+  if (!items.length) { flash('No reading changes to save.', false); return; }
+
+  const btn = document.getElementById('ent-save-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    const d = await api({ action: 'sup_update_reading', items: items });
+    if (d && d.success) {
+      flash(d.saved + ' reading(s) updated ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
+      // reflect saved values locally so the projection/photo panels stay correct
+      items.forEach(it => { const r = enteredRows.find(x => x.row === it.row); if (r) r.cells[ENT_NEWREAD_COL - 1] = it.reading; });
+      preloadCache = null; dashCache = null;
+      if (session.user.role === 'supervisor') startPreload();
+      renderEntered();
+    } else {
+      flash((d && d.message) || 'Could not save.', false);
+    }
+  } catch(e) {
+    if (e.message !== 'auth') flash('Could not connect.', false);
+  }
+  btn.textContent = '💾 Save'; btn.disabled = true;
+}
 
 // The 12 columns to show, by sheet index (1-based), in display order.
 // B ACNO, C CAT, D METER_NO, E CONSADDRESS, H prev reading, I prev date,
@@ -1484,6 +1542,8 @@ function onEntAreaChange() {
   const area = document.getElementById('ent-area').value;
   const body = document.getElementById('entered-body');
   entBlinkRefresh(false); // switching area clears any prior alert
+  const esb = document.getElementById('ent-save-btn');
+  if (esb) esb.disabled = true; // unsaved edits don't carry across areas
   if (!area) {
     enteredRows = [];
     body.className = 'loading'; body.style.color = '#9ca3af';
@@ -1615,6 +1675,14 @@ function renderEntered() {
     const ri = enteredRows.indexOf(r);
     const cells = ENTERED_COLS.map(c => {
       const v = r.cells[c.i - 1];
+      // NEW READING (col M, index 13) becomes an input while edit-mode is on —
+      // but never for locked rows (those are final).
+      if (c.i === 13 && entEditMode && !r.locked) {
+        return '<td style="padding:3px 4px;white-space:nowrap;">' +
+          '<input type="number" class="ent-rd-input" data-ri="' + ri + '" ' +
+          'value="' + esc(v ?? '') + '" oninput="onEntReadingEdit()" ' +
+          'style="width:96px;padding:5px 7px;border:1.5px solid #2563eb;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"></td>';
+      }
       // Let the address column (E, index 5) wrap; keep everything else on one line
       const wrap = (c.i === 5)
         ? 'white-space:normal;word-break:break-word;min-width:120px;'
