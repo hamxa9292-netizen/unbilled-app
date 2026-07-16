@@ -1385,17 +1385,18 @@ function onEntReadingEdit() {
   if (save) save.disabled = false;
 }
 
-// Save NEW READING (col M) and/or NEW DATE (col N) edits back to the sheet.
-// Only rows whose reading OR date actually changed are sent. The date is
-// passed per-row (dd-mm-yyyy) so the backend writes each row's own date and
-// nothing is blanked.
+// Save NEW READING (col M) and/or NEW DATE (col N) edits. The backend stamps
+// ONE date per call, so rows are grouped by their (possibly edited) date and
+// sent in one call per distinct date. Reading-only edits reuse the row's
+// existing NEW DATE, so nothing gets silently overwritten with today.
 async function saveEnteredReadings() {
   const dateByRi = {};
   document.querySelectorAll('.ent-nd-input').forEach(inp => {
     dateByRi[inp.getAttribute('data-ri')] = String(inp.value ?? '').trim(); // yyyy-mm-dd or ''
   });
 
-  const items = [];
+  // Collect changed rows, resolving each to the date it should be saved with.
+  const changed = []; // { row, acno, reading, iso }
   document.querySelectorAll('.ent-rd-input').forEach(inp => {
     const ri = inp.getAttribute('data-ri');
     const r = enteredRows[parseInt(ri)];
@@ -1404,40 +1405,55 @@ async function saveEnteredReadings() {
     const val = String(inp.value ?? '').trim();
     const curVal = String(r.cells[ENT_NEWREAD_COL - 1] ?? '').trim();
 
-    const newIso = dateByRi[ri] || '';                              // yyyy-mm-dd
-    const curIso = normDate_(r.cells[ENT_NEWDATE_COL - 1] ?? '');   // normalise sheet date
-    const dateChanged = newIso !== '' && newIso !== curIso;
+    const editedIso = dateByRi[ri] || '';                          // yyyy-mm-dd from picker
+    const curIso = normDate_(r.cells[ENT_NEWDATE_COL - 1] ?? '');  // existing NEW DATE
+    const finalIso = editedIso || curIso;                          // never blank if row had a date
+    const dateChanged = editedIso !== '' && editedIso !== curIso;
 
+    if (val === '') return;                       // backend skips blank readings anyway
     if (val !== curVal || dateChanged) {
-      const it = { row: r.row, acno: r.acno, reading: val };
-      if (dateChanged) it.date = ddmm(newIso); // send dd-mm-yyyy per the app's date convention
-      items.push(it);
+      changed.push({ row: r.row, acno: r.acno, reading: val, iso: finalIso });
     }
   });
-  if (!items.length) { flash('No reading or date changes to save.', false); return; }
+
+  if (!changed.length) { flash('No reading or date changes to save.', false); return; }
+
+  // Group by the date each row should carry (dd-mm-yyyy for the backend).
+  const groups = {};
+  changed.forEach(c => {
+    const key = c.iso || '';   // '' → backend falls back to today (only if the row truly has no date)
+    (groups[key] = groups[key] || []).push(c);
+  });
 
   const btn = document.getElementById('ent-save-btn');
   btn.textContent = 'Saving…'; btn.disabled = true;
+  let totalSaved = 0, totalSkipped = 0, failed = false;
+
   try {
-    const d = await api({ action: 'sup_update_reading', items: items });
-    if (d && d.success) {
-      flash(d.saved + ' row(s) updated ✓' + (d.skipped ? ', ' + d.skipped + ' skipped' : ''), true);
-      // reflect saved values locally
-      items.forEach(it => {
-        const r = enteredRows.find(x => x.row === it.row);
-        if (!r) return;
-        r.cells[ENT_NEWREAD_COL - 1] = it.reading;
-        if (it.date) r.cells[ENT_NEWDATE_COL - 1] = it.date;
-      });
-      preloadCache = null; dashCache = null;
-      if (session.user.role === 'supervisor') startPreload();
-      renderEntered();
-    } else {
-      flash((d && d.message) || 'Could not save.', false);
+    for (const iso in groups) {
+      const items = groups[iso].map(c => ({ row: c.row, acno: c.acno, reading: c.reading }));
+      const payload = { action: 'sup_update_reading', items: items };
+      if (iso) payload.date = ddmm(iso);   // dd-mm-yyyy; omitted only if the row had no date at all
+      const d = await api(payload);
+      if (d && d.success) { totalSaved += (d.saved || 0); totalSkipped += (d.skipped || 0); }
+      else { failed = true; flash((d && d.message) || 'Could not save.', false); break; }
     }
   } catch(e) {
-    if (e.message !== 'auth') flash('Could not connect.', false);
+    if (e.message !== 'auth') { failed = true; flash('Could not connect.', false); }
   }
+
+  if (!failed) {
+    flash(totalSaved + ' row(s) updated ✓' + (totalSkipped ? ', ' + totalSkipped + ' skipped' : ''), true);
+    changed.forEach(c => {
+      const r = enteredRows.find(x => x.row === c.row);
+      if (!r) return;
+      r.cells[ENT_NEWREAD_COL - 1] = c.reading;
+      if (c.iso) r.cells[ENT_NEWDATE_COL - 1] = ddmm(c.iso);
+    });
+    preloadCache = null; dashCache = null;
+    if (session.user.role === 'supervisor') startPreload();
+  }
+  renderEntered();
   btn.textContent = '💾 Save'; btn.disabled = true;
 }
 // The 12 columns to show, by sheet index (1-based), in display order.
