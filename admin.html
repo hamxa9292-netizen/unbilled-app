@@ -534,8 +534,8 @@ tr:last-child td{border-bottom:none;}
           Unbilled — new (not taken)
           <span style="display:flex;gap:8px;">
             <button class="addbtn" id="rd-save-btn" style="background:#0f766e;" onclick="saveReadings()" disabled>💾 Save readings</button>
-            <button class="addbtn" id="att-btn" style="background:#0d9488;" onclick="tagAs('ATTENDED')" disabled>✔️ Mark Attended</button>
-            <button class="addbtn" id="chg-btn" style="background:#7c3aed;" onclick="tagAs('CHANGEOVER')" disabled>🔁 Tag as Changeover</button>
+            <button class="addbtn" id="att-btn" style="background:#7c3aed;" onclick="tagAs('ATTENDED')" disabled>✔️ Mark Attended</button>
+            <button class="addbtn" id="chg-btn" style="background:#0ea5e9;" onclick="tagAs('CHANGEOVER')" disabled>🔁 Tag as Changeover</button>
             <button class="addbtn" id="rmk-save-btn" style="background:#1E7145;" onclick="saveRemarks()" disabled>💾 Save remarks</button>
             <button class="act" onclick="loadUnbilledNew(true)">🔄 Refresh</button>
           </span>
@@ -1746,10 +1746,13 @@ function renderEntered() {
         : (r.attended
           ? '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#ccfbf1;color:#0f766e;" title="Attended — enter the reading to complete it">✔️</span></td>'
           : '<td style="text-align:center;padding:5px 3px;"><span class="role-b" style="background:#fef3c7;color:#92400e;">•</span></td>'));
-    // ATTENDED rows are tinted purple so a supervisor can spot at a glance which
-    // accounts were visited but still need a reading typed in. Locked wins.
+// ATTENDED → purple (visited, reading still needed); CHANGEOVER → pale blue
+    // (meter swap, no reading). Locked wins over both.
     const isAttended = r.attended || String(r.tag || '').toUpperCase() === 'ATTENDED';
-    const rowStyle = (!r.locked && isAttended) ? ' style="background:#f5f3ff;"' : '';
+    const isChangeover = r.changeover || String(r.tag || '').toUpperCase() === 'CHANGEOVER';
+    let rowStyle = '';
+    if (!r.locked && isAttended) rowStyle = ' style="background:#f5f3ff;"';       // purple
+    else if (!r.locked && isChangeover) rowStyle = ' style="background:#e0f2fe;"'; // pale blue
     return '<tr class="' + (r.locked ? 'locked-row' : '') + '" data-ri="' + ri + '"' + rowStyle + '>' +
       '<td style="text-align:center;padding:5px 3px;">' + cb + '</td>' + statusCell + cells + '</tr>';
   }).join('');
