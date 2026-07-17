@@ -664,7 +664,8 @@ async function loadAll(force) {
     const data = await res.json();
     if (isAuthError(data)) { forceRelogin(); return; }
     allAccounts = (data.accounts || [])
-      .sort((a, b) => Number(a.row) - Number(b.row));      // sheet row order; locked accounts are shown READ-ONLY
+      .filter(a => !a.locked)                               // field staff never see locked accounts
+      .sort((a, b) => Number(a.row) - Number(b.row));
     localStorage.setItem(CK, JSON.stringify(allAccounts));
     localStorage.setItem(CT, Date.now()+'');
     filtered = allAccounts;
@@ -696,7 +697,7 @@ async function bgRefresh() {
     const data = await res.json();
     if (isAuthError(data)) { forceRelogin(); return; }
     if (data.accounts) {
-      allAccounts = data.accounts.sort((a,b)=>Number(a.row)-Number(b.row)); // locked shown read-only
+      allAccounts = data.accounts.filter(a=>!a.locked).sort((a,b)=>Number(a.row)-Number(b.row)); // exclude locked
       localStorage.setItem(CK, JSON.stringify(allAccounts));
       localStorage.setItem(CT, Date.now()+'');
       // Reapply the current search filter so `filtered` points at fresh data,
